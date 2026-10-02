@@ -83,9 +83,13 @@ public final class Ui {
         return WebResponse.html(HTTPStatus.OK, html);
     }
 
-    /** The {@code {id}} of the route. */
+    /**
+     * The {@code {id}} of the route; {@code -1} (matches nothing) when it is not a number, so {@code /people/abc}
+     * answers like a missing id instead of failing.
+     */
     public static int pathId(WebRequest request) {
-        return Integer.parseInt(request.pathParam("id").getOrThrow());
+        val id = number(request.pathParam("id").getOrElse(""));
+        return id == null ? -1 : id;
     }
 
     /** A positive number, or {@code null} for anything else (absent, empty, not a number). */

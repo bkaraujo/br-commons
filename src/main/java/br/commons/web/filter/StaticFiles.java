@@ -15,6 +15,9 @@ import org.jspecify.annotations.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.JarURLConnection;
+import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -74,18 +77,45 @@ public final class StaticFiles implements HTTPFilter {
                 .header("X-Content-Type-Options", "nosniff");
     }
 
+    /**
+     * The bytes of a regular file; {@code null} for a missing name or a directory, which answer 404. A name found
+     * in the development directory is answered from there, even when it is a directory.
+     */
     private byte @Nullable [] read(String name) {
         try {
             if (directory != null) {
                 val file = directory.resolve(name).normalize();
-                if (file.startsWith(directory) && Files.isRegularFile(file)) return Files.readAllBytes(file);
+                if (file.startsWith(directory) && Files.exists(file)) {
+                    return Files.isRegularFile(file) ? Files.readAllBytes(file) : null;
+                }
             }
-            try (InputStream input = StaticFiles.class.getClassLoader().getResourceAsStream(classpathRoot + "/" + name)) {
-                return input == null ? null : input.readAllBytes();
-            }
+            return fromClasspath(name);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private byte @Nullable [] fromClasspath(String name) throws IOException {
+        val resource = StaticFiles.class.getClassLoader().getResource(classpathRoot + "/" + name);
+        if (resource == null || isDirectory(resource)) return null;
+        try (InputStream input = resource.openStream()) {
+            return input.readAllBytes();
+        }
+    }
+
+    /**
+     * Whether the classpath resource is a directory: the JDK opens one of an exploded classpath
+     * ({@code target/classes}) as the listing of its files, which must not be served.
+     */
+    private static boolean isDirectory(URL resource) throws IOException {
+        return switch (resource.getProtocol()) {
+            case "file" -> Files.isDirectory(Path.of(URI.create(resource.toExternalForm())));
+            case "jar" -> {
+                val entry = ((JarURLConnection) resource.openConnection()).getJarEntry();
+                yield entry == null || entry.isDirectory();
+            }
+            default -> false;
+        };
     }
 
     private static String type(String name) {

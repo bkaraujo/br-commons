@@ -59,6 +59,17 @@ class StaticFilesTest {
         }
     }
 
+    /** Regression: a directory answered 200 with the listing of its files (exploded classpath). */
+    @Test
+    void directoriesAreNotServed() throws Exception {
+        val fromClasspath = new StaticFiles("/static/", "static-test", null, Duration.ZERO);
+        assertEquals(404, fromClasspath.apply(request(HTTPMethod.GET, "/static/css"), NEXT).status().code());
+        Files.createDirectories(dir.resolve("css"));
+        val fromDisk = new StaticFiles("/static/", "static-test", dir, Duration.ZERO);
+        assertEquals(404, fromDisk.apply(request(HTTPMethod.GET, "/static/css"), NEXT).status().code());
+        assertEquals(200, fromDisk.apply(request(HTTPMethod.GET, "/static/css/app.css"), NEXT).status().code());
+    }
+
     @Test
     void otherRequestsGoDownTheChain() {
         val files = new StaticFiles("/static/", "static-test", null, Duration.ZERO);

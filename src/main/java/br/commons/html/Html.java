@@ -2017,10 +2017,17 @@ public abstract class Html {
         return element("input", join(content, extra));
     }
 
+    /**
+     * A {@code <textarea>} with the current value as its content. A newline is written right after the start tag:
+     * the HTML parser drops one newline there, so a value that starts with a newline keeps it.
+     *
+     * @see <a href="https://html.spec.whatwg.org/dev/syntax.html#element-restrictions">HTML: restrictions on
+     * contents of textarea</a>
+     */
     public static Node.Element textarea(Dialect dialect, Field field, String current, Content... extra) {
         val content = control(dialect, "textarea", field);
         content.addAll(List.of(extra));
-        content.add(text(Text.data(current)));
+        content.add(text(Text.data("\n" + current)));
         return element("textarea", content.toArray(Content[]::new));
     }
 

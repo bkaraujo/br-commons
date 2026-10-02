@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,6 +19,8 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -73,6 +76,31 @@ class HTTPServerLimitsTest {
         assertArrayEquals(body, HTTPServer.readBody(new ByteArrayInputStream(body), Long.MAX_VALUE));
         assertArrayEquals(body, HTTPServer.readBody(new ByteArrayInputStream(body), body.length));
         assertNull(HTTPServer.readBody(new ByteArrayInputStream(body), body.length - 1));
+    }
+
+    /** Regression: a body over the largest array was truncated and passed on as complete when there was no limit. */
+    @Test
+    void aBodyOverTheArrayCapIsTooLargeEvenWithoutLimit() throws Exception {
+        val body = "0123456789".getBytes(StandardCharsets.UTF_8);
+        assertNull(HTTPServer.readBody(new ByteArrayInputStream(body), Long.MAX_VALUE, 8));
+        assertArrayEquals(body, HTTPServer.readBody(new ByteArrayInputStream(body), Long.MAX_VALUE, 10));
+    }
+
+    /** Regression: malformed percent-encoding in the query failed the request with a 500 and a fatal log. */
+    @Test
+    void malformedQueryGets400() throws Exception {
+        assertTrue(HTTPServer.parseQuery("q=%zz").isFailure());
+        assertTrue(HTTPServer.parseQuery("q=100%").isFailure());
+        assertTrue(HTTPServer.parseQuery("%zz=1").isFailure());
+        assertEquals(Map.of("q", "a b", "x", "é"), HTTPServer.parseQuery("q=a%20b&x=%C3%A9&flag").getOrThrow());
+        for (val query : List.of("q=%zz", "q=100%")) {
+            try (val socket = new Socket("localhost", server.port())) {
+                socket.getOutputStream().write(("GET /?" + query + " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                        .getBytes(StandardCharsets.US_ASCII));
+                val status = new String(socket.getInputStream().readAllBytes(), StandardCharsets.US_ASCII).lines().findFirst();
+                assertEquals(Optional.of("HTTP/1.1 400 Bad Request"), status, query);
+            }
+        }
     }
 
     @Test

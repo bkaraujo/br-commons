@@ -69,9 +69,12 @@ class FormsTest {
                 choice(Html4.DIALECT, FieldSpec.of("k", InputType.RADIO).build().getOrThrow(), "a", false, id("k-a")).render());
 
         val note = FieldSpec.of("note", InputType.TEXT).asRequired().withMaxLength(500).withPattern("x").build().getOrThrow();
-        assertEquals("<textarea name=\"note\" required maxlength=\"500\" rows=\"3\">&lt;b&gt;</textarea>",
+        assertEquals("<textarea name=\"note\" required maxlength=\"500\" rows=\"3\">\n&lt;b&gt;</textarea>",
                 textarea(Html5.DIALECT, note, "<b>", rows(3)).render());
-        assertEquals("<textarea name=\"note\"></textarea>", textarea(Html4.DIALECT, note, "").render());
+        assertEquals("<textarea name=\"note\">\n</textarea>", textarea(Html4.DIALECT, note, "").render());
+        // Regression: the parser drops the newline right after <textarea>, so a value starting with one lost it.
+        assertEquals("<textarea name=\"note\">\n\nsecond line</textarea>",
+                textarea(Html4.DIALECT, note, "\nsecond line").render());
 
         val tags = FieldSpec.of("tag", InputType.TEXT).asMultiple().asRequired().build().getOrThrow();
         val options = List.of(new Option("a", Text.data("A")), new Option("b", Text.data("B")));
