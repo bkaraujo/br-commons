@@ -11,8 +11,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Documento YAML — tipicamente configuração. Consulta, escalares, {@code asEnum} e binding vêm de
+ * {@link Serializer}, comuns ao JSON; aqui fica o que é só do YAML: listas de escalares em texto
+ * ({@code "1, 2, 3"}), sub-documentos e escrita de volta no arquivo.
+ */
 @NullMarked
-public interface Yaml {
+public interface Yaml extends Serializer {
 
     static Yaml from(Path path) { return YamlRoot.from(path); }
     static Yaml fromClasspath(String resource) { return YamlRoot.fromClasspath(resource); }
@@ -27,30 +32,9 @@ public interface Yaml {
     double[]    asDoubles (String key);
     Tuple[]     asTuples  (String key);
 
-
-    default Byte    asByte    (String key, byte    defaultValue) { Byte    v = asByte(key);    return v == null ? defaultValue : v; }
-    default Short   asShort   (String key, short   defaultValue) { Short   v = asShort(key);   return v == null ? defaultValue : v; }
-    default Integer asInt     (String key, int     defaultValue) { Integer v = asInt(key);     return v == null ? defaultValue : v; }
-    default Long    asLong    (String key, long    defaultValue) { Long    v = asLong(key);    return v == null ? defaultValue : v; }
-    default Float   asFloat   (String key, float   defaultValue) { Float   v = asFloat(key);   return v == null ? defaultValue : v; }
-    default Boolean asBoolean (String key, boolean defaultValue) { Boolean v = asBoolean(key); return v == null ? defaultValue : v; }
-    default Double  asDouble  (String key, double  defaultValue) { Double  v = asDouble(key);  return v == null ? defaultValue : v; }
-    default String  asString  (String key, String  defaultValue) { String  v = asString(key);  return v == null ? defaultValue : v; }
-
-    @Nullable Byte    asByte    (String key);
-    @Nullable Short   asShort   (String key);
-    @Nullable Integer asInt     (String key);
-    @Nullable Long    asLong    (String key);
-    @Nullable Float   asFloat   (String key);
-    @Nullable Boolean asBoolean (String key);
-    @Nullable Double  asDouble  (String key);
-    @Nullable String  asString  (String key);
-    @Nullable <T extends Enum<T>> T asEnum(String key, Class<T> klass);
     @Nullable Yaml subtree(String key);
 
     @Nullable Path folder();
-    boolean isEmpty();
-    boolean contains(String key);
     List<Yaml> list(String key);
 
     void clear();

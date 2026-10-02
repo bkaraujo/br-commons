@@ -67,14 +67,6 @@ final class YamlReader {
 
     // ========== Typed Accessors ==========
 
-    @Nullable public Byte    asByte    (String key) { return findTyped(key, Byte.class); }
-    @Nullable public Short   asShort   (String key) { return findTyped(key, Short.class); }
-    @Nullable public Integer asInt     (String key) { return findTyped(key, Integer.class); }
-    @Nullable public Long    asLong    (String key) { return findTyped(key, Long.class); }
-    @Nullable public Float   asFloat   (String key) { return findTyped(key, Float.class); }
-    @Nullable public Boolean asBoolean (String key) { return findTyped(key, Boolean.class); }
-    @Nullable public Double  asDouble  (String key) { return findTyped(key, Double.class); }
-
     public byte[]   asBytes   (String key) { return Strings.bytes(asString(key)); }
     public short[]  asShorts  (String key) { return Strings.shorts(asString(key)); }
     public int[]    asInts    (String key) { return Strings.ints(asString(key)); }
@@ -84,21 +76,22 @@ final class YamlReader {
 
     @Nullable
     public String asString(String key) {
-        val value = findTyped(key, String.class);
-        return value != null ? value.trim() : null;
+        return typed(key, String.class);
     }
 
+    /** The raw value of the dotted path: the flat map first (O(1)), the tree when it is not a leaf. */
     @Nullable
-    public <T extends Enum<T>> T asEnum(String key, Class<T> klass) {
-        val value = asString(key);
-        if (value == null) return null;
+    public Object find(String key) {
+        ensureFlatMapUpdated();
+        val value = flatMap.get(key);
+        return value != null || flatMap.containsKey(key) ? value : Trees.find(raw, key);
+    }
 
-        for (val constant : klass.getEnumConstants()) {
-            if (constant.name().equals(value)) {
-                return constant;
-            }
-        }
-        return null;
+    /** The value in the type, cached by key and type; text is trimmed. */
+    @Nullable
+    public <T> T typed(String key, Class<T> type) {
+        val value = findTyped(key, type);
+        return value instanceof String text ? type.cast(text.trim()) : value;
     }
 
     public Tuple[] asTuples(String key) {
@@ -178,16 +171,7 @@ final class YamlReader {
     @SuppressWarnings("unchecked")
     @Nullable
     private <T> T findTyped(String key, Class<T> type) {
-        ensureFlatMapUpdated();
-
-        // Try flatMap first (O(1) lookup) - before building cache key
-        var value = flatMap.get(key);
-
-        // Fallback to raw navigation if not in flatMap
-        if (value == null && !flatMap.containsKey(key)) {
-            value = Trees.find(raw, key);
-        }
-
+        val value = find(key);
         if (value == null) return null;
 
         // Now build cache key and check cache (single lookup with get)

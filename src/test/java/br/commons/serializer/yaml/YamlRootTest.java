@@ -240,4 +240,20 @@ class YamlRootTest {
     void folder_fromMap_returnsNull() {
         assertNull(Yaml.from(Map.of()).folder());
     }
+
+    // ── binding and policy kept by the reader ────────────────────────────────
+
+    record Server(String host, int port) {}
+
+    @Test
+    void as_bindsTheDocumentToARecord() {
+        assertEquals(new Server("localhost", 8080), Yaml.from(Map.of("host", "localhost", "port", 8080)).as(Server.class));
+    }
+
+    @Test
+    void asString_trimsAndStillReadsNestedKeys() {
+        val yaml = Yaml.from(Map.of("server", Map.of("name", "  Alice  ")));
+        assertEquals("Alice", yaml.asString("server.name"));
+        assertTrue(yaml.contains("server.name"));
+    }
 }

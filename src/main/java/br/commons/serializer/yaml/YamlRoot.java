@@ -3,6 +3,7 @@ package br.commons.serializer.yaml;
 import br.commons.Logger;
 import br.commons.Tuple;
 import br.commons.serializer.Yaml;
+import br.commons.serializer.core.TreeSerializer;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -18,13 +19,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Yaml aggregator that delegates to specialized reader and writer classes.
+ * Yaml aggregator that delegates to specialized reader and writer classes. The scalar accessors, {@code asEnum}
+ * and the binding come from {@link TreeSerializer}, over the reader's lookup ({@link #find}) and typed, cached
+ * values ({@link #value}).
  * <p>
  * Reading operations use a FlatMap for O(1) access and an LRU cache.
  * Writing operations use the standard HashMap structure.
  */
 @NullMarked
-public final class YamlRoot implements Yaml {
+public final class YamlRoot extends TreeSerializer implements Yaml {
     private static final ObjectMapper MAPPER = YAMLMapper.builder().build();
 
     private final YamlReader reader;
@@ -85,9 +88,28 @@ public final class YamlRoot implements Yaml {
     YamlReader reader() { return reader; }
     YamlWriter writer() { return writer; }
 
+    // ========== Reading: the tree, with the cache and policy of the reader ==========
+
     @Override
-    public boolean isEmpty() {
-        return reader.isEmpty();
+    protected Object tree() {
+        return reader.getRaw();
+    }
+
+    @Override
+    protected @Nullable Object find(String key) {
+        return reader.find(key);
+    }
+
+    /** Cached by the reader, text trimmed, a number that does not parse is a fatal configuration error. */
+    @Override
+    protected <T> @Nullable T value(String key, Class<T> type) {
+        return reader.typed(key, type);
+    }
+
+    /** A key whose value is {@code null} in the file still exists. */
+    @Override
+    public boolean contains(String key) {
+        return reader.contains(key);
     }
 
     @Override
@@ -96,37 +118,12 @@ public final class YamlRoot implements Yaml {
         return reader.folder();
     }
 
-    @Override
-    public boolean contains(String key) {
-        return reader.contains(key);
-    }
-
-    @Override @Nullable public Byte    asByte    (String key) { return reader.asByte(key); }
-    @Override @Nullable public Short   asShort   (String key) { return reader.asShort(key); }
-    @Override @Nullable public Integer asInt     (String key) { return reader.asInt(key); }
-    @Override @Nullable public Long    asLong    (String key) { return reader.asLong(key); }
-    @Override @Nullable public Float   asFloat   (String key) { return reader.asFloat(key); }
-    @Override @Nullable public Double  asDouble  (String key) { return reader.asDouble(key); }
-    @Override @Nullable public Boolean asBoolean (String key) { return reader.asBoolean(key); }
-
     @Override public byte[]   asBytes   (String key) { return reader.asBytes(key); }
     @Override public short[]  asShorts  (String key) { return reader.asShorts(key); }
     @Override public int[]    asInts    (String key) { return reader.asInts(key); }
     @Override public long[]   asLongs   (String key) { return reader.asLongs(key); }
     @Override public float[]  asFloats  (String key) { return reader.asFloats(key); }
     @Override public double[] asDoubles (String key) { return reader.asDoubles(key); }
-
-    @Override
-    @Nullable
-    public String asString(String key) {
-        return reader.asString(key);
-    }
-
-    @Override
-    @Nullable
-    public <T extends Enum<T>> T asEnum(String key, Class<T> klass) {
-        return reader.asEnum(key, klass);
-    }
 
     @Override
     public Tuple[] asTuples(String key) {

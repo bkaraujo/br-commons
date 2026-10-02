@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JsonTest {
@@ -34,5 +36,26 @@ class JsonTest {
     @Test
     void emptyDocumentHasNoKeys() {
         assertTrue(Json.from("{}").isEmpty());
+        assertTrue(Json.from("[]").isEmpty());
+        assertFalse(Json.from("{\"a\":1}").isEmpty());
+    }
+
+    /** What {@link Serializer} gives both formats: dotted keys, scalars, defaults and enums. */
+    @Test
+    void readsKeysScalarsAndEnumsLikeYaml() {
+        val json = Json.from("{\"server\":{\"port\":8080,\"debug\":true,\"ratio\":0.5,\"tags\":[\"a\",\"b\"]},"
+                + "\"kind\":\"CREDIT\",\"other\":\"NOPE\"}");
+        assertTrue(json.contains("server.port"));
+        assertTrue(json.contains("server.tags.1"));
+        assertFalse(json.contains("server.none"));
+        assertEquals(8080, json.asInt("server.port"));
+        assertEquals(8080L, json.asLong("server.port"));
+        assertEquals(true, json.asBoolean("server.debug"));
+        assertEquals(0.5, json.asDouble("server.ratio"));
+        assertEquals("b", json.asString("server.tags.1"));
+        assertEquals(7, json.asInt("server.missing", 7));
+        assertEquals(Kind.CREDIT, json.asEnum("kind", Kind.class));
+        assertNull(json.asEnum("other", Kind.class));
+        assertNull(json.asEnum("missing", Kind.class));
     }
 }

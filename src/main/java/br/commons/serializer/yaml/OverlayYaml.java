@@ -65,15 +65,10 @@ public final class OverlayYaml implements Yaml {
     @Override public float[]  asFloats  (String key) { val raw = overrides.apply(key); return raw == null ? base.asFloats(key) : Strings.floats(raw.trim()); }
     @Override public double[] asDoubles (String key) { val raw = overrides.apply(key); return raw == null ? base.asDoubles(key) : Strings.doubles(raw.trim()); }
 
+    /** The base document bound to the type: the overrides apply to single values, not to the binding. */
     @Override
-    @Nullable
-    public <T extends Enum<T>> T asEnum(String key, Class<T> klass) {
-        val raw = overrides.apply(key);
-        if (raw == null) return base.asEnum(key, klass);
-        for (val constant : klass.getEnumConstants()) {
-            if (constant.name().equals(raw.trim())) return constant;
-        }
-        return null;
+    public <T> T as(Class<T> type) {
+        return base.as(type);
     }
 
     @Override public boolean contains(String key) { return overrides.apply(key) != null || base.contains(key); }
