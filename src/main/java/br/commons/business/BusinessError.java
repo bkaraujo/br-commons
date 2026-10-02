@@ -1,0 +1,35 @@
+package br.commons.business;
+
+import br.commons.i18n.Messages;
+import org.jspecify.annotations.NullMarked;
+
+import java.util.Locale;
+
+/**
+ * Domain error. {@code key} is a translation key (see {@link Messages}), not ready text —
+ * {@link #render(Locale)} is the only point that becomes text, resolved in the locale of whoever asks (the
+ * HTTP request, typically), never at the instant the error is born inside the use case.
+ */
+@NullMarked
+public sealed interface BusinessError {
+
+    String key();
+    Object[] args();
+
+    default String render(Locale locale) {
+        return Messages.of(key(), locale, args());
+    }
+
+    @NullMarked
+    record NotFound(String key, Object... args) implements BusinessError {}
+
+    @NullMarked
+    record BusinessRule(String key, Object... args) implements BusinessError {}
+
+    @NullMarked
+    record Validation(String key, Object... args) implements BusinessError {}
+
+    @NullMarked
+    record Conflict(String key, Object... args) implements BusinessError {}
+
+}

@@ -1,0 +1,168 @@
+package br.commons;
+
+import br.commons.message.Message;
+import br.commons.message.MessageListener;
+import br.commons.message.MessageProcessor;
+import br.commons.message.MessageResult;
+import lombok.val;
+import org.jspecify.annotations.NullMarked;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+import static br.commons.Logger.lazy;
+
+@NullMarked
+public abstract class MessageBus {
+
+    private MessageBus() { /* Private constructor */ }
+
+    private static final List<MessageProcessor> EMPTY = List.of();
+    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+
+    private static final ConcurrentMap<Class<?>, List<MessageProcessor>> processors = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Class<?>, List<MessageProcessor>> dispatchCache = new ConcurrentHashMap<>();
+    private static final Map<String, Integer> containers = new ConcurrentHashMap<>();
+
+    /** Clears all subscriptions and caches. Intended for test isolation only. */
+    public static void reset() {
+        processors.clear();
+        dispatchCache.clear();
+        containers.clear();
+    }
+
+    public static int subscribe(Class<?> container) {
+        return subscribe(Meta.instance(container));
+    }
+
+    public static int subscribe(Object container) {
+        val fqn = Meta.fqn(container);
+        if (containers.containsKey(fqn)) {
+            Logger.warn("Attempt to resubscribe %s", fqn);
+            return containers.get(fqn);
+        }
+
+        int subscribed = 0;
+        Logger.verbose("Processing %s", fqn);
+        for (val method : container.getClass().getMethods()) {
+            subscribed += tryRegister(container, method);
+        }
+
+        // Invalidate dispatch cache when new processors are registered
+        dispatchCache.clear();
+
+        containers.put(fqn, subscribed);
+        return subscribed;
+    }
+
+    /** Validates and registers a method annotated with {@link MessageListener}; returns 1 if registered, 0 otherwise. */
+    private static int tryRegister(Object container, Method method) {
+        val annotation = method.getAnnotation(MessageListener.class);
+        if (annotation == null) { return 0; }
+
+        val parameters = method.getParameters();
+        if (method.getReturnType() != MessageResult.class) {
+            Logger.warn(
+                    "Method '%s.%s' must return %s",
+                    Meta.fqn(container),
+                    method.getName(),
+                    Meta.fqn(MessageResult.class)
+            );
+            return 0;
+        }
+
+        if (parameters.length != 1) {
+            Logger.warn(
+                    "Method '%s.%s' must accept a single parameter",
+                    Meta.fqn(container),
+                    method.getName()
+            );
+            return 0;
+        }
+
+        if (!Meta.assignable(parameters[0].getType(), Message.class)) {
+            Logger.warn(
+                    "Method '%s.%s' parameter must be assignable to %s",
+                    Meta.fqn(container),
+                    method.getName(),
+                    Meta.fqn(Message.class)
+            );
+
+            return 0;
+        }
+
+        try { method.setAccessible(true); }
+        catch (final SecurityException e) {
+            Logger.warn(
+                    "Failed to make '%s.%s' accessible'",
+                    Meta.fqn(container),
+                    method.getName()
+            );
+
+            return 0;
+        }
+
+        try {
+            val handle = LOOKUP.unreflect(method);
+            processors
+                    .computeIfAbsent(parameters[0].getType(), ignored -> new ArrayList<>())
+                    .add(new MessageProcessor(container, handle));
+
+            Logger.verbose("Method accepted: %s(%s)", Logger.lazy(method::getName), Logger.lazy(() -> Meta.fqn(parameters[0].getType())));
+            return 1;
+        } catch (IllegalAccessException e) {
+            Logger.warn(
+                    "Failed to create handle for '%s.%s': %s",
+                    Meta.fqn(container),
+                    method.getName(),
+                    Strings.orEmpty(e.getMessage())
+            );
+            return 0;
+        }
+    }
+
+    /**
+     * Dispatches to all listeners registered in the hierarchy of {@code message}, always — the
+     * returning {@link MessageResult} no longer interrupts fan-out (no publisher relies on
+     * "first handler wins"; multiple best-effort consumers of the same event is the common case).
+     * An exception from any listener propagates directly from here (it is not swallowed): the publisher decides
+     * what to do — typically roll back its own transaction, since {@code DataSource} uses
+     * REQUIRED propagation per thread.
+     */
+    public static <T extends Message> void submit(T message) {
+        val messageClass = message.getClass();
+        Logger.verbose("Dispatching %s", lazy(() -> Meta.fqn(messageClass)));
+        val processorList = dispatchCache.computeIfAbsent(messageClass, MessageBus::buildDispatchList);
+
+        for (val processor : processorList) {
+            processor.process(message);
+        }
+    }
+
+    private static List<MessageProcessor> buildDispatchList(Class<?> messageClass) {
+        Logger.trace("Building dispatch list for %s", lazy(() -> Meta.fqn(messageClass)));
+
+        val result = new ArrayList<MessageProcessor>();
+
+        // Walk hierarchy from Object to concrete class (reversed order)
+        val hierarchy = new ArrayList<Class<?>>();
+        Class<?> klass = messageClass;
+        while (klass != Object.class) {
+            hierarchy.add(klass);
+            klass = klass.getSuperclass();
+        }
+
+        // Process from base to concrete (reversed)
+        for (var i = hierarchy.size() - 1; i >= 0; i--) {
+            result.addAll(processors.getOrDefault(hierarchy.get(i), EMPTY));
+        }
+
+        return result.isEmpty() ? EMPTY : List.copyOf(result);
+    }
+
+}

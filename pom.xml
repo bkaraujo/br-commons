@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Reactor and parent (spec §2.3): versions, plugins and quality gates (spec §16.1). -->
+    <groupId>br.engine</groupId>
+    <artifactId>core</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <packaging>jar</packaging>
+
+    <properties>
+        <java.version>25</java.version>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <version.jackson>3.2.3</version.jackson>
+        <version.jspecify>1.0.0</version.jspecify>
+        <version.pdfbox>3.0.8</version.pdfbox>
+        <version.postgresql>42.7.13</version.postgresql>
+
+        <!-- Build and test tools (never in the artifact) -->
+        <version.lombok>1.18.42</version.lombok>
+        <version.junit>6.1.3</version.junit>
+        <version.mockito>5.23.0</version.mockito>
+        <version.h2>2.5.252</version.h2>
+        <version.archunit>1.4.1</version.archunit>
+        <version.testcontainers>2.0.5</version.testcontainers>
+        <version.errorprone>2.48.0</version.errorprone>
+        <version.nullaway>0.13.4</version.nullaway>
+        <version.pmd>7.17.0</version.pmd>
+        <version.asm>9.10.1</version.asm>
+
+        <version.plugin.clean>3.5.0</version.plugin.clean>
+        <version.plugin.resources>3.5.0</version.plugin.resources>
+        <version.plugin.compiler>3.15.0</version.plugin.compiler>
+        <version.plugin.surefire>3.5.5</version.plugin.surefire>
+        <version.plugin.jar>3.5.0</version.plugin.jar>
+        <version.plugin.dependency>3.10.0</version.plugin.dependency>
+        <version.plugin.install>3.1.4</version.plugin.install>
+        <version.plugin.deploy>3.1.4</version.plugin.deploy>
+        <version.plugin.enforcer>3.6.2</version.plugin.enforcer>
+        <version.plugin.jacoco>0.8.14</version.plugin.jacoco>
+        <version.plugin.pmd>3.28.0</version.plugin.pmd>
+
+        <!-- Filled by the JaCoCo agent; empty when coverage is skipped -->
+        <argLine></argLine>
+
+        <!-- Line coverage gate (spec §16.1); modules override the scope of the rule -->
+        <coverage.minimum>0.80</coverage.minimum>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency><groupId>br.judas</groupId><artifactId>judas-commons</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>br.judas</groupId><artifactId>judas-backend</artifactId><version>${project.version}</version></dependency>
+            <dependency><groupId>br.judas</groupId><artifactId>judas-commons</artifactId><version>${project.version}</version><type>test-jar</type></dependency>
+
+            <dependency><groupId>tools.jackson.core</groupId><artifactId>jackson-databind</artifactId><version>${version.jackson}</version></dependency>
+            <dependency><groupId>tools.jackson.dataformat</groupId><artifactId>jackson-dataformat-yaml</artifactId><version>${version.jackson}</version></dependency>
+            <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>${version.postgresql}</version></dependency>
+            <dependency><groupId>org.jspecify</groupId><artifactId>jspecify</artifactId><version>${version.jspecify}</version></dependency>
+            <dependency><groupId>com.google.errorprone</groupId><artifactId>error_prone_annotations</artifactId><version>${version.errorprone}</version></dependency>
+            <dependency><groupId>org.apache.pdfbox</groupId><artifactId>pdfbox</artifactId><version>${version.pdfbox}</version></dependency>
+            <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><version>${version.lombok}</version></dependency>
+            <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><version>${version.mockito}</version></dependency>
+            <dependency><groupId>com.h2database</groupId><artifactId>h2</artifactId><version>${version.h2}</version></dependency>
+
+            <dependency><groupId>org.junit</groupId><artifactId>junit-bom</artifactId><version>${version.junit}</version><type>pom</type><scope>import</scope></dependency>
+            <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-bom</artifactId><version>${version.testcontainers}</version><type>pom</type><scope>import</scope></dependency>
+            <dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit</artifactId><version>${version.archunit}</version></dependency>
+
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency><groupId>org.jspecify</groupId><artifactId>jspecify</artifactId></dependency>
+        <dependency><groupId>tools.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+        <dependency><groupId>tools.jackson.dataformat</groupId><artifactId>jackson-dataformat-yaml</artifactId></dependency>
+        <dependency><groupId>com.google.errorprone</groupId><artifactId>error_prone_annotations</artifactId></dependency>
+        <!-- Build-time only (annotation processor), as in the POC br-commons; never in the artifact -->
+        <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>com.h2database</groupId><artifactId>h2</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-postgresql</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-junit-jupiter</artifactId><scope>test</scope></dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-clean-plugin</artifactId><version>${version.plugin.clean}</version></plugin>
+                <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-resources-plugin</artifactId><version>${version.plugin.resources}</version></plugin>
+                <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-jar-plugin</artifactId><version>${version.plugin.jar}</version></plugin>
+                <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-dependency-plugin</artifactId><version>${version.plugin.dependency}</version></plugin>
+                <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-install-plugin</artifactId><version>${version.plugin.install}</version></plugin>
+                <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-deploy-plugin</artifactId><version>${version.plugin.deploy}</version></plugin>
+                <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>${version.plugin.surefire}</version></plugin>
+                <plugin><groupId>org.jacoco</groupId><artifactId>jacoco-maven-plugin</artifactId><version>${version.plugin.jacoco}</version></plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <!-- ============================================================ -->
+            <!-- Enforcer: toolchain + closed list of runtime libraries (§2.6) -->
+            <!-- ============================================================ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${version.plugin.enforcer}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-toolchain-and-allowlist</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion><version>3.9</version></requireMavenVersion>
+                                <requireJavaVersion><version>${java.version}</version></requireJavaVersion>
+                                <banDuplicatePomDependencyVersions/>
+                                <!-- Every compile/runtime dependency, direct or transitive, is banned
+                                     unless listed below. Adding one is a decision recorded in spec §18. -->
+                                <bannedDependencies>
+                                    <message>Runtime dependency outside the closed list of spec §2.6. Record a decision in §18 before adding it.</message>
+                                    <searchTransitive>true</searchTransitive>
+                                    <excludes>
+                                        <exclude>*:*:*:*:compile</exclude>
+                                        <exclude>*:*:*:*:runtime</exclude>
+                                        <exclude>*:*:*:*:provided</exclude>
+                                        <exclude>*:*:*:*:system</exclude>
+                                    </excludes>
+                                    <includes>
+                                        <!-- PostgreSQL JDBC driver -->
+                                        <include>org.postgresql:postgresql</include>
+                                        <include>org.checkerframework:checker-qual</include>
+                                        <!-- Jackson (databind, dataformat-yaml) -->
+                                        <include>tools.jackson.core:jackson-databind</include>
+                                        <include>tools.jackson.core:jackson-core</include>
+                                        <include>com.fasterxml.jackson.core:jackson-annotations</include>
+                                        <include>tools.jackson.dataformat:jackson-dataformat-yaml</include>
+                                        <include>org.snakeyaml:snakeyaml-engine</include>
+                                        <!-- Apache PDFBox 3.0.x -->
+                                        <include>org.apache.pdfbox:pdfbox</include>
+                                        <include>org.apache.pdfbox:pdfbox-io</include>
+                                        <include>org.apache.pdfbox:fontbox</include>
+                                        <include>commons-logging:commons-logging</include>
+                                        <!-- RE2J -->
+                                        <include>com.google.re2j:re2j</include>
+                                        <!-- Angus Mail (Jakarta Mail implementation) -->
+                                        <include>org.eclipse.angus:angus-mail</include>
+                                        <include>org.eclipse.angus:angus-activation</include>
+                                        <include>jakarta.mail:jakarta.mail-api</include>
+                                        <include>jakarta.activation:jakarta.activation-api</include>
+                                        <!-- JSpecify and ErrorProne annotations (annotations only, no runtime code) -->
+                                        <include>org.jspecify:jspecify</include>
+                                        <include>com.google.errorprone:error_prone_annotations</include>
+                                        <!-- Lombok: build-time annotation processor, provided scope only -->
+                                        <include>org.projectlombok:lombok:*:jar:provided</include>
+                                    </includes>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- ============================================================ -->
+            <!-- Compiler: ErrorProne + NullAway, parameter names for bundles  -->
+            <!-- ============================================================ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${version.plugin.compiler}</version>
+                <configuration>
+                    <release>${java.version}</release>
+                    <parameters>true</parameters>
+                    <compilerArgs>
+                        <arg>-XDcompilePolicy=simple</arg>
+                        <arg>--should-stop=ifError=FLOW</arg>
+                        <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/test/java/.* -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=br.commons,br.judas -XepOpt:NullAway:ExcludedFieldAnnotations=lombok.Getter</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><version>${version.lombok}</version></path>
+                        <path><groupId>com.google.errorprone</groupId><artifactId>error_prone_core</artifactId><version>${version.errorprone}</version></path>
+                        <path><groupId>com.uber.nullaway</groupId><artifactId>nullaway</artifactId><version>${version.nullaway}</version></path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- ============================================================ -->
+            <!-- Tests                                                         -->
+            <!-- ============================================================ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                    <argLine>@{argLine} -XX:+EnableDynamicAgentLoading</argLine>
+                    <!-- Ryuk (the reaper container) needs a privileged socket that rootless Podman lacks;
+                         containers are removed when the test JVM ends anyway. -->
+                    <environmentVariables>
+                        <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+
+            <!-- ============================================================ -->
+            <!-- Coverage (spec §16.1)                                         -->
+            <!-- ============================================================ -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- ============================================================ -->
+            <!-- PMD + CPD (spec §16.1; ruleset from the POC)                  -->
+            <!-- ============================================================ -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${version.plugin.pmd}</version>
+                <configuration>
+                    <rulesets>
+                        <ruleset>${maven.multiModuleProjectDirectory}/config/pmd/ruleset.xml</ruleset>
+                    </rulesets>
+                    <targetJdk>${java.version}</targetJdk>
+                    <includeTests>false</includeTests>
+                    <printFailingErrors>true</printFailingErrors>
+                    <failOnViolation>true</failOnViolation>
+                    <minimumTokens>100</minimumTokens>
+                    <linkXRef>false</linkXRef>
+                    <!-- As in the POC: JDBC wrappers mirror the JDBC API surface (near-identical delegation),
+                         not real copy-paste or complex logic. -->
+                    <excludes>
+                        <exclude>**/jdbc/primitives/*.java</exclude>
+                        <exclude>**/cache/*Layout.java</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>pmd-quality-gate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                            <goal>cpd-check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-core</artifactId><version>${version.pmd}</version></dependency>
+                    <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-java</artifactId><version>${version.pmd}</version></dependency>
+                    <dependency><groupId>org.ow2.asm</groupId><artifactId>asm</artifactId><version>${version.asm}</version></dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- ============================================================ -->
+    <!-- Examples: complete applications in src/main/examples         -->
+    <!-- mvn -Pexamples compile exec:java                             -->
+    <!--   -Dexamples.main=br.commons.examples.htmx.tracker.TrackerApp -->
+    <!--   -Dexec.args=PORT                                           -->
+    <!-- Off by default: not in the jar nor in the quality gates.     -->
+    <!-- ============================================================ -->
+    <profiles>
+        <profile>
+            <id>examples</id>
+            <properties>
+                <examples.main>br.commons.examples.jquery.tasks.TasksApp</examples.main>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.6.1</version>
+                        <executions>
+                            <execution>
+                                <id>add-examples-source</id>
+                                <phase>generate-sources</phase>
+                                <goals><goal>add-source</goal></goals>
+                                <configuration>
+                                    <sources><source>src/main/examples</source></sources>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>add-examples-static</id>
+                                <phase>generate-resources</phase>
+                                <goals><goal>add-resource</goal></goals>
+                                <configuration>
+                                    <resources>
+                                        <resource>
+                                            <directory>src/main/examples</directory>
+                                            <includes><include>static/**</include></includes>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.6.3</version>
+                        <configuration>
+                            <mainClass>${examples.main}</mainClass>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

@@ -1,0 +1,273 @@
+/* Tarefas — exemplo jQuery de br.commons. Sem framework: variáveis, flexbox e as classes que o app.js põe. */
+
+:root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1f2933;
+    --muted: #6b7785;
+    --line: #e1e5ea;
+    --accent: #3b6fe0;
+    --accent-text: #ffffff;
+    --done: #2f9e61;
+    --danger: #d64545;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 4px 16px rgb(0 0 0 / 6%);
+    color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #14171c;
+        --card: #1d2229;
+        --text: #e6e9ed;
+        --muted: #8c96a3;
+        --line: #2c333c;
+        --accent: #6d97f2;
+        --accent-text: #0f1216;
+        --done: #4cc287;
+        --danger: #f07070;
+        --shadow: 0 1px 2px rgb(0 0 0 / 40%);
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0 auto;
+    max-width: 40rem;
+    padding: 2rem 1rem 3rem;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---------- cabeçalho e contador */
+
+header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.75rem;
+}
+
+.badge {
+    margin: 0;
+    padding: .2rem .7rem;
+    border-radius: 999px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+    color: var(--muted);
+    font-size: .875rem;
+}
+
+main {
+    padding: 1.25rem;
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+/* ---------- formulários */
+
+label {
+    display: block;
+    margin-bottom: .3rem;
+    color: var(--muted);
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+}
+
+input[type="text"],
+input[type="search"] {
+    width: 100%;
+    padding: .6rem .75rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: inherit;
+    font: inherit;
+}
+
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+button {
+    padding: .55rem 1rem;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover {
+    filter: brightness(1.08);
+}
+
+.new-task {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .5rem;
+    align-items: end;
+}
+
+.new-task label {
+    grid-column: 1 / -1;
+}
+
+.error {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--danger);
+    font-size: .875rem;
+}
+
+/* ---------- abas e busca */
+
+.tabs ul {
+    display: flex;
+    gap: .25rem;
+    margin: 1.25rem 0 .75rem;
+    padding: .25rem;
+    border-radius: 999px;
+    background: var(--bg);
+    list-style: none;
+}
+
+.tabs li {
+    flex: 1;
+}
+
+.tabs a,
+.tabs .current {
+    display: block;
+    padding: .35rem .5rem;
+    border-radius: 999px;
+    color: var(--muted);
+    text-align: center;
+    text-decoration: none;
+}
+
+.tabs .current {
+    background: var(--card);
+    box-shadow: var(--shadow);
+    color: var(--text);
+}
+
+search {
+    display: block;
+    margin-bottom: 1rem;
+}
+
+/* ---------- lista */
+
+.tasks {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.task {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .6rem .25rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.task:last-child {
+    border-bottom: 0;
+}
+
+.task .title {
+    flex: 1;
+    overflow-wrap: anywhere;
+}
+
+.task.done .title {
+    color: var(--muted);
+}
+
+.toggle {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 2px solid var(--line);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--accent-text);
+    font-size: .8rem;
+    line-height: 1;
+}
+
+.task.done .toggle {
+    border-color: var(--done);
+    background: var(--done);
+}
+
+.delete {
+    padding: .25rem .6rem;
+    background: transparent;
+    color: var(--danger);
+    font-size: .8rem;
+    opacity: 0;
+    transition: opacity .15s;
+}
+
+.task:hover .delete,
+.delete:focus-visible {
+    opacity: 1;
+}
+
+.empty {
+    padding: 1.5rem 0;
+    color: var(--muted);
+    text-align: center;
+}
+
+footer {
+    margin-top: 1.5rem;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* ---------- classe que o app.js põe na tarefa recém-criada (a exclusão usa o fadeOut do jQuery) */
+
+.task.added {
+    animation: appear .3s ease-out;
+}
+
+#status {
+    margin: 0 0 1rem;
+}
+
+@keyframes appear {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
+@media (hover: none) {
+    .delete {
+        opacity: 1;
+    }
+}

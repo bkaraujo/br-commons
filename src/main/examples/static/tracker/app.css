@@ -1,0 +1,492 @@
+/*
+ * Horas trabalhadas — exemplo htmx de br.commons. Sem framework: variáveis, grid e as classes que o htmx põe.
+ *
+ * Tema: cada cor é light-dark(claro, escuro), resolvida pelo color-scheme. O theme.js escreve
+ * <html data-theme="auto|light|dark"> no navegador: "light" e "dark" fixam o esquema; "auto" segue o sistema.
+ */
+
+:root {
+    color-scheme: light dark;
+    --bg: light-dark(#f4f5f7, #14171c);
+    --card: light-dark(#ffffff, #1d2229);
+    --text: light-dark(#1f2933, #e6e9ed);
+    --muted: light-dark(#6b7785, #8c96a3);
+    --line: light-dark(#e1e5ea, #2c333c);
+    --accent: light-dark(#3b6fe0, #6d97f2);
+    --accent-text: light-dark(#ffffff, #0f1216);
+    --soft: light-dark(#eef3fd, #222b3a);
+    --ok: light-dark(#2f9e61, #4cc287);
+    --danger: light-dark(#d64545, #f07070);
+    --shadow: light-dark(0 1px 2px rgb(0 0 0 / 6%), 0 1px 2px rgb(0 0 0 / 40%));
+    --radius: 10px;
+}
+
+:root[data-theme="light"] {
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0 auto;
+    max-width: 76rem;
+    padding: 1.25rem 1rem 3rem;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+h2 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+h3 {
+    margin: 1.25rem 0 .5rem;
+    color: var(--muted);
+    font-size: .75rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+footer {
+    margin-top: 2rem;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* ---------- topo: marca, menu e tema */
+
+.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: .6rem .75rem;
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.brand {
+    margin: 0 .5rem 0 0;
+    font-weight: 700;
+}
+
+.menu ul {
+    display: flex;
+    gap: .25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.menu a {
+    display: block;
+    padding: .35rem .8rem;
+    border-radius: 999px;
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.menu a:hover {
+    color: var(--text);
+}
+
+.menu a.current {
+    background: var(--soft);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.theme {
+    display: flex;
+    gap: .15rem;
+    margin-left: auto;
+    padding: .2rem;
+    border-radius: 999px;
+    background: var(--bg);
+}
+
+.theme button {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+    font-size: 1rem;
+}
+
+.theme[hidden] {
+    display: none;
+}
+
+.theme button[aria-pressed="true"] {
+    background: var(--card);
+    box-shadow: var(--shadow);
+    color: var(--accent);
+}
+
+/* ---------- controles */
+
+label,
+.field label {
+    display: block;
+    margin-bottom: .25rem;
+    color: var(--muted);
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+input,
+select {
+    width: 100%;
+    padding: .5rem .6rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: inherit;
+    font: inherit;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+button {
+    padding: .5rem 1rem;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover {
+    filter: brightness(1.08);
+}
+
+button.link {
+    padding: .25rem .5rem;
+    background: transparent;
+    color: var(--accent);
+    font-weight: 500;
+}
+
+button.link.danger {
+    color: var(--danger);
+}
+
+.error {
+    display: block;
+    margin-top: .2rem;
+    color: var(--danger);
+    font-size: .8rem;
+    white-space: normal;
+}
+
+/* ---------- semana: navegação e filtro */
+
+.week-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.week-nav {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+.week-nav a {
+    display: grid;
+    place-items: center;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    padding: 0 .7rem;
+    border-radius: 999px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.person-filter select {
+    min-width: 14rem;
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+/* ---------- formulários de inclusão */
+
+.entry-form,
+.record-form {
+    display: grid;
+    gap: .75rem;
+    align-items: start;
+    margin-bottom: 1.25rem;
+    padding: 1rem;
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.entry-form {
+    grid-template-columns: 9.5rem 1fr 1fr 1.5fr 6.5rem 6.5rem auto;
+}
+
+.record-form {
+    grid-template-columns: 1fr 1fr auto;
+}
+
+.entry-form > button,
+.record-form > button {
+    margin-top: 1.45rem;
+}
+
+/* ---------- tabelas */
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 19rem;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.entries,
+.records,
+.totals {
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.entries,
+.records {
+    width: 100%;
+    overflow: hidden;
+    border-collapse: collapse;
+}
+
+.entries th,
+.records th {
+    padding: .65rem .75rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: .75rem;
+    letter-spacing: .03em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.entries td,
+.records td {
+    padding: .6rem .75rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+}
+
+.entries tbody tr:last-child td,
+.records tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.entries tbody tr:hover,
+.records tbody tr:hover {
+    background: var(--soft);
+}
+
+.description {
+    color: var(--muted);
+}
+
+.actions {
+    white-space: nowrap;
+}
+
+.actions button {
+    opacity: 0;
+    transition: opacity .15s;
+}
+
+tr:hover .actions button,
+.actions button:focus-visible,
+.editing .actions button,
+.actions:has(.error) button {
+    opacity: 1;
+}
+
+.editing {
+    background: var(--soft);
+}
+
+.editing td {
+    padding: .4rem .35rem;
+}
+
+.empty td,
+.totals .empty {
+    color: var(--muted);
+}
+
+.empty td {
+    padding: 2rem;
+    text-align: center;
+}
+
+.records .inactive td:not(.actions) {
+    color: var(--muted);
+}
+
+.registry h2 {
+    margin-bottom: 1rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: .05rem .55rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 600;
+}
+
+.badge.active {
+    background: color-mix(in srgb, var(--ok) 15%, transparent);
+    color: var(--ok);
+}
+
+.badge.inactive {
+    background: var(--bg);
+    color: var(--muted);
+}
+
+/* ---------- totais */
+
+.totals {
+    padding: 1rem 1.25rem;
+}
+
+.week-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: .5rem 0 0;
+    color: var(--muted);
+}
+
+.week-total strong {
+    color: var(--text);
+    font-size: 1.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.totals ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.days li {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr 3.5rem;
+    gap: .5rem;
+    align-items: center;
+    padding: .2rem 0;
+}
+
+.days .day {
+    color: var(--muted);
+    font-size: .85rem;
+}
+
+meter {
+    width: 100%;
+    height: .6rem;
+}
+
+.shares li {
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .35rem 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.shares li:last-child {
+    border-bottom: 0;
+}
+
+/* ---------- classes que o htmx põe durante as trocas */
+
+.htmx-swapping {
+    opacity: 0;
+    transition: opacity .2s ease-out;
+}
+
+.htmx-request {
+    opacity: .6;
+    transition: opacity .2s;
+}
+
+/* ---------- telas estreitas */
+
+@media (max-width: 64rem) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .entry-form {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .entry-form .field:nth-of-type(4) {
+        grid-column: 1 / -1;
+    }
+
+    .record-form {
+        grid-template-columns: 1fr;
+    }
+
+    .actions button {
+        opacity: 1;
+    }
+
+    .theme {
+        margin-left: 0;
+    }
+}

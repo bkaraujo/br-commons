@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Pre-commit: blocks the commit unless `mvn clean verify` succeeds.
+# Enable once per clone: git config core.hooksPath .githooks
+# Skip in an emergency: git commit --no-verify
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+log="$root/.agents/temp/pre-commit-verify.log"
+mkdir -p "$(dirname "$log")"
+
+echo "pre-commit: running mvn clean verify (log: $log)..."
+start=$SECONDS
+(cd "$root" && mvn -B clean verify) > "$log" 2>&1
+status=$?
+elapsed=$((SECONDS - start))
+
+if [ $status -eq 0 ]; then
+    echo -e "\033[32m✔ BUILD SUCCESS\033[0m (${elapsed}s)"
+    exit 0
+fi
+
+echo -e "\033[31m✘ BUILD FAILURE\033[0m (${elapsed}s) — commit blocked"
+grep -E '^\[ERROR\]   |Tests run:.*(Failures: [1-9]|Errors: [1-9])|BUILD FAILURE|Failed to execute goal' "$log" | head -20
+echo "Full log: $log"
+exit 1
