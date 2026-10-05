@@ -1,8 +1,5 @@
-package br.commons;
+package br.commons.message;
 
-import br.commons.message.Message;
-import br.commons.message.MessageListener;
-import br.commons.message.MessageResult;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 
@@ -154,5 +151,114 @@ class MessageBusTest {
         MessageBus.subscribe(handler);
         MessageBus.submit(new UniqueMsg3(42));
         assertEquals(42, received.get());
+    }
+
+    // ── hierarchy, identity, concurrency ──────────────────────────────────────
+
+    interface Family extends Message {}
+
+    @Test
+    void submit_dispatchesToInterfaceListeners_generalFirst() {
+        record Member() implements Family {}
+        val order = new StringBuilder();
+
+        var handler = new Object() {
+            @MessageListener
+            public MessageResult onMember(Member msg) { order.append("M"); return MessageResult.CONSUMED; }
+            @MessageListener
+            public MessageResult onFamily(Family msg) { order.append("F"); return MessageResult.CONSUMED; }
+        };
+
+        MessageBus.subscribe(handler);
+        MessageBus.submit(new Member());
+        assertEquals("FM", order.toString());
+    }
+
+    @Test
+    void subscribe_distinctInstancesOfSameClass_bothReceive() {
+        record UniqueMsg5() implements Message {}
+        val count = new AtomicInteger();
+
+        class Counter {
+            @MessageListener
+            public MessageResult on(UniqueMsg5 msg) { count.incrementAndGet(); return MessageResult.CONSUMED; }
+        }
+
+        val first = new Counter();
+        assertEquals(1, MessageBus.subscribe(first));
+        assertEquals(1, MessageBus.subscribe(new Counter()));
+        assertEquals(1, MessageBus.subscribe(first)); // same instance: ignored
+        MessageBus.submit(new UniqueMsg5());
+        assertEquals(2, count.get());
+    }
+
+    @Test
+    void subscribe_concurrentWithSubmit_everyLateListenerSeen() throws Exception {
+        record UniqueMsg6() implements Message {}
+        val count = new AtomicInteger();
+        val listeners = 200;
+
+        class Counter {
+            @MessageListener
+            public MessageResult on(UniqueMsg6 msg) { count.incrementAndGet(); return MessageResult.CONSUMED; }
+        }
+
+        val publisher = new Thread(() -> {
+            for (var i = 0; i < 5_000; i++) { MessageBus.submit(new UniqueMsg6()); }
+        });
+        publisher.start();
+        for (var i = 0; i < listeners; i++) { MessageBus.subscribe(new Counter()); }
+        publisher.join();
+
+        count.set(0);
+        MessageBus.submit(new UniqueMsg6());
+        assertEquals(listeners, count.get());
+    }
+
+    // ── unsubscribe ───────────────────────────────────────────────────────────
+
+    @Test
+    void unsubscribe_instance_stopsOnlyThatInstance() {
+        record UniqueMsg7() implements Message {}
+        val count = new AtomicInteger();
+
+        class Counter {
+            @MessageListener
+            public MessageResult on(UniqueMsg7 msg) { count.incrementAndGet(); return MessageResult.CONSUMED; }
+            @MessageListener
+            public MessageResult onAny(Message msg) { return MessageResult.AVAILABLE; }
+        }
+
+        val first = new Counter();
+        MessageBus.subscribe(first);
+        MessageBus.subscribe(new Counter());
+
+        assertEquals(2, MessageBus.unsubscribe(first));
+        assertEquals(0, MessageBus.unsubscribe(first)); // already gone
+        MessageBus.submit(new UniqueMsg7());
+        assertEquals(1, count.get());
+
+        assertEquals(2, MessageBus.subscribe(first)); // can subscribe again
+        MessageBus.submit(new UniqueMsg7());
+        assertEquals(3, count.get());
+    }
+
+    public static class ByClass {
+        static final AtomicInteger COUNT = new AtomicInteger();
+        record ByClassMsg() implements Message {}
+
+        @MessageListener
+        public MessageResult on(ByClassMsg msg) { COUNT.incrementAndGet(); return MessageResult.CONSUMED; }
+    }
+
+    @Test
+    void unsubscribe_class_removesInstanceCreatedBySubscribe() {
+        assertEquals(1, MessageBus.subscribe(ByClass.class));
+        assertEquals(1, MessageBus.subscribe(ByClass.class)); // resubscribe: same count
+        assertEquals(1, MessageBus.unsubscribe(ByClass.class));
+        assertEquals(0, MessageBus.unsubscribe(ByClass.class));
+
+        MessageBus.submit(new ByClass.ByClassMsg());
+        assertEquals(0, ByClass.COUNT.get());
     }
 }
