@@ -1,4 +1,4 @@
-package br.commons.serializer.core;
+package br.commons.serializer.document.binding;
 
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Materializa a árvore genérica em objetos tipados: {@code record}s pelo construtor canônico,
- * {@link List}s pelo argumento de tipo declarado e escalares por {@link Scalars}.
+ * Materializes the generic tree into typed objects: {@code record}s via the canonical constructor,
+ * {@link List}s via the declared type argument, and scalars via {@link Scalars}.
  *
- * <p>Não conhece formato — recebe a mesma árvore venha ela do JSON ou do YAML, e é por isso que
- * mora aqui, e não junto de um parser.
+ * <p>Format-agnostic — receives the same tree whether from JSON or YAML, which is why
+ * it lives here and not with a parser.
  */
 @NullMarked
 public abstract class TreeBinder {

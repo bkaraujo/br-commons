@@ -1,183 +1,44 @@
 package br.commons.serializer.yaml;
 
 import br.commons.Logger;
-import br.commons.serializer.core.Trees;
+import br.commons.serializer.Serializer;
+import br.commons.serializer.document.Document;
+import br.commons.serializer.document.DocumentCache;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.dataformat.yaml.YAMLMapper;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
+/**
+ * Persistence to YAML of any document — read from any format or created by {@link Serializer#builder}.
+ * After writing, the file is evicted from the cache of {@link DocumentCache}: the next read sees what was saved.
+ */
 @NullMarked
-final class YamlWriter {
-    private static final ObjectMapper MAPPER = YAMLMapper.builder().build();
+public final class YamlWriter {
 
-    private final Map<String, Object> raw;
-    private final YamlReader reader;
-    private @Nullable Path source;
+    private YamlWriter() {}
 
-    YamlWriter(Map<String, Object> raw, YamlReader reader) {
-        this.raw = raw;
-        this.reader = reader;
-    }
-
-    void setSource(@Nullable Path source) {
-        this.source = source;
-    }
-
-    public void clear() {
-        raw.clear();
-        reader.markDirty();
-    }
-
-    public void append(String key, String value) {
-        append(new YamlEntry(key, value));
-    }
-
-    public void append(YamlEntry... values) {
-        for (val entry : values) {
-            raw.putAll(entry.toMap());
-        }
-        reader.markDirty();
-    }
-
-    public void append(String key, String name, Object value) {
-        append(key, new YamlEntry(name, value));
-    }
-
-    @SuppressWarnings("unchecked")
-    public void append(String key, YamlEntry... values) {
-        var container = Trees.find(raw, key);
-        if (container instanceof List<?> existingList) {
-            val list = (List<Object>) existingList;
-            for (val entry : values) {
-                list.add(entry.toMap());
-            }
-            reader.markDirty();
-            return;
-        }
-
-        val list = new ArrayList<>();
-        for (val entry : values) {
-            list.add(entry.toMap());
-        }
-
-        val dotIndex = key.lastIndexOf('.');
-        if (dotIndex > 0) {
-            val path = key.substring(0, dotIndex);
-            val item = key.substring(dotIndex + 1);
-            newMap(path).put(item, list);
-        } else {
-            newList(key).addAll(list);
-        }
-        reader.markDirty();
-    }
-
-    @SuppressWarnings("unchecked")
-    public void put(String key, Object value) {
-        val dotIndex = key.lastIndexOf('.');
-        if (dotIndex < 0) {
-            raw.put(key, value);
-            reader.markDirty();
-            return;
-        }
-
-        val path = key.substring(0, dotIndex);
-        val item = key.substring(dotIndex + 1);
-
-        var container = Trees.find(raw, path);
-        if (container == null) {
-            container = newMap(path);
-        }
-
-        ((Map<String, Object>) container).put(item, value.toString());
-        reader.markDirty();
-    }
-
-    public void save() {
+    public static void save(Serializer document) {
+        val source = Document.unwrap(document).source();
         if (source == null) {
-            Logger.warn("Failed to save: Yaml not loaded from a known file");
+            Logger.warn("Failed to save: document not loaded from a known file");
             return;
         }
-        save(source);
+        save(document, source);
     }
 
-    public void save(Path path) {
-        val file = path.toFile();
+    public static void save(Serializer document, Path path) {
         try {
-            if (!file.exists()) {
+            if (!Files.exists(path)) {
                 Files.createFile(path);
             }
-            Logger.debug("Writing %s", file);
-            MAPPER.writeValue(file, raw);
+            Logger.debug("Writing %s", path);
+            YamlReader.MAPPER.writeValue(path.toFile(), Document.unwrap(document).tree());
         } catch (Throwable throwable) {
             Logger.error("Failed to write %s: %s", path, throwable);
+        } finally {
+            DocumentCache.invalidate(path);
         }
-    }
-
-    // ========== Internal Methods ==========
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> newMap(String key) {
-        val tokens = Trees.splitKey(key);
-
-        Object container = raw;
-        for (val token : tokens) {
-            if (container instanceof Map<?, ?> m) {
-                val map = (Map<String, Object>) m;
-                val existing = map.get(token);
-                if (existing != null) {
-                    container = existing;
-                } else {
-                    container = new LinkedHashMap<String, Object>();
-                    map.put(token, container);
-                }
-                continue;
-            }
-
-            if (container instanceof List<?> l) {
-                val list = (List<Object>) l;
-                container = new LinkedHashMap<String, Object>();
-                list.add(container);
-            }
-        }
-
-        return (Map<String, Object>) container;
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Object> newList(String key) {
-        val tokens = Trees.splitKey(key);
-
-        Object container = raw;
-        for (int i = 0; i < tokens.length; ++i) {
-            val token = tokens[i];
-
-            if (container instanceof Map<?, ?> m) {
-                val map = (Map<String, Object>) m;
-                if (i != tokens.length - 1) {
-                    container = map.get(token);
-                } else {
-                    container = new ArrayList<>();
-                    map.put(token, container);
-                }
-                continue;
-            }
-
-            if (container instanceof List<?> l) {
-                val list = (List<Object>) l;
-                container = new LinkedHashMap<String, Object>();
-                list.add(container);
-            }
-        }
-
-        return (List<Object>) (container != null ? container : new ArrayList<>());
     }
 }

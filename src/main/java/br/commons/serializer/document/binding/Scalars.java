@@ -1,4 +1,4 @@
-package br.commons.serializer.core;
+package br.commons.serializer.document.binding;
 
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -9,13 +9,13 @@ import java.util.UUID;
 import java.util.function.Function;
 
 /**
- * Coerção do escalar cru da árvore ({@link String}, {@link Number}, {@link Boolean}) para o tipo
- * pedido. É o outro pedaço comum entre YAML e JSON: os dois leem o mesmo punhado de tipos crus e
- * precisam entregar {@code int}, {@code UUID}, enum, {@code boolean}.
+ * Coercion of raw scalar from the tree ({@link String}, {@link Number}, {@link Boolean}) to the requested type.
+ * It is the other piece common to YAML and JSON: both read the same set of raw types and
+ * must deliver {@code int}, {@code UUID}, enum, {@code boolean}.
  *
- * <p>Devolve {@code null} quando o tipo alvo não é suportado e deixa a {@link NumberFormatException}
- * propagar quando o texto não é número: a política de falha — log fatal, exceção de fronteira,
- * valor default — é de quem chama, nunca daqui.
+ * <p>Returns {@code null} when the target type is not supported and lets {@link NumberFormatException}
+ * propagate when text is not a number: the failure policy — log fatal, boundary exception,
+ * default value — is the caller's responsibility, never this class's.
  */
 @NullMarked
 public abstract class Scalars {
@@ -38,7 +38,7 @@ public abstract class Scalars {
 
     private Scalars() {}
 
-    /** {@code null} quando {@code type} não é um escalar suportado. */
+    /** {@code null} when {@code type} is not a supported scalar. */
     @Nullable
     @SuppressWarnings("unchecked")
     public static <T> T coerce(Object value, Class<T> type) {

@@ -1,49 +1,35 @@
 package br.commons.serializer;
 
-import br.commons.Tuple;
-import br.commons.serializer.yaml.YamlEntry;
-import br.commons.serializer.yaml.YamlRoot;
+import br.commons.serializer.yaml.YamlReader;
+import br.commons.serializer.yaml.YamlWriter;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
- * Documento YAML — tipicamente configuração. Consulta, escalares, {@code asEnum} e binding vêm de
- * {@link Serializer}, comuns ao JSON; aqui fica o que é só do YAML: listas de escalares em texto
- * ({@code "1, 2, 3"}), sub-documentos e escrita de volta no arquivo.
+ * Factories for the YAML format — typically configuration: read file, resource or map to the common representation
+ * (read by {@link Serializer}) and persist a document created or edited by {@link Serializer#builder}.
  */
 @NullMarked
-public interface Yaml extends Serializer {
+public final class Yaml {
 
-    static Yaml from(Path path) { return YamlRoot.from(path); }
-    static Yaml fromClasspath(String resource) { return YamlRoot.fromClasspath(resource); }
-    static Yaml from(Map<String, Object> map) { return YamlRoot.from(map); }
-    static Yaml from() { return from(new LinkedHashMap<>()); }
+    private Yaml() {}
 
-    byte[]      asBytes   (String key);
-    short[]     asShorts  (String key);
-    int[]       asInts    (String key);
-    long[]      asLongs   (String key);
-    float[]     asFloats  (String key);
-    double[]    asDoubles (String key);
-    Tuple[]     asTuples  (String key);
+    /** Empty document when the file is missing or unreadable; file matching within the cache window is not re-read. */
+    public static Serializer from(@Nullable Path path) { return YamlReader.read(path); }
 
-    @Nullable Yaml subtree(String key);
+    /** Empty document when the resource is missing; cached like {@link #from(Path)}. */
+    public static Serializer fromClasspath(String resource) { return YamlReader.readClasspath(resource); }
 
-    @Nullable Path folder();
-    List<Yaml> list(String key);
+    public static Serializer from(Map<String, Object> map) { return YamlReader.read(map); }
 
-    void clear();
-    void save();
-    void save(Path path);
-    void put(String key, Object value);
-    void append(String key, String value);
-    void append(YamlEntry... values);
-    void append(String key, String name, Object value);
-    void append(String key, YamlEntry... values);
+    public static Serializer from() { return from(new LinkedHashMap<>()); }
 
+    /** Writes to the file the document came from; warning if it did not come from a file. */
+    public static void save(Serializer document) { YamlWriter.save(document); }
+
+    public static void save(Serializer document, Path path) { YamlWriter.save(document, path); }
 }

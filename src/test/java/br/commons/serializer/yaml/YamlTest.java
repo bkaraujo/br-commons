@@ -8,7 +8,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class YamlRootTest {
+class YamlTest {
 
     // ── factory ───────────────────────────────────────────────────────────────
 
@@ -192,46 +192,6 @@ class YamlRootTest {
     @Test
     void list_missingKey_returnsEmpty() {
         assertTrue(Yaml.from(Map.of()).list("items").isEmpty());
-    }
-
-    // ── write operations ──────────────────────────────────────────────────────
-
-    @Test
-    void put_topLevelKey() {
-        val yaml = Yaml.from();
-        yaml.put("name", "Bob");
-        assertEquals("Bob", yaml.asString("name"));
-    }
-
-    @Test
-    void put_nestedKey() {
-        val yaml = Yaml.from();
-        yaml.put("server.port", "9090");
-        assertEquals(9090, yaml.asInt("server.port"));
-    }
-
-    @Test
-    void append_keyValue() {
-        val yaml = Yaml.from();
-        yaml.append("env", "production");
-        assertEquals("production", yaml.asString("env"));
-    }
-
-    @Test
-    void clear_removesAllData() {
-        // Must use mutable map — Map.of() is immutable
-        java.util.Map<String, Object> mutable = new java.util.LinkedHashMap<>();
-        mutable.put("key", "value");
-        Yaml yaml = Yaml.from(mutable);
-        yaml.clear();
-        assertTrue(yaml.isEmpty());
-    }
-
-    @Test
-    void append_yamlEntry() {
-        val yaml = Yaml.from();
-        yaml.append(new YamlEntry("host", "localhost"));
-        assertEquals("localhost", yaml.asString("host"));
     }
 
     // ── folder ────────────────────────────────────────────────────────────────

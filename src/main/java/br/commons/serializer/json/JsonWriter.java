@@ -1,5 +1,7 @@
 package br.commons.serializer.json;
 
+import br.commons.serializer.Serializer;
+import br.commons.serializer.document.Document;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -8,16 +10,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Sintaxe de saída: objeto Java para texto JSON. Sem databind de terceiros. */
+/** Output syntax: Java object to JSON text. No third-party databind. */
 @NullMarked
-final class JsonWriter {
+public final class JsonWriter {
 
     private static final Map<Character, String> ESCAPES = Map.of(
             '"', "\\\"", '\\', "\\\\", '\n', "\\n", '\r', "\\r", '\t', "\\t");
 
     private JsonWriter() {}
 
-    static String write(@Nullable Object value) {
+    public static String write(@Nullable Object value) {
         val sb = new StringBuilder();
         writeValue(sb, value);
         return sb.toString();
@@ -31,6 +33,7 @@ final class JsonWriter {
             case Enum<?> e -> writeString(sb, e.name());
             case Boolean b -> sb.append(b);
             case Number n -> sb.append(n);
+            case Serializer document -> writeValue(sb, Document.unwrap(document).tree());
             case Map<?, ?> map -> writeMap(sb, map);
             case Iterable<?> it -> writeArray(sb, it);
             case Object[] arr -> writeArray(sb, List.of(arr));
@@ -55,7 +58,7 @@ final class JsonWriter {
             writeString(sb, components[i].getName());
             sb.append(':');
             try {
-                // setAccessible: record não-público (aninhado, package-private) também serializa.
+                // setAccessible: non-public record (nested, package-private) also serializes.
                 val accessor = components[i].getAccessor();
                 accessor.setAccessible(true);
                 writeValue(sb, accessor.invoke(value));

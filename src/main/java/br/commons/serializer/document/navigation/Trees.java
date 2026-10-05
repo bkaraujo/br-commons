@@ -1,4 +1,4 @@
-package br.commons.serializer.core;
+package br.commons.serializer.document.navigation;
 
 import br.commons.Logger;
 import br.commons.Strings;
@@ -12,12 +12,12 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Navegação sobre a árvore genérica que todo formato produz depois de parseado:
- * {@link Map} de {@link String} para {@link Object}, {@link List} de {@link Object} e escalares.
- * É a estrutura comum entre YAML e JSON — nada aqui conhece a sintaxe de nenhum dos dois.
+ * Navigation over the generic tree that every format produces after parsing:
+ * {@link Map} of {@link String} to {@link Object}, {@link List} of {@link Object}, and scalars.
+ * It is the common structure between YAML and JSON — nothing here knows the syntax of either.
  *
- * <p>Chaves são caminhos pontuados ({@code servidor.portas.0.numero}), onde cada segmento indexa um
- * mapa pela chave ou uma lista pela posição.
+ * <p>Keys are dotted paths ({@code server.ports.0.number}), where each segment indexes a
+ * map by key or a list by position.
  */
 @NullMarked
 public abstract class Trees {
@@ -26,12 +26,12 @@ public abstract class Trees {
 
     private Trees() {}
 
-    /** Quebra o caminho pontuado em segmentos. */
+    /** Splits the dotted path into segments. */
     public static String[] splitKey(String key) {
         return DOT.split(key);
     }
 
-    /** Resolve o caminho pontuado a partir da raiz; {@code null} quando algum segmento não existe. */
+    /** Resolves the dotted path from the root; {@code null} if any segment does not exist. */
     @Nullable
     public static Object find(Map<String, Object> root, String key) {
         val tokens = DOT.split(key, -1);
@@ -70,8 +70,8 @@ public abstract class Trees {
     }
 
     /**
-     * Achata a árvore em chaves pontuadas, para lookup O(1). Uma lista entra duas vezes: inteira,
-     * sob a própria chave, e elemento a elemento, sob {@code chave.<indice>}.
+     * Flattens the tree into dotted keys for O(1) lookup. A list is stored twice: whole,
+     * under its own key, and element by element, under {@code key.<index>}.
      */
     public static Map<String, Object> flatten(Map<String, Object> root) {
         val flat = new LinkedHashMap<String, Object>();

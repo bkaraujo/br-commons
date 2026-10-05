@@ -1,4 +1,4 @@
-package br.commons.serializer.yaml;
+package br.commons.serializer.document.builder;
 
 import lombok.val;
 import org.junit.jupiter.api.Test;
@@ -6,18 +6,18 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-class YamlEntryTest {
+class EntryTest {
 
     @Test
     void constructor_storesKeyAndValue() {
-        val entry = new YamlEntry("myKey", "myValue");
+        val entry = new Entry("myKey", "myValue");
         assertEquals("myKey", entry.key());
         assertEquals("myValue", entry.value());
     }
 
     @Test
     void toMap_containsKeyValuePair() {
-        val entry = new YamlEntry("host", "localhost");
+        val entry = new Entry("host", "localhost");
         val map = entry.toMap();
         assertEquals(1, map.size());
         assertEquals("localhost", map.get("host"));
@@ -25,20 +25,20 @@ class YamlEntryTest {
 
     @Test
     void toMap_numericValue() {
-        val entry = new YamlEntry("port", 8080);
+        val entry = new Entry("port", 8080);
         val map = entry.toMap();
         assertEquals(8080, map.get("port"));
     }
 
     @Test
     void equality_sameFields() {
-        val a = new YamlEntry("k", "v");
-        val b = new YamlEntry("k", "v");
+        val a = new Entry("k", "v");
+        val b = new Entry("k", "v");
         assertEquals(a, b);
     }
 
     @Test
     void equality_differentKey() {
-        assertNotEquals(new YamlEntry("k1", "v"), new YamlEntry("k2", "v"));
+        assertNotEquals(new Entry("k1", "v"), new Entry("k2", "v"));
     }
 }

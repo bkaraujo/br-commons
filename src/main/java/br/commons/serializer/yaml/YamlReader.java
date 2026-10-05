@@ -1,218 +1,76 @@
 package br.commons.serializer.yaml;
 
 import br.commons.Logger;
-import br.commons.Strings;
-import br.commons.Tuple;
-import br.commons.serializer.Yaml;
-import br.commons.serializer.core.Scalars;
-import br.commons.serializer.core.Trees;
+import br.commons.serializer.document.Document;
+import br.commons.serializer.document.DocumentCache;
+import br.commons.serializer.document.Policy;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Map;
 
+/**
+ * YAML reading: Jackson handles syntax, this validates structure — the root of a configuration document must be a
+ * map — and the tree becomes the common representation, {@link Document}, with configuration policy
+ * ({@link Policy#CONFIG}). Missing file or resource is an empty document; file that fails to read logs an error and
+ * returns an empty document. Files and resources go through the cache of {@link DocumentCache}.
+ */
 @NullMarked
-final class YamlReader {
-    private static final int LRU_CACHE_SIZE = 20;
-    private static final Object NULL_SENTINEL = new Object();
+public final class YamlReader {
 
-    private final Map<String, Object> raw;
-    private final Map<String, Object> flatMap;
-    private final LinkedHashMap<String, Object> cache;
-    private @Nullable Path source;
-    private boolean dirty;
+    static final ObjectMapper MAPPER = YAMLMapper.builder().build();
 
-    YamlReader(Map<String, Object> raw) {
-        this.raw = raw;
-        this.flatMap = new LinkedHashMap<>();
-        this.cache = new LinkedHashMap<>(LRU_CACHE_SIZE, 0.75f, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<String, Object> eldest) {
-                return size() > LRU_CACHE_SIZE;
-            }
-        };
+    private static final String CLASSPATH = "classpath:";
 
-        dirty = false;
-        flatMap.putAll(Trees.flatten(raw));
+    private YamlReader() {}
+
+    public static Document read(@Nullable Path path) {
+        if (path == null) return Document.empty(null, Policy.CONFIG);
+        return DocumentCache.cached(path, () -> load(path));
     }
 
-    void setSource(Path source) {
-        this.source = source;
+    public static Document readClasspath(String resource) {
+        return DocumentCache.cached(CLASSPATH + resource, () -> loadClasspath(resource));
     }
 
-    Path source() {
-        if (source == null) { throw new IllegalStateException("Source not set"); }
-        return source;
+    public static Document read(Map<String, Object> map) {
+        return Document.of(map, null, Policy.CONFIG);
     }
 
-    Map<String, Object> getRaw() {
-        return raw;
-    }
-
-    public boolean isEmpty() {
-        return raw.isEmpty();
-    }
-
-    @Nullable
-    public Path folder() {
-        return source != null ? source.getParent() : null;
-    }
-
-    public boolean contains(String key) {
-        ensureFlatMapUpdated();
-        return flatMap.containsKey(key) || Trees.find(raw, key) != null;
-    }
-
-    // ========== Typed Accessors ==========
-
-    public byte[]   asBytes   (String key) { return Strings.bytes(asString(key)); }
-    public short[]  asShorts  (String key) { return Strings.shorts(asString(key)); }
-    public int[]    asInts    (String key) { return Strings.ints(asString(key)); }
-    public long[]   asLongs   (String key) { return Strings.longs(asString(key)); }
-    public float[]  asFloats  (String key) { return Strings.floats(asString(key)); }
-    public double[] asDoubles (String key) { return Strings.doubles(asString(key)); }
-
-    @Nullable
-    public String asString(String key) {
-        return typed(key, String.class);
-    }
-
-    /** The raw value of the dotted path: the flat map first (O(1)), the tree when it is not a leaf. */
-    @Nullable
-    public Object find(String key) {
-        ensureFlatMapUpdated();
-        val value = flatMap.get(key);
-        return value != null || flatMap.containsKey(key) ? value : Trees.find(raw, key);
-    }
-
-    /** The value in the type, cached by key and type; text is trimmed. */
-    @Nullable
-    public <T> T typed(String key, Class<T> type) {
-        val value = findTyped(key, type);
-        return value instanceof String text ? type.cast(text.trim()) : value;
-    }
-
-    public Tuple[] asTuples(String key) {
-        val properties = new HashMap<String, String>();
-        if (contains(key)) {
-            for (val property : list(key)) {
-
-                val name = property.asString("name");
-                if (name == null) continue;
-
-                val value = property.asString("value");
-                if (value == null) continue;
-
-                if (properties.containsKey(name)) {
-                    Logger.warn("Duplicate property `" + name + "` in `" + key + "`");
-                    continue;
-                }
-                properties.put(name, value);
-            }
-        }
-        return properties.entrySet().stream()
-                .map(v -> new Tuple(v.getKey(), v.getValue()))
-                .toList()
-                .toArray(new Tuple[0]);
-    }
-
-    @SuppressWarnings("unchecked")
-    public List<Yaml> list(String key) {
-        val result = new ArrayList<Yaml>();
-        val dotIndex = key.lastIndexOf('.');
-
-        if (Strings.isNumeric(key.substring(dotIndex + 1))) {
-            Logger.warn("Key must relate to a yaml array");
-            return result;
-        }
-
-        val found = Trees.find(raw, key);
-        if (!(found instanceof List<?> entries)) {
-            Logger.warn("Key must relate to a yaml array");
-            return result;
-        }
-
-        for (val entry : entries) {
-            val yaml = YamlRoot.from((Map<String, Object>) entry);
-            yaml.reader().setSource(source());
-            result.add(yaml);
-        }
-
-        return result;
-    }
-
-    @SuppressWarnings("unchecked")
-    @Nullable
-    public YamlRoot subtree(String key) {
-        val result = Trees.find(raw, key);
-        if (result == null) return null;
-
-        if (result instanceof Map<?, ?> map) {
-            return YamlRoot.from((Map<String, Object>) map);
-        }
-
-        if (result instanceof List<?>) {
-            val map = new LinkedHashMap<String, Object>();
-            val dotIndex = key.lastIndexOf('.');
-            val desired = dotIndex > 0 ? key.substring(dotIndex + 1) : key;
-            map.put(desired, result);
-            val yaml = YamlRoot.from(map);
-            yaml.reader().setSource(source());
-            return yaml;
-        }
-
-        return null;
-    }
-
-    // ========== Internal Methods ==========
-
-    @SuppressWarnings("unchecked")
-    @Nullable
-    private <T> T findTyped(String key, Class<T> type) {
-        val value = find(key);
-        if (value == null) return null;
-
-        // Now build cache key and check cache (single lookup with get)
-        val cacheKey = key + ":" + type.getSimpleName();
-        val cached = cache.get(cacheKey);
-        if (cached != null) {
-            return cached == NULL_SENTINEL ? null : (T) cached;
-        }
-
-        // Convert and cache
-        val result = convertValue(value, type);
-        cache.put(cacheKey, result != null ? result : NULL_SENTINEL);
-        return result;
-    }
-
-    /**
-     * A coerção em si é de {@link Scalars} — comum ao JSON. Aqui fica só a política do YAML: texto
-     * que deveria ser número é falha catastrófica de configuração, e tipo não suportado cai no
-     * {@code cast} para estourar em quem pediu.
-     */
-    @Nullable
-    private <T> T convertValue(Object value, Class<T> type) {
+    private static Document load(Path path) {
         try {
-            val coerced = Scalars.coerce(value, type);
-            return coerced != null ? coerced : type.cast(value);
-        } catch (NumberFormatException ignored) {
-            Logger.fatal("Expected a number, got %s", value);
-            return null;
+            if (!Files.exists(path) || Files.size(path) == 0) return Document.empty(path, Policy.CONFIG);
+            return validated(MAPPER.readValue(path.toFile(), Object.class), path);
+        } catch (Throwable throwable) {
+            Logger.error("Failed to read %s: %s", path, throwable);
+            return Document.empty(path, Policy.CONFIG);
         }
     }
 
-    void markDirty() {
-        dirty = true;
-        cache.clear();
+    private static Document loadClasspath(String resource) {
+        try (InputStream input = YamlReader.class.getClassLoader().getResourceAsStream(resource)) {
+            if (input == null) return Document.empty(null, Policy.CONFIG);
+            return validated(MAPPER.readValue(input, Object.class), null);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
-    private void ensureFlatMapUpdated() {
-        if (dirty) {
-            flatMap.clear();
-            flatMap.putAll(Trees.flatten(raw));
-            dirty = false;
+    /** Empty document ({@code null}) or map; any other root is not configuration. */
+    private static Document validated(@Nullable Object tree, @Nullable Path source) {
+        if (tree == null) return Document.empty(source, Policy.CONFIG);
+        if (!(tree instanceof Map<?, ?>)) {
+            val shown = source != null ? source.toString() : "resource";
+            throw new IllegalArgumentException("YAML root must be a map in " + shown + ", got " + tree.getClass().getSimpleName());
         }
+        return Document.of(tree, source, Policy.CONFIG);
     }
 }

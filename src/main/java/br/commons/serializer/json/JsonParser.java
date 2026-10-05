@@ -9,7 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Recursive-descent minimalista. Sem streaming, sem validação exaustiva — payloads internos, curtos. */
+/** Minimalist recursive-descent. No streaming, no exhaustive validation — internal, short payloads. */
 @NullMarked
 final class JsonParser {
 
@@ -19,6 +19,14 @@ final class JsonParser {
     JsonParser(String source) {
         this.source = source;
         this.pos = 0;
+    }
+
+    /** The entire document: one value and nothing but whitespace after it. */
+    @Nullable Object parseDocument() {
+        val value = parseValue();
+        skipWhitespace();
+        if (pos < source.length()) throw new IllegalArgumentException("Unexpected content at " + pos);
+        return value;
     }
 
     @SuppressWarnings("PMD.CyclomaticComplexity")
