@@ -38,20 +38,16 @@ Context.clear();                                    // testes
 
 ## 4. Concorrência
 
-- Todas as operações rodam via `Threads.locked(ReentrantLock, ...)`; o mapa é
-  `ConcurrentHashMap`, mas o lock é que garante atomicidade de `tryGet`
-  (check-then-put).
-- `set` chama `supplier.get()` **dentro** do lock. Supplier lento bloqueia
-  todo `get`. Supplier que chama `Context` funciona (lock reentrante), mas
-  supplier que espera outra thread que usa `Context` → deadlock.
-- `get` também toma o lock: leitura serializada. Se virar gargalo, `get` pode
-  ler o `ConcurrentHashMap` direto, sem lock.
+- `get` lê o `ConcurrentHashMap` direto, sem lock.
+- `set` executa o supplier **fora** do lock e só publica dentro dele: supplier
+  lento não bloqueia leituras.
+- `tryGet` (check-then-put), `remove` e `clear` rodam via
+  `Threads.locked(ReentrantLock, ...)`; `tryGet` chama o supplier dentro do
+  lock (não pode criar duas vezes) — supplier que espera outra thread que usa
+  `Context` → deadlock.
 
 ## 5. Armadilhas
 
-- `Context.create` é **idêntico** a `get` (não cria nada, lança se ausente).
-  Não use esperando criação; prefira `tryGet`. Candidato a remoção ou a
-  implementar "sempre nova instância".
 - `set(type)` usa `Meta.instance`, que chama `exit(99, ...)` se a
   instanciação falhar — encerra a JVM em vez de lançar.
 - `set` sobrescreve registro existente silenciosamente (só log DEBUG).

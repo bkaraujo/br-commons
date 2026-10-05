@@ -22,12 +22,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.HexFormat;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Serves files under a URL prefix from the classpath or, in development, from a directory on disk
- * ({@code judas.web.static-dir}, spec §2.3), so CSS and JavaScript reload without a rebuild. A filter rather
+ * (directory chosen by the application), so CSS and JavaScript reload without a rebuild. A filter rather
  * than a route: the router's templates match one segment per parameter, and static paths are nested
  * ({@code /static/js/vendor/htmx.min.js}). Paths with {@code ..} or backslashes are refused.
+ *
+ * <p>Every file carries an {@code ETag} and {@code If-None-Match} answers 304. Classpath files are immutable: read
+ * and hashed once per name. Development files use size + modification time, so a 304 never reads the file.
  */
 @NullMarked
 public final class StaticFiles implements HTTPFilter {
@@ -48,6 +56,16 @@ public final class StaticFiles implements HTTPFilter {
     private final String classpathRoot;
     private final @Nullable Path directory;
     private final String cacheControl;
+    private final Map<String, Entry> classpathCache = new ConcurrentHashMap<>();
+
+    /** A servable file. {@code bytes} is {@code null} when only the tag was needed (development directory, 304). */
+    @NullMarked
+    private record Entry(String etag, @Nullable Path file, byte @Nullable [] bytes) {
+        byte[] content() throws IOException {
+            if (bytes != null) return bytes;
+            return Files.readAllBytes(Objects.requireNonNull(file));
+        }
+    }
 
     /**
      * @param prefix        URL prefix, e.g. {@code /static/}
@@ -69,30 +87,45 @@ public final class StaticFiles implements HTTPFilter {
         val name = request.path().substring(prefix.length());
         if (name.isEmpty() || name.contains("..") || name.contains("\\")) return HTTPServerResponse.status(HTTPStatus.NOT_FOUND);
 
-        val bytes = read(name);
-        if (bytes == null) return HTTPServerResponse.status(HTTPStatus.NOT_FOUND);
-        return HTTPServerResponse.status(HTTPStatus.OK, bytes)
-                .header("Content-Type", type(name))
-                .header("Cache-Control", cacheControl)
-                .header("X-Content-Type-Options", "nosniff");
-    }
-
-    /**
-     * The bytes of a regular file; {@code null} for a missing name or a directory, which answer 404. A name found
-     * in the development directory is answered from there, even when it is a directory.
-     */
-    private byte @Nullable [] read(String name) {
         try {
-            if (directory != null) {
-                val file = directory.resolve(name).normalize();
-                if (file.startsWith(directory) && Files.exists(file)) {
-                    return Files.isRegularFile(file) ? Files.readAllBytes(file) : null;
-                }
+            val entry = find(name);
+            if (entry == null) return HTTPServerResponse.status(HTTPStatus.NOT_FOUND);
+            if (entry.etag().equals(request.header("If-None-Match"))) {
+                return HTTPServerResponse.status(HTTPStatus.NOT_MODIFIED)
+                        .header("ETag", entry.etag())
+                        .header("Cache-Control", cacheControl);
             }
-            return fromClasspath(name);
+            return HTTPServerResponse.status(HTTPStatus.OK, entry.content())
+                    .header("Content-Type", type(name))
+                    .header("ETag", entry.etag())
+                    .header("Cache-Control", cacheControl)
+                    .header("X-Content-Type-Options", "nosniff");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * A regular file; {@code null} for a missing name or a directory, which answer 404. A name found in the
+     * development directory is answered from there, even when it is a directory.
+     */
+    private @Nullable Entry find(String name) throws IOException {
+        if (directory != null) {
+            val file = directory.resolve(name).normalize();
+            if (file.startsWith(directory) && Files.exists(file)) {
+                if (!Files.isRegularFile(file)) return null;
+                val etag = "\"" + Long.toHexString(Files.size(file)) + "-"
+                        + Long.toHexString(Files.getLastModifiedTime(file).toMillis()) + "\"";
+                return new Entry(etag, file, null);
+            }
+        }
+        val cached = classpathCache.get(name);
+        if (cached != null) return cached;
+        val bytes = fromClasspath(name);
+        if (bytes == null) return null;
+        val entry = new Entry("\"" + sha256(bytes) + "\"", null, bytes);
+        classpathCache.putIfAbsent(name, entry);
+        return entry;
     }
 
     private byte @Nullable [] fromClasspath(String name) throws IOException {
@@ -100,6 +133,14 @@ public final class StaticFiles implements HTTPFilter {
         if (resource == null || isDirectory(resource)) return null;
         try (InputStream input = resource.openStream()) {
             return input.readAllBytes();
+        }
+    }
+
+    private static String sha256(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes), 0, 16);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is mandatory in every JDK", e);
         }
     }
 

@@ -29,10 +29,13 @@ public enum LogLevel {
 
     public static LogLevel fromSlf4jLevel(String level) {
         return switch (Strings.upper(level)) {
+            case "VERBOSE" -> VERBOSE;
             case "TRACE" -> TRACE;
             case "DEBUG" -> DEBUG;
+            case "INFO" -> INFO;
             case "WARN", "WARNING" -> WARN;
             case "ERROR" -> ERROR;
+            case "FATAL" -> FATAL;
             case "OFF" -> OFF;
             default -> INFO;
         };

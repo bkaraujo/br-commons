@@ -108,7 +108,7 @@ try (var s = HTTPSession.open(req.requestId())) {    // quem abre fecha
 7. `finally`: apaga arquivos de multipart, fecha exchange, `MDC.pop`.
 
 Executor: uma virtual thread por requisição. `stop(grace)` usa segundos
-inteiros (`toSeconds`), frações são truncadas.
+inteiros arredondados para cima (`500ms` → 1 s).
 
 ## 8. Defaults perigosos
 
@@ -131,9 +131,9 @@ inteiros (`toSeconds`), frações são truncadas.
 ## 10. Multipart
 
 - `MultipartParser.Limits(uploadDir, maxFileSize, maxRequestSize)`.
-- Arquivo acima de `maxFileSize`: bytes excedentes **descartados em
-  silêncio**, `size` reporta o total real — compare `size` com o limite para
-  detectar truncamento.
+- Arquivo acima de `maxFileSize`: `UploadedFile.tooLarge() == true`, `path`
+  guarda só os bytes até o limite e `size` reporta o total real — rejeite o
+  upload quando `tooLarge`.
 - Campo texto acima de `MAX_FIELD_SIZE` → parte malformada (400).
 - Request acima de `maxRequestSize` → `TooLarge`, temporários já escritos são
   apagados.

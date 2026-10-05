@@ -1,72 +1,38 @@
 /**
- * JDBC Framework - Database connection pooling and management.
- * <p>
- * This package provides infrastructure for managing database connections with automatic pooling,
- * lifecycle management, and configuration support. The framework is designed to be simple to use
- * while providing enterprise-grade connection management capabilities.
- * </p>
+ * JDBC access with a built-in connection pool, transactions and migrations.
  *
- * <h2>Main Components:</h2>
+ * <h2>Main components</h2>
  * <ul>
- *   <li>{@link br.commons.JDBC} - Main facade for the framework</li>
- *   <li>{@link br.commons.jdbc.JDBCProperties} - Configuration properties for data sources</li>
- *   <li>{@link br.commons.jdbc.DataSource} - Named data source with pooling</li>
- *   <li>{@link br.commons.jdbc.pool.ConnectionPool} - Low-level connection pool implementation</li>
+ *   <li>{@link br.commons.persistence.jdbc.JDBCProperties} — data source configuration (url, credentials, pool sizes,
+ *       timeouts).</li>
+ *   <li>{@link br.commons.persistence.jdbc.DataSource} — pooled data source: {@code query}/{@code execute}, explicit
+ *       transactions ({@code begin}) and {@link br.commons.persistence.jdbc.Transactions#inTransaction}.</li>
+ *   <li>{@link br.commons.persistence.jdbc.JDBCRepository} — CRUD generated from table introspection.</li>
+ *   <li>{@link br.commons.persistence.jdbc.migration.Migrator} — versioned SQL migrations under a lock.</li>
+ *   <li>{@link br.commons.persistence.jdbc.pool.ConnectionPool} — the pool behind {@code DataSource}.</li>
  * </ul>
  *
- * <h2>Usage Example:</h2>
+ * <h2>Usage</h2>
  * <pre>{@code
- * // Configure and register a data source
- * val props = JDBCProperties.builder()
- *     .name("myapp-db")
- *     .driver("org.postgresql.Driver")
- *     .url("jdbc:postgresql://localhost:5432/mydb")
- *     .username("appuser")
- *     .password("secret")
- *     .minPoolSize(5)
- *     .maxPoolSize(20)
- *     .build();
+ * val props = new JDBCProperties();
+ * props.url("jdbc:postgresql://localhost:5432/mydb");
+ * props.username("app");
+ * props.password(secret);
+ * props.maxPoolSize(20);
  *
- * JDBC.register(props);
+ * val dataSource = new DataSource(props);
  *
- * // Use connections
- * val connResult = JDBC.getConnection("myapp-db");
- * connResult.ifSuccess(conn -> {
- *     try (conn) {
- *         try (val stmt = conn.prepareStatement("SELECT * FROM users WHERE id = ?")) {
- *             stmt.setLong(1, userId);
- *             try (val rs = stmt.query()) {
- *                 // Process results...
- *             }
- *         }
- *     } catch (Exception e) {
- *         Logger.error("Query error: %s", e.getMessage());
- *     }
+ * // Work that commits on Success and rolls back on Failure; afterCommit runs only after the commit.
+ * Result<Order, BusinessError> saved = dataSource.inTransaction(() -> {
+ *     dataSource.execute("INSERT INTO orders (id, total) VALUES (?, ?)", JDBCParameter.of(id, total));
+ *     dataSource.afterCommit(() -> bus.publish(new OrderPlaced(id)));
+ *     return Result.success(order);
  * });
- * connResult.ifFailure(error -> Logger.error("Connection failed: %s", error));
  *
- * // Check pool statistics
- * val stats = JDBC.stats("myapp-db");
- * System.out.println("Active: " + stats.get("active"));
- * System.out.println("Available: " + stats.get("available"));
+ * new Migrator(() -> DriverManager.getConnection(url, user, password), "db/migration").migrate();
  *
- * // Cleanup on shutdown (automatic via shutdown hook)
- * JDBC.close();
+ * dataSource.close();
  * }</pre>
- *
- * <h2>Features:</h2>
- * <ul>
- *   <li>Automatic connection pooling with configurable min/max sizes</li>
- *   <li>Connection validation and lifecycle management</li>
- *   <li>Idle connection cleanup and pool maintenance</li>
- *   <li>Multiple named data sources support</li>
- *   <li>Configurable timeouts for connections, idle time, and max lifetime</li>
- *   <li>Custom validation queries for database-specific health checks</li>
- *   <li>Automatic shutdown via JVM shutdown hook</li>
- *   <li>Comprehensive logging and monitoring</li>
- * </ul>
- *
- * @since 1.0
  */
 @NullMarked
 package br.commons.persistence.jdbc;

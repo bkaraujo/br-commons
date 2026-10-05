@@ -13,7 +13,7 @@ import java.lang.invoke.MethodHandle;
 
 /**
  * Linux implementation of Terminal using Java FFM.
- * Uses ioctl for dimension and termios for raw mode.
+ * Uses {@code ioctl(TIOCGWINSZ)} for the dimensions. Raw mode (termios) is not implemented.
  */
 @NullMarked
 public class LNXTerminal extends AbstractTerminal {

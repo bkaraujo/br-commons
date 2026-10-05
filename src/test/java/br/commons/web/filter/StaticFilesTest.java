@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class StaticFilesTest {
@@ -75,5 +76,26 @@ class StaticFilesTest {
         val files = new StaticFiles("/static/", "static-test", null, Duration.ZERO);
         assertEquals(202, files.apply(request(HTTPMethod.GET, "/login"), NEXT).status().code());
         assertEquals(202, files.apply(request(HTTPMethod.POST, "/static/css/app.css"), NEXT).status().code());
+    }
+
+    /** Regression (R8): every request read the whole file and there was no conditional request. */
+    @Test
+    void etagAnswersNotModified() throws Exception {
+        val fromClasspath = new StaticFiles("/static/", "static-test", null, Duration.ZERO);
+        val first = fromClasspath.apply(request(HTTPMethod.GET, "/static/css/app.css"), NEXT);
+        val etag = first.header("ETag");
+        assertNotNull(etag);
+        val again = new HTTPServerRequest("", HTTPMethod.GET, "/static/css/app.css", Map.of(),
+                Map.of("if-none-match", etag), new byte[0]);
+        assertEquals(304, fromClasspath.apply(again, NEXT).status().code());
+
+        Files.createDirectories(dir.resolve("css"));
+        Files.writeString(dir.resolve("css/app.css"), "a{}");
+        val fromDisk = new StaticFiles("/static/", "static-test", dir, Duration.ZERO);
+        val diskTag = fromDisk.apply(request(HTTPMethod.GET, "/static/css/app.css"), NEXT).header("ETag");
+        assertNotNull(diskTag);
+        val conditional = new HTTPServerRequest("", HTTPMethod.GET, "/static/css/app.css", Map.of(),
+                Map.of("if-none-match", diskTag), new byte[0]);
+        assertEquals(304, fromDisk.apply(conditional, NEXT).status().code());
     }
 }

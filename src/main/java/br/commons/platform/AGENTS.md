@@ -108,8 +108,7 @@ String c = TerminalColor.ofHex("#ff8800");
 - **Memória só é liberada no `close()`**: `remove` e `put` sobre chave
   existente apenas desindexam; o segmento antigo continua alocado. Cache com
   muitos upserts cresce até o fechamento (`unload` em `br.commons.cache`).
-- `put` aloca `size` e copia um `byte[size]` zerado do heap (redundante:
-  `allocate` já zera) e faz `(int) size` — `size > 2 GB` quebra.
+- `put` só aloca: `Arena.allocate` já devolve o segmento zerado.
 - `close()` com leitor concorrente: fechar arena compartilhada em uso pode
   falhar/abortar acesso (`IllegalStateException`) no leitor. `AbstractCache`
   mitiga checando `isClosed()`, mas a janela existe.
@@ -133,7 +132,7 @@ String c = TerminalColor.ofHex("#ff8800");
 
 - `AbstractTerminal.render(buffer, dim, indices, count)`: escreve só células
   alteradas (`indices`), posicionando cursor com CSI `ESC[y;xH` e code points.
-- Linux: `ioctl(1, TIOCGWINSZ=0x5413)` via FFM (o javadoc cita termios para raw mode, mas não há chamada de termios na classe); Windows: `kernel32`
+- Linux: `ioctl(1, TIOCGWINSZ=0x5413)` via FFM (raw mode/termios não implementado); Windows: `kernel32`
   (`GetConsoleScreenBufferInfo`, modo de console). Sem TTY → `(0,0)`.
 
 ## 11. Extensão

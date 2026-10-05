@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static br.commons.html.Html.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -225,5 +226,15 @@ class HtmlTest {
                                 Html4.declare(), Html4.standby(t("s")), Html4.param(Html4.valuetype(ParamValueType.REF))),
                         img(Html4.longdesc("/d")), area(Html4.nohref()), link(Html4.rev("made")),
                         meta(Html4.scheme("ISBN"))).render());
+    }
+
+    /** Regression (H8): script/style content went through text(...) and got escaped. */
+    @Test
+    void scriptAndStyleTextAreNotEscaped() {
+        assertEquals("<script>if (a < b && c) go(\"x\");</script>",
+                script(scriptText("if (a < b && c) go(\"x\");")).render());
+        assertEquals("<style>a > b { content: \"&\"; }</style>", style(styleText("a > b { content: \"&\"; }")).render());
+        assertThrows(IllegalArgumentException.class, () -> scriptText("x</SCRIPT><img src=x>"));
+        assertThrows(IllegalArgumentException.class, () -> styleText("</style>"));
     }
 }

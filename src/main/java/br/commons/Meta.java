@@ -15,9 +15,6 @@ import java.util.function.Supplier;
 public abstract class Meta {
     private Meta(){}
 
-    public static boolean IS_LINUX = false;
-    public static boolean IS_WINDOWS = false;
-
     public static <T> T instance(Class<T> type, String property) {
         try {
             val instance = instance(Class.forName(property));

@@ -29,7 +29,7 @@ public abstract class Dates {
             Locale.of("en", "US"), Map.ofEntries(
                     Map.entry("JANUARY", 1), Map.entry("FEBRUARY", 2), Map.entry("MARCH", 3),
                     Map.entry("APRIL", 4), Map.entry("MAY", 5), Map.entry("JUNE", 6),
-                    Map.entry("JULLY", 7), Map.entry("AUGUST", 8), Map.entry("SEPTEMBER", 9),
+                    Map.entry("JULY", 7), Map.entry("AUGUST", 8), Map.entry("SEPTEMBER", 9),
                     Map.entry("OCTOBER", 10), Map.entry("NOVEMBER", 11), Map.entry("DECEMBER", 12)
             )
     );

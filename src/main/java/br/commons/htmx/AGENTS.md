@@ -116,10 +116,9 @@ HtmxResponse.of(resp).location("/orders").pushUrl("/orders").response(); // sem 
 ## 9. `HtmxResponse`
 
 - Wrapper mutável: guarda a `HTTPResponse` e reatribui a cada `header(...)`.
-- `trigger(Map)`/`triggerAfterSwap(Map)`/`triggerAfterSettle(Map)` → JSON via
-  `Json.write`; variantes `String...` juntam com `", "`.
-- Cada chamada **substitui** o header (não acumula): duas chamadas a
-  `trigger` → só a última vale. Para vários eventos, uma chamada com todos.
+- Chamadas de `trigger*` **acumulam** eventos por header. Só nomes → lista
+  `"a, b"`; algum com detalhe (`Map`) → JSON via `Json.write`, evento sem
+  detalhe vai como `""`.
 - `redirect` = navegação completa; `location` = navegação AJAX;
   `refresh()` = reload.
 - Valores de header não são sanitizados: CR/LF de dado externo em

@@ -126,23 +126,29 @@ WebResponse.eventStream(out -> ...);            // SSE
 
 ## 9. Concorrência
 
-`Router.routes` é `ArrayList` e `allowed` um mapa comum: registro **não** é
-thread-safe e não deve ocorrer com o servidor atendendo.
+`Router.routes` é `ArrayList` e `allowed` um mapa comum, lidos sem lock.
+`WebServer.start()` chama `Router.freeze()`: depois disso todo `register`
+devolve `Failure`, e o router é só leitura (seguro entre threads). Registre
+tudo antes do `start`.
 
 ## 10. `StaticFiles`
 
 - Só `GET` sob o prefixo; `..` ou `\` no nome → 404. Diretório de
   desenvolvimento normalizado e checado com `startsWith` (anti traversal).
 - Diretório vence o classpath; diretório/entrada de diretório → 404.
-- Lê o arquivo **inteiro** em memória a cada requisição; sem `ETag`,
-  `Last-Modified` nem `Range`. Arquivos grandes → servir por outro meio.
+- `ETag` em toda resposta; `If-None-Match` igual → 304. Classpath: lido e
+  hasheado (SHA-256) uma vez por nome, em cache. Diretório de
+  desenvolvimento: tag = tamanho + mtime, 304 sem ler o arquivo.
+- Sem `Range`; resposta 200 carrega o arquivo inteiro em memória. Arquivos
+  grandes → servir por outro meio.
 - `maxAge` zero → `no-cache`; adiciona `X-Content-Type-Options: nosniff`.
 - Tipo desconhecido → `application/octet-stream` (ver mapa `TYPES`).
 
 ## 11. `RequestLoggingFilter`
 
-Pula log quando o path **contém** `static`, `.well-known` ou `webmanifest` —
-substring: `/api/staticReports` também é silenciado.
+Pula log quando o path **começa** com um prefixo ignorado (padrão
+`/static/`, `/.well-known/`) ou **termina** com um sufixo ignorado (padrão
+`.webmanifest`). Listas configuráveis no construtor.
 
 ## 12. `PreflightFilter`
 
@@ -151,7 +157,6 @@ Responde `OPTIONS` antes dos filtros do cliente (preflight não carrega
 
 ## 13. Observações
 
-- `package-info` de `web` cita `br.commons.web.session`, que não existe.
 - `Form.parse` lança `IllegalArgumentException` em percent-encoding inválido;
   `WebRequest.body(Form.class)` converte em `Failure`.
 - JSON usa `br.commons.serializer.Json` (`Json.from(...).as(type)`).
@@ -162,5 +167,4 @@ Responde `OPTIONS` antes dos filtros do cliente (preflight não carrega
 |--------------------------|-----------------------------------------------------|
 | Novo formato de corpo    | `WebRequest.body` (`case` no `switch`)             |
 | Regras de rota (ex.: só `/api`) | `RouteRule` no construtor do `Router`        |
-| Cache HTTP de estáticos  | `StaticFiles`: `ETag`/`Last-Modified`              |
 | Prioridade de rota       | ordenar literais antes de parâmetros em `match`    |

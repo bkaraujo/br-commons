@@ -298,4 +298,12 @@ class StringsTest {
         val bytes = "hello".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         assertEquals("hello", Strings.read(bytes));
     }
+
+    /** Regression (H3): the empty string has no character to qualify. */
+    @Test
+    void emptyIsNeitherNumericNorCased() {
+        assertFalse(Strings.isNumeric(""));
+        assertFalse(Strings.isUpperCase(""));
+        assertFalse(Strings.isLowerCase(""));
+    }
 }

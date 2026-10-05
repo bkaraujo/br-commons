@@ -155,8 +155,6 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 - H2: DDL comita implícito — migração que falha deixa o DDL anterior à falha.
 - `pending()` para readiness check. `ConnectionFactory` usa credencial de dono
   do schema, fora do pool da aplicação.
-- O `package-info` de `jdbc` mostra uma API `JDBC.register/getConnection` que
-  **não existe** — ignore aquele exemplo.
 
 ## 12. Storage em JSON
 

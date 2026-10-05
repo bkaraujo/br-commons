@@ -53,8 +53,6 @@ Chaves dos mapas de meses são **maiúsculas**; normalize antes
 
 ## 5. Armadilhas conhecidas
 
-- `Dates.LOCALIZED` en-US contém **`"JULLY"`** (erro de digitação): `"JULY"`
-  não é encontrado. Corrija para `"JULY"` se depender do mapa em inglês.
 - `MILLIS_IN_DAY` ignora horário de verão; para dias de calendário use
   `ChronoUnit.DAYS.between(LocalDate, LocalDate)`.
 - `Time` não tem construtor privado (diferente de `Dates`); é `abstract` só

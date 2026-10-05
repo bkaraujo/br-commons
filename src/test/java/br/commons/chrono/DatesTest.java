@@ -51,4 +51,11 @@ class DatesTest {
         val date = LocalDate.of(2024, 3, 15);
         assertEquals("15/03/2024", date.format(Dates.FORMATTER_DDMMYYYY));
     }
+
+    /** Regression (C16): en-US had "JULLY". */
+    @Test
+    void englishJulyIsSpelledRight() {
+        assertEquals(7, Dates.MONTHS_ENUS.get("JULY"));
+        assertFalse(Dates.MONTHS_ENUS.containsKey("JULLY"));
+    }
 }

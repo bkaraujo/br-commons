@@ -28,6 +28,9 @@ public final class Router {
     private final List<RouteRule> rules;
     private final List<Route> routes = new ArrayList<>();
 
+    /** Set by {@link #freeze()} when the server starts: from then on the router is read-only, hence thread-safe. */
+    private volatile boolean frozen = false;
+
     public Router(RouteRule... rules) {
         this.rules = List.of(rules);
     }
@@ -80,6 +83,9 @@ public final class Router {
     public Result<Route, String> register(HTTPMethod method, String template, @Nullable MediaType consumes, MediaType produces,
                                           Class<?> requestType, Class<?> responseType,
                                           boolean requiresAuthentication, RouteHandler handler) {
+        if (frozen) {
+            return Result.failure("router is frozen (server already started): cannot register " + method + " " + template);
+        }
         if (method == HTTPMethod.OPTIONS) {
             return Result.failure("OPTIONS is not registered (" + template + ") — the server responds based on the routes");
         }
@@ -159,6 +165,15 @@ public final class Router {
             return new Match(route, params);
         }
         return null;
+    }
+
+    /** Ends registration. Called by {@code WebServer.start}; reads are unsynchronized, so writes must stop first. */
+    public void freeze() {
+        frozen = true;
+    }
+
+    public boolean frozen() {
+        return frozen;
     }
 
     public List<Route> routes() {

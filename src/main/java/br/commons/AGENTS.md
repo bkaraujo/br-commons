@@ -128,12 +128,11 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
   chamador; `method(lambda)` resolve rótulo para `Execution`.
 - `stackFrame(...)` filtra prefixos de `RT.packages`; `userMainClassName()` e
   `mainPackageName()` acham o ponto de entrada do usuário.
-- `IS_LINUX`/`IS_WINDOWS` são `public static` mutáveis e ninguém os define;
-  use `Platform.CURRENT`.
+- SO corrente: use `Platform.CURRENT`.
 
 ## 10. `Strings`
 
-- `isNumeric("")`, `isUpperCase("")` → `true` (`allMatch` em vazio).
+- `isNumeric("")`, `isUpperCase("")`, `isLowerCase("")` → `false`.
 - `read(byte[])` sem detecção de charset: UTF-8 estrito, senão ISO-8859-1.
 - `bytes/shorts/ints/longs/floats/doubles(String)` parseiam listas a partir de
   texto (aceitam `null`).

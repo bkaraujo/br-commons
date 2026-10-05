@@ -14,6 +14,7 @@ import org.jspecify.annotations.NullMarked;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -77,6 +78,27 @@ public abstract class Html {
     /** Markup without escaping. Only reviewed classes may call it (ArchUnit, spec §14.1). */
     public static Node raw(String markup) {
         return new Node.Raw(markup);
+    }
+
+    /**
+     * Body of a {@code <script>}: JavaScript is raw text, so {@link #text} (which escapes {@code <}, {@code &}, quotes)
+     * would break it. Not escaped; refuses {@code </script} (any case), the only sequence that ends the element early.
+     * Use only with code written by the developer — never with data; prefer {@code script(src(...))}.
+     */
+    public static Node scriptText(String javascript) {
+        return rawText("script", javascript);
+    }
+
+    /** Body of a {@code <style>}: same rule as {@link #scriptText}, refusing {@code </style}. */
+    public static Node styleText(String css) {
+        return rawText("style", css);
+    }
+
+    private static Node rawText(String tag, String content) {
+        if (content.toLowerCase(Locale.ROOT).contains("</" + tag)) {
+            throw new IllegalArgumentException("<" + tag + "> content cannot contain </" + tag);
+        }
+        return new Node.Raw(content);
     }
 
     /** Any element by tag, for what has no factory (custom elements, SVG children). */
@@ -1109,6 +1131,7 @@ public abstract class Html {
      * @see <a href="https://html.spec.whatwg.org/dev/semantics.html#the-style-element">HTML: the style element</a>
      * @see <a href="https://www.w3.org/TR/html401/present/styles.html#edef-STYLE">HTML 4.01: STYLE</a>
      */
+    // Inline content goes through {@link #styleText}: {@code text(...)} escapes it and breaks the code.
     public static Node.Element style(Content... c) { return element("style", c); }
 
     /**
@@ -1123,6 +1146,7 @@ public abstract class Html {
      * @see <a href="https://html.spec.whatwg.org/dev/scripting.html#the-script-element">HTML: the script element</a>
      * @see <a href="https://www.w3.org/TR/html401/interact/scripts.html#edef-SCRIPT">HTML 4.01: SCRIPT</a>
      */
+    // Inline content goes through {@link #scriptText}: {@code text(...)} escapes it and breaks the code.
     public static Node.Element script(Content... c) { return element("script", c); }
 
     /**

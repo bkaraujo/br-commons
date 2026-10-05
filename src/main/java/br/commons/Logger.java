@@ -29,6 +29,8 @@ public abstract class Logger {
 
     /** Property that {@code java.util.logging.LogManager} reads to choose the implementation. */
     private static final String JUL_MANAGER_PROPERTY = "java.util.logging.manager";
+    /** Global level; {@code br.commons.log.level.<package>} sets one package. */
+    private static final String LEVEL_PROPERTY = "br.commons.log.level";
 
     /** Literal name on purpose: referencing the class here would load — and initialize — JUL. */
     private static final String JBOSS_LOG_MANAGER = "org.jboss.logmanager.LogManager";
@@ -349,19 +351,19 @@ public abstract class Logger {
         JULBridgeHandler.install();
 
         // Global configuration
-        val globalLevel = System.getProperty("judas.log.level");
+        val globalLevel = System.getProperty(LEVEL_PROPERTY);
         if (globalLevel != null) {
             try {
                 level(LogLevel.valueOf(Strings.upper(globalLevel)));
             } catch (IllegalArgumentException e) {
-                warn("Invalid log level in judas.log.level: %s", globalLevel);
+                warn("Invalid log level in %s: %s", LEVEL_PROPERTY, globalLevel);
             }
         }
 
         // Per-package configuration
         System.getProperties().forEach((key, value) -> {
-            if (key instanceof String k && k.startsWith("judas.log.level.")) {
-                val packageName = k.substring("judas.log.level.".length());
+            if (key instanceof String k && k.startsWith(LEVEL_PROPERTY + ".")) {
+                val packageName = k.substring(LEVEL_PROPERTY.length() + 1);
                 try {
                     val pkgLevel = LogLevel.valueOf(Strings.upper(value));
                     level(packageName, pkgLevel);

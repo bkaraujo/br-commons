@@ -60,4 +60,13 @@ class LogLevelTest {
         assertTrue(LogLevel.INFO.colored.contains("INFO"));
         assertTrue(LogLevel.ERROR.colored.contains("ERROR"));
     }
+
+    /** Regression (H4): FATAL and VERBOSE fell into INFO. */
+    @Test
+    void fromSlf4jLevel_mapsEveryLevel() {
+        assertEquals(LogLevel.FATAL, LogLevel.fromSlf4jLevel("fatal"));
+        assertEquals(LogLevel.VERBOSE, LogLevel.fromSlf4jLevel("VERBOSE"));
+        assertEquals(LogLevel.INFO, LogLevel.fromSlf4jLevel("INFO"));
+        assertEquals(LogLevel.INFO, LogLevel.fromSlf4jLevel("unknown"));
+    }
 }

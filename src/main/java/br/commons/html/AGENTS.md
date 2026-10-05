@@ -106,9 +106,9 @@ raw(markup);                          // SEM escape — restrito por ArchUnit
   (atributos sempre entre aspas duplas).
 - **Não escapados**: nome de tag e nome de atributo. `element(tagExterno)` ou
   `hxOn(eventoExterno, ...)` permitem injeção.
-- `<script>`/`<style>` com `text(...)`: conteúdo é escapado como texto comum,
-  o que quebra JS/CSS com `<`, `&`, aspas. Use arquivo estático; `raw` só em
-  classe revisada.
+- `<script>`/`<style>` inline: use `scriptText(js)`/`styleText(css)` (sem
+  escape; recusam `</script`/`</style`). `text(...)` escaparia e quebraria o
+  código. Só código do desenvolvedor, nunca dado; prefira arquivo estático.
 - Valores de URL (`href`, `src`, `action`) são só escapados: `javascript:`
   não é bloqueado. Valide esquema de URLs vindas de dados.
 - `document(dialect, root)` = doctype + render em `StringBuilder(4096)`.

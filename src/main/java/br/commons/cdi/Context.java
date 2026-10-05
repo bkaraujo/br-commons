@@ -18,8 +18,8 @@ import java.util.function.Supplier;
  *     instances associated with specific types.
  *</p>
  * <p>
- *     This class uses a locking mechanism to ensure thread safety and consistency during
- *     operations on the underlying registry.
+ *     Reads ({@link #get}) are lock-free; writes and {@link #tryGet} (get-or-create, which must not create
+ *     twice) are serialized by a lock.
  * </p>
  */
 @NullMarked
@@ -30,37 +30,27 @@ public abstract class Context {
 
     private Context(){}
 
+    /** Lock-free read: the registry is a {@link ConcurrentHashMap}, and {@link #set} only publishes ready instances. */
     public static <T> T get(Class<T> type) {
-        return Threads.locked(lock,  () -> {
-            val instance = registry.get(type);
-            if (instance == null) {
-                throw new IllegalStateException("No instance of %s registered".formatted(type));
-            }
+        val instance = registry.get(type);
+        if (instance == null) {
+            throw new IllegalStateException("No instance of %s registered".formatted(type));
+        }
 
-            return type.cast(instance);
-        });
+        return type.cast(instance);
     }
 
-    public static <T> T create(Class<T> type) {
-        return Threads.locked(lock,  () -> {
-            val instance = registry.get(type);
-            if (instance == null) {
-                throw new IllegalStateException("No instance of %s registered".formatted(type));
-            }
-
-            return type.cast(instance);
-        });
-    }
-
+    /** The supplier runs outside the lock (it may be slow or touch the context itself); only the publication is locked. */
     public static <T> void set(Class<T> type, Supplier<T> instance) {
+        val created = instance.get();
         Threads.locked(lock, () -> {
             Logger.debug("Registering %s", type);
-            registry.put(type, instance.get());
+            registry.put(type, created);
         });
     }
 
     public static <T> void set(Class<T> type) {
-        Threads.locked(lock, () -> set(type, () -> Meta.instance(type)));
+        set(type, () -> Meta.instance(type));
     }
 
     public static void remove(Class<?> type) {

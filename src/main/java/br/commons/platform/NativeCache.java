@@ -57,8 +57,8 @@ public class NativeCache<K> implements AutoCloseable {
     /** Allocates (always a new, zeroed segment) and indexes at {@code key}. */
     public Result<MemorySegment, String> put(K key, long size) {
         if (closed) return Result.failure(ERROR_CLOSED);
+        // Arena.allocate already zeroes the segment: no heap copy, no int narrowing.
         val segment = arena.allocate(size);
-        MemorySegment.copy(MemorySegment.ofArray(new byte[(int) size]), 0, segment, 0, size);
         // Overwriting a key keeps the original position: only new key enters at the end of order.
         if (index.put(key, segment) == null) order.add(key);
         return Result.success(segment);

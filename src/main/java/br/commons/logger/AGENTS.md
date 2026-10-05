@@ -127,7 +127,10 @@ FATAL lança em seguida.
 
 ## 11. Detalhes diversos
 
-- `LogLevel.fromSlf4jLevel`: `FATAL`/`VERBOSE`/desconhecido viram `INFO`.
+- `LogLevel.fromSlf4jLevel`: mapeia todos os níveis; só desconhecido vira `INFO`.
+- Nível por system property: `br.commons.log.level` (global) e
+  `br.commons.log.level.<pacote>`. Chaves da biblioteca sempre com prefixo
+  `br.commons.`.
 - `LogRecord.userMessage()` avalia o `Supplier` a cada chamada (não memoiza):
   canais múltiplos recebem a linha já formatada, então avalia uma vez por log.
 - `Logger.externalCaller()` (ThreadLocal) permite à ponte/SLF4J informar o

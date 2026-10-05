@@ -41,16 +41,19 @@ public abstract class Strings {
         return true;
     }
 
+    /** {@code false} for the empty string: it has no character to qualify. */
     public static boolean isNumeric(String string) {
-        return string.chars().allMatch(Character::isDigit);
+        return !string.isEmpty() && string.chars().allMatch(Character::isDigit);
     }
 
+    /** {@code false} for the empty string: it has no character to qualify. */
     public static boolean isUpperCase(String string) {
-        return string.chars().allMatch(Character::isUpperCase);
+        return !string.isEmpty() && string.chars().allMatch(Character::isUpperCase);
     }
 
+    /** {@code false} for the empty string: it has no character to qualify. */
     public static boolean isLowerCase(String string) {
-        return string.chars().allMatch(Character::isLowerCase);
+        return !string.isEmpty() && string.chars().allMatch(Character::isLowerCase);
     }
 
     public static String lpad(byte text, int size, char filter) {

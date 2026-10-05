@@ -2,8 +2,10 @@ package br.commons.htmx;
 
 import br.commons.http.message.HTTPResponse;
 import br.commons.serializer.Json;
+import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -20,6 +22,12 @@ import java.util.Map;
 public final class HtmxResponse {
 
     private HTTPResponse response;
+
+    /** Events per header ({@code HX-Trigger}, {@code -After-Swap}, {@code -After-Settle}): calls add up. */
+    private final Map<String, Map<String, Object>> events = new LinkedHashMap<>();
+
+    /** Detail of an event triggered by name only. */
+    private static final Object NO_DETAIL = new Object();
 
     private HtmxResponse(HTTPResponse response) {
         this.response = response;
@@ -116,14 +124,14 @@ public final class HtmxResponse {
      *
      * @see <a href="https://htmx.org/headers/hx-trigger/">htmx: HX-Trigger</a>
      */
-    public HtmxResponse trigger(String... events) { return header("HX-Trigger", String.join(", ", events)); }
+    public HtmxResponse trigger(String... events) { return trigger("HX-Trigger", events); }
 
     /**
      * {@code HX-Trigger} with the detail of each event, written as JSON by {@link Json#write}.
      *
      * @see <a href="https://htmx.org/headers/hx-trigger/">htmx: HX-Trigger</a>
      */
-    public HtmxResponse trigger(Map<String, ?> events) { return header("HX-Trigger", Json.write(events)); }
+    public HtmxResponse trigger(Map<String, ?> events) { return trigger("HX-Trigger", events); }
 
     /**
      * {@code HX-Trigger-After-Swap}: events triggered after the swap.
@@ -131,11 +139,11 @@ public final class HtmxResponse {
      * @see <a href="https://htmx.org/headers/hx-trigger/">htmx: HX-Trigger</a>
      */
     public HtmxResponse triggerAfterSwap(String... events) {
-        return header("HX-Trigger-After-Swap", String.join(", ", events));
+        return trigger("HX-Trigger-After-Swap", events);
     }
 
     public HtmxResponse triggerAfterSwap(Map<String, ?> events) {
-        return header("HX-Trigger-After-Swap", Json.write(events));
+        return trigger("HX-Trigger-After-Swap", events);
     }
 
     /**
@@ -144,11 +152,36 @@ public final class HtmxResponse {
      * @see <a href="https://htmx.org/headers/hx-trigger/">htmx: HX-Trigger</a>
      */
     public HtmxResponse triggerAfterSettle(String... events) {
-        return header("HX-Trigger-After-Settle", String.join(", ", events));
+        return trigger("HX-Trigger-After-Settle", events);
     }
 
     public HtmxResponse triggerAfterSettle(Map<String, ?> events) {
-        return header("HX-Trigger-After-Settle", Json.write(events));
+        return trigger("HX-Trigger-After-Settle", events);
+    }
+
+    private HtmxResponse trigger(String header, String... names) {
+        val accumulated = events.computeIfAbsent(header, _ -> new LinkedHashMap<>());
+        for (val name : names) accumulated.put(name, NO_DETAIL);
+        return writeEvents(header, accumulated);
+    }
+
+    private HtmxResponse trigger(String header, Map<String, ?> detailed) {
+        val accumulated = events.computeIfAbsent(header, _ -> new LinkedHashMap<>());
+        accumulated.putAll(detailed);
+        return writeEvents(header, accumulated);
+    }
+
+    /**
+     * Rewrites the header with every event so far: a name list while no event has detail, JSON otherwise (an event
+     * without detail goes as {@code ""}, which htmx accepts).
+     */
+    private HtmxResponse writeEvents(String header, Map<String, Object> accumulated) {
+        if (accumulated.values().stream().allMatch(detail -> detail == NO_DETAIL)) {
+            return header(header, String.join(", ", accumulated.keySet()));
+        }
+        val json = new LinkedHashMap<String, Object>();
+        accumulated.forEach((name, detail) -> json.put(name, detail == NO_DETAIL ? "" : detail));
+        return header(header, Json.write(json));
     }
 
     private HtmxResponse header(String name, String value) {

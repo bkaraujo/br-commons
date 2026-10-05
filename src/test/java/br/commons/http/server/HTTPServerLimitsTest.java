@@ -126,4 +126,26 @@ class HTTPServerLimitsTest {
                 java.util.Map.of("Cookie", value), new byte[0]).cookie("sid");
         assertNull(header.apply("broken; =x; other=1"));
     }
+
+    /** Regression (R10): a sub-second grace was truncated to zero and cut the request in flight. */
+    @Test
+    void subSecondGraceStillWaitsForTheRequestInFlight() throws Exception {
+        val entered = new java.util.concurrent.CountDownLatch(1);
+        HTTPHandler slow = request -> {
+            entered.countDown();
+            br.commons.Threads.sleep(300);
+            return HTTPServerResponse.status(HTTPStatus.OK, "done".getBytes(StandardCharsets.UTF_8));
+        };
+        val graceful = new HTTPServer(0, List.of(), slow, failure -> HTTPServerResponse.status(HTTPStatus.INTERNAL_SERVER_ERROR), 10);
+        graceful.start().getOrThrow();
+        val pending = client.sendAsync(HttpRequest.newBuilder(URI.create("http://localhost:" + graceful.port() + "/")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS));
+
+        graceful.stop(Duration.ofMillis(500));
+
+        val response = pending.get(2, java.util.concurrent.TimeUnit.SECONDS);
+        assertEquals(200, response.statusCode());
+        assertEquals("done", response.body());
+    }
 }

@@ -93,7 +93,8 @@ public final class HTTPServer {
 
     /** Stops accepting connections and waits for in-flight requests for up to {@code grace}. */
     public void stop(Duration grace) {
-        if (server != null) server.stop((int) grace.toSeconds());
+        // HttpServer takes whole seconds: round up so a sub-second grace is not cut to zero.
+        if (server != null) server.stop((int) Math.min(Integer.MAX_VALUE, Math.ceilDiv(grace.toMillis(), 1000)));
     }
 
     /** The port on which the server listens — useful when it starts on port 0. */

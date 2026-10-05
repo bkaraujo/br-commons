@@ -80,4 +80,16 @@ class HtmxHeadersTest {
         assertEquals("false", response.header("HX-Replace-Url"));
         assertEquals("none", response.header("HX-Reswap"));
     }
+
+    /** Regression (H9): each trigger call replaced the header, so only the last event fired. */
+    @Test
+    void triggerCallsAddUp() {
+        val names = HtmxResponse.of(HTTPServerResponse.status(HTTPStatus.OK))
+                .trigger("saved").trigger("counted").response();
+        assertEquals("saved, counted", names.header("HX-Trigger"));
+
+        val mixed = HtmxResponse.of(HTTPServerResponse.status(HTTPStatus.OK))
+                .trigger("saved").trigger(Map.of("toast", "ok")).response();
+        assertEquals("{\"saved\":\"\",\"toast\":\"ok\"}", mixed.header("HX-Trigger"));
+    }
 }

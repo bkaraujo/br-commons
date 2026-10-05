@@ -302,4 +302,19 @@ class NativeCacheTest {
             assertEquals(NativeCache.NULL_LONG, NativeCache.readTimestampMillis(seg, 0));
         }
     }
+
+    /** Regression (R5): put copied a heap byte[size] (with an int cast) to zero what allocate already zeroes. */
+    @Test
+    void testRePutOfWrittenKeyIsZeroedAndSized() {
+        try (val cache = new NativeCache<String>()) {
+            val first = cache.put("key", 32).get();
+            first.fill((byte) 0x7F);
+            val second = cache.put("key", 48).get();
+            assertEquals(48, second.byteSize());
+            for (long i = 0; i < 48; i++) {
+                assertEquals(0, second.get(ValueLayout.JAVA_BYTE, i));
+            }
+            assertEquals(second, cache.segment("key"));
+        }
+    }
 }

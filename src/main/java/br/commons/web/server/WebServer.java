@@ -23,6 +23,7 @@ import java.util.List;
 @NullMarked
 public final class WebServer {
 
+    private final Router router;
     private final WebDispatcher dispatcher;
     private final HTTPServer server;
 
@@ -54,6 +55,7 @@ public final class WebServer {
 
     public WebServer(int port, Router router, List<HTTPFilter> filters, long maxBodySize,
                      MultipartParser.@Nullable Limits multipartLimits) {
+        this.router = router;
         dispatcher = new WebDispatcher(router);
         val chain = new ArrayList<HTTPFilter>(filters.size() + 1);
         chain.add(new PreflightFilter(router));
@@ -65,8 +67,10 @@ public final class WebServer {
         dispatcher.register(resource);
     }
 
+    /** Freezes the {@link Router} first: a registration after the start returns {@code Failure}. */
     @CheckReturnValue
     public Result<Void, String> start() {
+        router.freeze();
         return server.start();
     }
 

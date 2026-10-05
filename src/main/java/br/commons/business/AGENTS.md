@@ -88,9 +88,9 @@ Listener com parâmetro `BusinessEvent` recebe todos os eventos de domínio.
 
 ## 7. `args` e igualdade
 
-Variantes são `record` com `Object... args`: `equals`/`hashCode` do record
-comparam o **array por referência**. Dois `NotFound("k", 1)` não são iguais.
-Em teste, compare `key()` e `Arrays.equals(args())`, não o erro inteiro.
+Variantes são `record` com `Object... args` e `equals`/`hashCode`/`toString`
+explícitos por **conteúdo** (`Arrays.equals`): dois `NotFound("k", 1)` são
+iguais. Ao criar nova variante, repita os três métodos.
 
 ## 8. Exceção
 

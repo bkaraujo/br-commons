@@ -45,4 +45,13 @@ class RouterTest {
         assertEquals("POST, OPTIONS", router.allowHeader("/api/x"));
         assertNull(router.allowHeader("/api/y"));
     }
+
+    /** Regression (R6): registration after the server start was accepted on a router read without locks. */
+    @Test
+    void frozenRouterRefusesRegistration() {
+        val router = new Router();
+        router.freeze();
+        assertTrue(router.get("/late", MediaType.APPLICATION_JSON, Void.class, request -> WebResponse.noContent()).isFailure());
+        assertNull(router.match(HTTPMethod.GET, "/late"));
+    }
 }
