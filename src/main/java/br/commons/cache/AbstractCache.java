@@ -24,7 +24,9 @@ import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
 /**
- * Off-heap cache per session. Queries ({@link #find}, {@link #list}) are hot path: straight code,
+ * Off-heap cache split into independent partitions. The partition is an opaque {@code String} chosen by the
+ * caller (tenant, account, region...): {@link #load} fills one from the loader, {@link #unload} frees its native
+ * memory, and every read or mutation targets one partition. Queries ({@link #find}, {@link #list}) are hot path: straight code,
  * no lambda, no key building and no instrumentation — the timer only exists if DEBUG is
  * on for this class. Mutations continue serialized in {@link CacheWorker} and timed
  * by {@link Execution}, which is cheap when the level doesn't pass.
@@ -59,16 +61,16 @@ public abstract class AbstractCache<T> {
 
     protected abstract T mapToDomain(MemorySegment segment);
 
-    public CompletableFuture<Result<Void, String>> onLogin(String personId) {
+    public CompletableFuture<Result<Void, String>> load(String partition) {
         return Execution.nanos(CALLER, () -> {
             val future = new CompletableFuture<NativeCache<UUID>>();
-            registry.put(personId, future);
+            registry.put(partition, future);
 
             return CacheWorker.submitResult(() -> {
                 val cache = new NativeCache<UUID>();
                 val errors = new ArrayList<String>();
                 try {
-                    for (val model : loader.apply(personId)) {
+                    for (val model : loader.apply(partition)) {
                         store(cache, model).ifFailure(errors::add);
                     }
                 } finally {
@@ -76,14 +78,14 @@ public abstract class AbstractCache<T> {
                 }
                 return errors.isEmpty()
                         ? Result.success()
-                        : Result.failure("cache populate incomplete for " + personId + ": " + errors);
+                        : Result.failure("cache populate incomplete for " + partition + ": " + errors);
             });
         });
     }
 
-    public CompletableFuture<Result<Void, String>> onLogout(String personId) {
+    public CompletableFuture<Result<Void, String>> unload(String partition) {
         return Execution.nanos(CALLER, () -> {
-            val future = registry.remove(personId);
+            val future = registry.remove(partition);
             if (future == null) return CompletableFuture.completedFuture(Result.success());
 
             return future.handle((cache, thrown) -> {
@@ -99,18 +101,18 @@ public abstract class AbstractCache<T> {
         });
     }
 
-    public CompletableFuture<Result<Void, String>> upsert(String personId, T model) {
-        return Execution.nanos(CALLER, () -> onCache(personId, cache -> store(cache, model)));
+    public CompletableFuture<Result<Void, String>> upsert(String partition, T model) {
+        return Execution.nanos(CALLER, () -> onCache(partition, cache -> store(cache, model)));
     }
 
-    public CompletableFuture<Result<Void, String>> evict(String personId, UUID id) {
-        return Execution.nanos(CALLER, () -> onCache(personId, cache -> cache.remove(id)));
+    public CompletableFuture<Result<Void, String>> evict(String partition, UUID id) {
+        return Execution.nanos(CALLER, () -> onCache(partition, cache -> cache.remove(id)));
     }
 
     public CompletableFuture<Result<Void, String>> evictEverywhere(UUID id) {
         return Execution.nanos(CALLER, () -> {
             val pending = registry.keySet().stream()
-                    .map(personId -> onCache(personId, cache -> cache.remove(id)))
+                    .map(partition -> onCache(partition, cache -> cache.remove(id)))
                     .toList();
 
             return CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new))
@@ -122,33 +124,33 @@ public abstract class AbstractCache<T> {
         });
     }
 
-    public Result<List<T>, String> list(String personId) {
-        if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return doList(personId);
+    public Result<List<T>, String> list(String partition) {
+        if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return doList(partition);
 
         val start = Time.nanos();
         try {
-            return doList(personId);
+            return doList(partition);
         } finally {
             Logger.debug("list time: %s ns", Time.nanos() - start);
         }
     }
 
-    public Result<T, String> find(String personId, UUID id) {
-        if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return doFind(personId, id);
+    public Result<T, String> find(String partition, UUID id) {
+        if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return doFind(partition, id);
 
         val start = Time.nanos();
         try {
-            return doFind(personId, id);
+            return doFind(partition, id);
         } finally {
             Logger.debug("find time: %s ns", Time.nanos() - start);
         }
     }
 
-    private Result<List<T>, String> doList(String personId) {
-        val cache = live(personId);
+    private Result<List<T>, String> doList(String partition) {
+        val cache = live(partition);
         if (cache != null) return collect(cache);
 
-        return switch (awaited(personId)) {
+        return switch (awaited(partition)) {
             case Result.Failure(var error) -> Result.failure(error);
             case Result.Success(var resolved) -> resolved == null
                     ? Result.success(List.of())
@@ -156,11 +158,11 @@ public abstract class AbstractCache<T> {
         };
     }
 
-    private Result<T, String> doFind(String personId, UUID id) {
-        val cache = live(personId);
+    private Result<T, String> doFind(String partition, UUID id) {
+        val cache = live(partition);
         if (cache != null) return lookup(cache, id);
 
-        return switch (awaited(personId)) {
+        return switch (awaited(partition)) {
             case Result.Failure(var error) -> Result.failure(error);
             case Result.Success(var resolved) -> resolved == null
                     ? notFound(id)
@@ -187,8 +189,8 @@ public abstract class AbstractCache<T> {
     }
 
     /** Cache ready for immediate reading, or {@code null} if absent, still populating or closed. */
-    private @Nullable NativeCache<UUID> live(String personId) {
-        val future = registry.get(personId);
+    private @Nullable NativeCache<UUID> live(String partition) {
+        val future = registry.get(partition);
         if (future == null) return null;
 
         val cache = future.getNow(null);
@@ -196,31 +198,31 @@ public abstract class AbstractCache<T> {
     }
 
     /**
-     * Rare path, outside the hotpath: person without cache, or populate still in flight right after
-     * login. Can wait, allocate and fail. {@code Success} with {@code null} is absence — the
+     * Rare path, outside the hotpath: partition not loaded, or populate still in flight right after
+     * {@link #load}. Can wait, allocate and fail. {@code Success} with {@code null} is absence — the
      * caller decides what absence means for them.
      */
-    private Result<@Nullable NativeCache<UUID>, String> awaited(String personId) {
-        val future = registry.get(personId);
+    private Result<@Nullable NativeCache<UUID>, String> awaited(String partition) {
+        val future = registry.get(partition);
         if (future == null) return Result.success(null);
 
         try {
             val cache = future.get(POPULATE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             return cache.isClosed() ? Result.success(null) : Result.success(cache);
         } catch (TimeoutException e) {
-            Logger.debug("Cache populate timeout for %s", personId);
-            return Result.failure("cache populate timeout for " + personId);
+            Logger.debug("Cache populate timeout for %s", partition);
+            return Result.failure("cache populate timeout for " + partition);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return Result.failure("interrupted reading cache for " + personId);
+            return Result.failure("interrupted reading cache for " + partition);
         } catch (Exception e) {
-            Logger.warn("Cache read failed for %s: %s", personId, e.toString());
+            Logger.warn("Cache read failed for %s: %s", partition, e.toString());
             return Result.failure(e.toString());
         }
     }
 
-    private CompletableFuture<Result<Void, String>> onCache(String personId, Function<NativeCache<UUID>, Result<Void, String>> action) {
-        val future = registry.get(personId);
+    private CompletableFuture<Result<Void, String>> onCache(String partition, Function<NativeCache<UUID>, Result<Void, String>> action) {
+        val future = registry.get(partition);
         if (future == null) return CompletableFuture.completedFuture(Result.success());
 
         return CacheWorker.submitResult(() -> {

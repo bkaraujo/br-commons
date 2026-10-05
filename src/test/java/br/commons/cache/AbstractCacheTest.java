@@ -17,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AbstractCacheTest {
 
-    private static final String ALICE = "alice";
-    private static final String BOB = "bob";
+    private static final String EAST = "east";
+    private static final String WEST = "west";
 
     private record Item(UUID id, long amount) {}
 
@@ -28,7 +28,7 @@ class AbstractCacheTest {
     private static final class ItemCache extends AbstractCache<Item> {
         ItemCache(Map<String, List<Item>> source) {
             super("TEST:",
-                    personId -> source.getOrDefault(personId, List.of()),
+                    partition -> source.getOrDefault(partition, List.of()),
                     Item::id,
                     _ -> SIZE,
                     (segment, item) -> {
@@ -45,9 +45,9 @@ class AbstractCacheTest {
         }
     }
 
-    private static ItemCache loggedIn(String personId, List<Item> items) {
-        val cache = new ItemCache(Map.of(personId, items));
-        assertTrue(cache.onLogin(personId).join().isSuccess());
+    private static ItemCache loaded(String partition, List<Item> items) {
+        val cache = new ItemCache(Map.of(partition, items));
+        assertTrue(cache.load(partition).join().isSuccess());
         return cache;
     }
 
@@ -59,31 +59,31 @@ class AbstractCacheTest {
     void testFindHit() {
         val one = item(10);
         val two = item(20);
-        val cache = loggedIn(ALICE, List.of(one, two));
+        val cache = loaded(EAST, List.of(one, two));
 
-        assertEquals(two, cache.find(ALICE, two.id()).get());
-        assertEquals(one, cache.find(ALICE, one.id()).get());
+        assertEquals(two, cache.find(EAST, two.id()).get());
+        assertEquals(one, cache.find(EAST, one.id()).get());
 
-        cache.onLogout(ALICE).join();
+        cache.unload(EAST).join();
     }
 
     @Test
     void testFindMissKeepsPrefixInMessage() {
         val stored = item(10);
-        val cache = loggedIn(ALICE, List.of(stored));
+        val cache = loaded(EAST, List.of(stored));
         val absent = UUID.randomUUID();
 
-        assertEquals("not found: TEST:" + absent, failureOf(cache.find(ALICE, absent)));
+        assertEquals("not found: TEST:" + absent, failureOf(cache.find(EAST, absent)));
 
-        cache.onLogout(ALICE).join();
+        cache.unload(EAST).join();
     }
 
     @Test
-    void testFindWithoutLoginIsMiss() {
+    void testFindOnUnloadedPartitionIsMiss() {
         val cache = new ItemCache(Map.of());
         val id = UUID.randomUUID();
 
-        assertEquals("not found: TEST:" + id, failureOf(cache.find(ALICE, id)));
+        assertEquals("not found: TEST:" + id, failureOf(cache.find(EAST, id)));
     }
 
     @Test
@@ -91,23 +91,23 @@ class AbstractCacheTest {
         val one = item(10);
         val two = item(20);
         val three = item(30);
-        val cache = loggedIn(ALICE, List.of(one, two, three));
+        val cache = loaded(EAST, List.of(one, two, three));
 
-        val listed = cache.list(ALICE).get();
+        val listed = cache.list(EAST).get();
         assertEquals(List.of(one, two, three), listed);
 
         // The list belongs to the caller: whoever lists usually sorts/filters on top of it.
         listed.remove(0);
-        assertEquals(3, cache.list(ALICE).get().size());
+        assertEquals(3, cache.list(EAST).get().size());
 
-        cache.onLogout(ALICE).join();
+        cache.unload(EAST).join();
     }
 
     @Test
-    void testListWithoutLoginIsEmpty() {
+    void testListOnUnloadedPartitionIsEmpty() {
         val cache = new ItemCache(Map.of());
 
-        val listed = cache.list(ALICE);
+        val listed = cache.list(EAST);
         assertTrue(listed.isSuccess());
         assertTrue(listed.get().isEmpty());
     }
@@ -115,69 +115,69 @@ class AbstractCacheTest {
     @Test
     void testUpsertAndEvict() {
         val stored = item(10);
-        val cache = loggedIn(ALICE, List.of(stored));
+        val cache = loaded(EAST, List.of(stored));
 
         val added = item(99);
-        assertTrue(cache.upsert(ALICE, added).join().isSuccess());
-        assertEquals(added, cache.find(ALICE, added.id()).get());
-        assertEquals(2, cache.list(ALICE).get().size());
+        assertTrue(cache.upsert(EAST, added).join().isSuccess());
+        assertEquals(added, cache.find(EAST, added.id()).get());
+        assertEquals(2, cache.list(EAST).get().size());
 
         val updated = new Item(stored.id(), 11);
-        assertTrue(cache.upsert(ALICE, updated).join().isSuccess());
-        assertEquals(updated, cache.find(ALICE, stored.id()).get());
-        assertEquals(2, cache.list(ALICE).get().size());
+        assertTrue(cache.upsert(EAST, updated).join().isSuccess());
+        assertEquals(updated, cache.find(EAST, stored.id()).get());
+        assertEquals(2, cache.list(EAST).get().size());
 
-        assertTrue(cache.evict(ALICE, stored.id()).join().isSuccess());
-        assertTrue(cache.find(ALICE, stored.id()).isFailure());
-        assertEquals(List.of(added), cache.list(ALICE).get());
+        assertTrue(cache.evict(EAST, stored.id()).join().isSuccess());
+        assertTrue(cache.find(EAST, stored.id()).isFailure());
+        assertEquals(List.of(added), cache.list(EAST).get());
 
-        cache.onLogout(ALICE).join();
+        cache.unload(EAST).join();
     }
 
     @Test
-    void testEvictEverywhereHitsEverySession() {
+    void testEvictEverywhereHitsEveryPartition() {
         val shared = item(10);
-        val cache = new ItemCache(Map.of(ALICE, List.of(shared), BOB, List.of(shared)));
-        assertTrue(cache.onLogin(ALICE).join().isSuccess());
-        assertTrue(cache.onLogin(BOB).join().isSuccess());
+        val cache = new ItemCache(Map.of(EAST, List.of(shared), WEST, List.of(shared)));
+        assertTrue(cache.load(EAST).join().isSuccess());
+        assertTrue(cache.load(WEST).join().isSuccess());
 
         assertTrue(cache.evictEverywhere(shared.id()).join().isSuccess());
 
-        assertTrue(cache.find(ALICE, shared.id()).isFailure());
-        assertTrue(cache.find(BOB, shared.id()).isFailure());
+        assertTrue(cache.find(EAST, shared.id()).isFailure());
+        assertTrue(cache.find(WEST, shared.id()).isFailure());
 
-        cache.onLogout(ALICE).join();
-        cache.onLogout(BOB).join();
+        cache.unload(EAST).join();
+        cache.unload(WEST).join();
     }
 
     @Test
-    void testLogoutDropsTheSession() {
+    void testUnloadDropsThePartition() {
         val stored = item(10);
-        val cache = loggedIn(ALICE, List.of(stored));
+        val cache = loaded(EAST, List.of(stored));
 
-        assertTrue(cache.onLogout(ALICE).join().isSuccess());
+        assertTrue(cache.unload(EAST).join().isSuccess());
 
-        assertTrue(cache.find(ALICE, stored.id()).isFailure());
-        assertTrue(cache.list(ALICE).get().isEmpty());
+        assertTrue(cache.find(EAST, stored.id()).isFailure());
+        assertTrue(cache.list(EAST).get().isEmpty());
 
-        // Second logout has no session to close, and that is not an error.
-        assertTrue(cache.onLogout(ALICE).join().isSuccess());
+        // Second unload has no partition to close, and that is not an error.
+        assertTrue(cache.unload(EAST).join().isSuccess());
     }
 
     @Test
-    void testSessionsDoNotSeeEachOther() {
+    void testPartitionsDoNotSeeEachOther() {
         val mine = item(10);
         val yours = item(20);
-        val cache = new ItemCache(Map.of(ALICE, List.of(mine), BOB, List.of(yours)));
-        assertTrue(cache.onLogin(ALICE).join().isSuccess());
-        assertTrue(cache.onLogin(BOB).join().isSuccess());
+        val cache = new ItemCache(Map.of(EAST, List.of(mine), WEST, List.of(yours)));
+        assertTrue(cache.load(EAST).join().isSuccess());
+        assertTrue(cache.load(WEST).join().isSuccess());
 
-        assertEquals(List.of(mine), cache.list(ALICE).get());
-        assertEquals(List.of(yours), cache.list(BOB).get());
-        assertTrue(cache.find(ALICE, yours.id()).isFailure());
+        assertEquals(List.of(mine), cache.list(EAST).get());
+        assertEquals(List.of(yours), cache.list(WEST).get());
+        assertTrue(cache.find(EAST, yours.id()).isFailure());
 
-        cache.onLogout(ALICE).join();
-        cache.onLogout(BOB).join();
+        cache.unload(EAST).join();
+        cache.unload(WEST).join();
     }
 
     private static <T> String failureOf(Result<T, String> result) {

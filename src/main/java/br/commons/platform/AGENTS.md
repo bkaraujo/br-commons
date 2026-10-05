@@ -107,7 +107,7 @@ String c = TerminalColor.ofHex("#ff8800");
   `ConcurrentHashMap`, ordem `ConcurrentLinkedQueue`.
 - **Memória só é liberada no `close()`**: `remove` e `put` sobre chave
   existente apenas desindexam; o segmento antigo continua alocado. Cache com
-  muitos upserts cresce até o fechamento (logout em `br.commons.cache`).
+  muitos upserts cresce até o fechamento (`unload` em `br.commons.cache`).
 - `put` aloca `size` e copia um `byte[size]` zerado do heap (redundante:
   `allocate` já zera) e faz `(int) size` — `size > 2 GB` quebra.
 - `close()` com leitor concorrente: fechar arena compartilhada em uso pode
