@@ -1,0 +1,166 @@
+# br.commons.web — rotas, JSON e filtros sobre `br.commons.http`
+
+Conveniências sobre a camada HTTP pura: roteador explícito, servidor web com
+corpo por `MediaType` da rota, respostas JSON/HTML/SSE, `ProblemDetail` e
+filtros prontos.
+
+| Tipo / subpacote             | Papel                                                 |
+|------------------------------|-------------------------------------------------------|
+| `RouteHandler`               | `HTTPResponse handle(WebRequest)`                     |
+| `ProblemDetail`              | Corpo de erro uniforme (RFC 7807 simplificado)        |
+| `router/Router`              | Registro `método + template → handler`; `match`, `Allow` |
+| `router/Route`               | Rota registrada (fonte do OpenAPI)                    |
+| `router/RouteRule`           | Política de registro injetada no `Router`             |
+| `server/WebServer`           | Custódia do `HTTPServer`; `register(WebResource)`     |
+| `server/WebResource`         | Fatia de rotas: `routes(Router)`                      |
+| `server/WebRequest`          | Request + path params + `body(Class)` pelo `consumes` |
+| `server/WebResponse`         | `ok`, `created`, `json`, `html`, `redirect`, `problem`, `eventStream` |
+| `server/Form`                | Corpo `x-www-form-urlencoded` (multivalor)            |
+| `filter/PreflightFilter`     | Responde `OPTIONS` com `Allow` (sempre primeiro)      |
+| `filter/StaticFiles`         | Serve arquivos de classpath/diretório                 |
+| `filter/RequestLoggingFilter`| Loga `método path -> status`                          |
+
+## 1. Recurso e rotas
+
+```java
+public final class OrderResource implements WebResource {
+    public void routes(Router r) {
+        r.get("/api/orders/{id}", MediaType.APPLICATION_JSON, OrderDto.class, this::find).getOrThrow();
+        r.post("/api/orders", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON,
+               NewOrder.class, OrderDto.class, this::create).getOrThrow();
+    }
+    HTTPResponse find(WebRequest req) {
+        return req.pathParam("id").flatMap(service::find)
+                  .map(WebResponse::ok)
+                  .getOrElse(() -> WebResponse.problem(ProblemDetail.of(HTTPStatus.NOT_FOUND)));
+    }
+    HTTPResponse create(WebRequest req) {
+        return switch (req.body(NewOrder.class)) {
+            case Result.Success<NewOrder, String>(var o) -> WebResponse.created(service.create(o));
+            case Result.Failure<NewOrder, String>(var e) -> WebResponse.problem(ProblemDetail.of(HTTPStatus.BAD_REQUEST, e));
+        };
+    }
+}
+```
+
+- `register`/`get`/`post`... devolvem `Result<Route,String>` — ignorar não
+  compila (`@CheckReturnValue`).
+- `produces` obrigatório; `consumes` obrigatório em verbo com corpo.
+- Rotas exigem autenticação por padrão; `postPublic` (login, cadastro) é a exceção.
+
+## 2. Servidor
+
+```java
+var server = new WebServer(8080, new Router(), List.of(new RequestLoggingFilter(),
+        new StaticFiles("/static/", "static", devDir, Duration.ofDays(7))),
+        10_000_000, uploadLimits);
+server.register(new OrderResource()); server.start().ifFailure(Logger::error);
+```
+
+`PreflightFilter` é inserido automaticamente antes dos seus filtros.
+
+## 3. Corpo da requisição (`WebRequest.body`)
+
+| `consumes` da rota     | Tipo aceito em `body(type)`  |
+|------------------------|------------------------------|
+| `APPLICATION_JSON`     | qualquer (via `Json`)        |
+| `TEXT_PLAIN`           | `String`                     |
+| `URL_ENCODED`          | `Form`                       |
+| `MULTIPART_FORM_DATA`  | `Multipart`                  |
+
+Lido pelo `consumes` da **rota**, nunca pelo `Content-Type` do cliente.
+
+## 4. Respostas
+
+```java
+WebResponse.ok(dto); WebResponse.created(dto); WebResponse.json(HTTPStatus.ACCEPTED, dto); WebResponse.noContent();
+WebResponse.html(HTTPStatus.OK, pagina);        // página ou fragmento HTMX
+WebResponse.redirect("/orders");                // 303 (post/redirect/get)
+WebResponse.problem(ProblemDetail.of(HTTPStatus.CONFLICT, "detalhe", "order.conflict"));
+WebResponse.eventStream(out -> ...);            // SSE
+```
+
+## 5. Regras rápidas para agentes
+
+1. Cada fatia = um `WebResource`; sem scanning de classpath.
+2. Trate o `Result` de cada registro (`getOrThrow` no bootstrap é aceitável).
+3. Rota específica antes da genérica (`/x/new` antes de `/x/{id}`).
+4. Erro ao cliente sempre `ProblemDetail`; nunca CPF/dado pessoal no detalhe.
+5. Não registre `OPTIONS` (falha): o servidor responde sozinho.
+6. Registre tudo antes de `start()`.
+
+## 6. Checklist de revisão
+
+- [ ] `produces`/`consumes` corretos; `responseType` real (OpenAPI).
+- [ ] Rotas públicas só via `postPublic`/`requiresAuthentication=false`.
+- [ ] Ordem de registro não sombreia rotas.
+
+---
+
+<!-- Fim da seção de uso (até a linha 100). Abaixo, implementação avançada. -->
+
+# Implementação avançada
+
+## 7. Despacho (`WebDispatcher.handle`)
+
+1. `router.match(method, path)`: varre rotas **na ordem de registro**; primeira
+   que casa vence.
+2. Casou → `handler.handle(new WebRequest(...))` → `produce`: em resposta 2xx
+   com corpo/stream, força `Content-Type` = `route.produces()`. Não-2xx passa
+   intacta.
+3. Não casou: `allowHeader(path)` — se algum template casa com outro método →
+   405 `ProblemDetail` + `Allow`; senão 404 "Rota não encontrada".
+4. Exceção do handler → `HTTPServer.onFailure` = `WebResponse.internalServerError()`
+   (500 com `ProblemDetail`).
+
+## 8. Templates
+
+- `/a/{id}/b` → regex `^/a/(?<id>[^/]+)/b$`; literais com `Pattern.quote`.
+- Nome de parâmetro vira grupo nomeado: precisa ser identificador válido de
+  regex (`[A-Za-z][A-Za-z0-9]*`); `{order-id}` quebra no `Pattern.compile`.
+- Barras duplicadas/finais são ignoradas no template; o `path` da requisição
+  já chega sem barra final.
+- Parâmetro casa um segmento só; caminhos aninhados → filtro (como
+  `StaticFiles`).
+- `Allow` soma métodos de templates de mesma forma (`/x/{id}` + `/x/{key}`).
+
+## 9. Concorrência
+
+`Router.routes` é `ArrayList` e `allowed` um mapa comum: registro **não** é
+thread-safe e não deve ocorrer com o servidor atendendo.
+
+## 10. `StaticFiles`
+
+- Só `GET` sob o prefixo; `..` ou `\` no nome → 404. Diretório de
+  desenvolvimento normalizado e checado com `startsWith` (anti traversal).
+- Diretório vence o classpath; diretório/entrada de diretório → 404.
+- Lê o arquivo **inteiro** em memória a cada requisição; sem `ETag`,
+  `Last-Modified` nem `Range`. Arquivos grandes → servir por outro meio.
+- `maxAge` zero → `no-cache`; adiciona `X-Content-Type-Options: nosniff`.
+- Tipo desconhecido → `application/octet-stream` (ver mapa `TYPES`).
+
+## 11. `RequestLoggingFilter`
+
+Pula log quando o path **contém** `static`, `.well-known` ou `webmanifest` —
+substring: `/api/staticReports` também é silenciado.
+
+## 12. `PreflightFilter`
+
+Responde `OPTIONS` antes dos filtros do cliente (preflight não carrega
+`Bearer`), usando o `Allow` pré-calculado; nenhum handler roda.
+
+## 13. Observações
+
+- `package-info` de `web` cita `br.commons.web.session`, que não existe.
+- `Form.parse` lança `IllegalArgumentException` em percent-encoding inválido;
+  `WebRequest.body(Form.class)` converte em `Failure`.
+- JSON usa `br.commons.serializer.Json` (`Json.from(...).as(type)`).
+
+## 14. Extensão
+
+| Necessidade              | Onde mexer                                          |
+|--------------------------|-----------------------------------------------------|
+| Novo formato de corpo    | `WebRequest.body` (`case` no `switch`)             |
+| Regras de rota (ex.: só `/api`) | `RouteRule` no construtor do `Router`        |
+| Cache HTTP de estáticos  | `StaticFiles`: `ETag`/`Last-Modified`              |
+| Prioridade de rota       | ordenar literais antes de parâmetros em `match`    |
