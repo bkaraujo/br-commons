@@ -8,6 +8,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -128,15 +129,25 @@ public final class Bundles {
             return Text.message(substitute(bundle.getString(method.getName()), method, values));
         }
 
+        /**
+         * One pass over the template: a value that itself contains {@code {other}} is inserted as is, never
+         * substituted again. A placeholder with no parameter of that name stays in the text.
+         */
         private String substitute(String template, Method method, @Nullable Object[] values) {
             val parameters = method.getParameters();
-            var result = template;
+            val byName = new HashMap<String, String>(parameters.length * 2);
             for (var i = 0; i < parameters.length; i++) {
                 val value = values[i];
-                val formatted = value == null ? "" : formats.argument(value);
-                result = result.replace("{" + parameters[i].getName() + "}", formatted);
+                byName.put(parameters[i].getName(), value == null ? "" : formats.argument(value));
             }
-            return result;
+            val matcher = PLACEHOLDER.matcher(template);
+            val result = new StringBuilder(template.length() + 16);
+            while (matcher.find()) {
+                val formatted = byName.get(matcher.group(1));
+                matcher.appendReplacement(result, Matcher.quoteReplacement(formatted == null ? matcher.group() : formatted));
+            }
+            matcher.appendTail(result);
+            return result.toString();
         }
 
         private Object objectMethod(Object proxy, Method method, @Nullable Object @Nullable [] args) {

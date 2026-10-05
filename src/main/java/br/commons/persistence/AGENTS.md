@@ -127,13 +127,14 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 
 - Construtor faz introspecção (`DatabaseMetaData.getColumns/getPrimaryKeys`)
   — exige `DataSource` no `Context` e banco acessível na construção.
-- SQL gerado usa `table` **sem schema** (schema só filtra a introspecção):
-  tabela fora do `search_path` falha em runtime.
+- Todo SQL gerado usa `qualifiedTable()` (`schema.table` quando há schema).
 - Identificadores não são citados: nome com maiúsculas/reservado depende do
   banco.
-- `save` = `SELECT 1` + `UPDATE`/`INSERT` na mesma transação; **não** é
-  atômico sob concorrência (duas threads podem inserir → violação de PK). Use
-  `INSERT ... ON CONFLICT` quando houver concorrência.
+- `save` = upsert nativo: PostgreSQL `INSERT ... ON CONFLICT (pk) DO UPDATE`
+  (atômico); H2 `MERGE ... USING`, repetido até 3× em violação de PK (23505),
+  porque o MERGE do H2 não é atômico entre transações. Respeita
+  `updateImmutableColumns`. Banco desconhecido → SELECT + INSERT/UPDATE na
+  mesma transação (ainda sujeito a corrida).
 - `findAll` sem paginação.
 
 ## 10. Pool (`ConnectionPool`)
@@ -160,8 +161,9 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 
 - `LocalFileStorage(path, mapper)`: raiz em `Platform.fileSystem().jvmFS()`;
   cada arquivo é um objeto JSON e cada `jsonKey` um campo.
-- `write` = ler arquivo inteiro → alterar campo → regravar: **não** atômico
-  nem thread-safe (escritas concorrentes perdem dados; crash no meio corrompe).
+- `write` = ler → alterar campo → regravar, serializado por lock por arquivo
+  (compartilhado entre instâncias na JVM) e publicado por `*.tmp` +
+  `ATOMIC_MOVE`. Outro processo escrevendo o mesmo arquivo ainda corre.
 - `resolve(file)` não normaliza: `file` com `..` escapa da raiz — nunca use
   nome vindo do usuário.
 - `EntityDiff.of(mapper, antes, depois)`: diff textual para auditoria/log.
@@ -170,7 +172,6 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 
 | Necessidade                | Onde mexer                                          |
 |----------------------------|-----------------------------------------------------|
-| Upsert atômico             | `JDBCRepository.save` com SQL do dialeto            |
-| Schema no SQL              | prefixar `schema.` em `findAll/insert/...`          |
+| Upsert de novo banco       | `JDBCRepository.upsertSql` (novo `case` do produto) |
 | Novo banco em migração     | `MigrationLock.of` + teste de DDL transacional      |
 | Preservar exceção original | `DataSource.mutating`: relançar `ex`                |

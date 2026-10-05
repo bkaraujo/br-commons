@@ -125,24 +125,53 @@ public abstract class AbstractCache<T> {
     }
 
     public Result<List<T>, String> list(String partition) {
-        if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return doList(partition);
+        if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return tolerantList(partition);
 
         val start = Time.nanos();
         try {
-            return doList(partition);
+            return tolerantList(partition);
         } finally {
             Logger.debug("list time: %s ns", Time.nanos() - start);
         }
     }
 
     public Result<T, String> find(String partition, UUID id) {
-        if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return doFind(partition, id);
+        if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return tolerantFind(partition, id);
 
         val start = Time.nanos();
         try {
-            return doFind(partition, id);
+            return tolerantFind(partition, id);
         } finally {
             Logger.debug("find time: %s ns", Time.nanos() - start);
+        }
+    }
+
+    /**
+     * A reader may still hold a cache that {@link #unload} (or a replacement) closes under it: the access to the
+     * closed arena throws {@link IllegalStateException}. The read is repeated once against what the registry holds
+     * now; only a second failure (or an unloaded partition) is absence. The {@code try} costs nothing on the hot path.
+     */
+    private Result<List<T>, String> tolerantList(String partition) {
+        try {
+            return doList(partition);
+        } catch (IllegalStateException closed) {
+            try {
+                return doList(partition);
+            } catch (IllegalStateException again) {
+                return Result.success(List.of());
+            }
+        }
+    }
+
+    private Result<T, String> tolerantFind(String partition, UUID id) {
+        try {
+            return doFind(partition, id);
+        } catch (IllegalStateException closed) {
+            try {
+                return doFind(partition, id);
+            } catch (IllegalStateException again) {
+                return notFound(id);
+            }
         }
     }
 

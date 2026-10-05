@@ -59,10 +59,18 @@ public final class HTTPServerResponse implements HTTPResponse {
         return new HTTPServerResponse(HTTPStatus.OK, EMPTY, writer);
     }
 
+    /** CR or LF in a name or value would split the response (header injection): refused. */
     @Override
     public HTTPServerResponse header(String name, String value) {
+        if (hasLineBreak(name) || hasLineBreak(value)) {
+            throw new IllegalArgumentException("header " + name.strip() + ": CR or LF not allowed");
+        }
         headers.put(Strings.lower(name), value);
         return this;
+    }
+
+    private static boolean hasLineBreak(String text) {
+        return text.indexOf('\r') >= 0 || text.indexOf('\n') >= 0;
     }
 
     @Override

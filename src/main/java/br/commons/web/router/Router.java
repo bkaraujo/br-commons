@@ -95,7 +95,9 @@ public final class Router {
             }
         }
         val paramNames = new ArrayList<String>();
-        val pattern = compile(template, paramNames);
+        val compiled = compile(template, paramNames);
+        if (compiled instanceof Result.Failure<Pattern, String>(String error)) return Result.failure(error);
+        val pattern = compiled.get();
         val route = new Route(method, template, pattern, paramNames, consumes, produces, requestType, responseType,
                 requiresAuthentication, handler);
         routes.add(route);
@@ -131,13 +133,23 @@ public final class Router {
         return methods.stream().map(Enum::name).collect(Collectors.joining(", "));
     }
 
-    private static Pattern compile(String template, List<String> paramNames) {
+    /** Path parameter names become regex group names: letters and digits, starting with a letter. */
+    private static final Pattern PARAM_NAME = Pattern.compile("[A-Za-z][A-Za-z0-9]*");
+
+    private static Result<Pattern, String> compile(String template, List<String> paramNames) {
         val regex = new StringBuilder("^");
         for (val segment : template.split("/")) {
             if (segment.isEmpty()) continue;
             regex.append('/');
             if (segment.startsWith("{") && segment.endsWith("}")) {
                 val name = segment.substring(1, segment.length() - 1);
+                if (!PARAM_NAME.matcher(name).matches()) {
+                    return Result.failure("invalid path parameter {" + name + "} in " + template
+                            + " — use letters and digits, starting with a letter (e.g. {orderId})");
+                }
+                if (paramNames.contains(name)) {
+                    return Result.failure("repeated path parameter {" + name + "} in " + template);
+                }
                 paramNames.add(name);
                 regex.append("(?<").append(name).append(">[^/]+)");
             } else {
@@ -146,7 +158,7 @@ public final class Router {
         }
         if (regex.length() == 1) regex.append('/');
         regex.append('$');
-        return Pattern.compile(regex.toString());
+        return Result.success(Pattern.compile(regex.toString()));
     }
 
     @NullMarked

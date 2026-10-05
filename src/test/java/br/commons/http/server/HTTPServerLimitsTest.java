@@ -148,4 +148,21 @@ class HTTPServerLimitsTest {
         assertEquals(200, response.statusCode());
         assertEquals("done", response.body());
     }
+
+    /** Regression (R1): the constructors without a limit accepted any body size. */
+    @Test
+    void defaultBodyLimitIsOneMebibyteAndConfigurable() {
+        val previous = System.getProperty(HTTPServer.MAX_BODY_SIZE_PROPERTY);
+        try {
+            System.clearProperty(HTTPServer.MAX_BODY_SIZE_PROPERTY);
+            assertEquals(1024 * 1024, HTTPServer.defaultMaxBodySize());
+            System.setProperty(HTTPServer.MAX_BODY_SIZE_PROPERTY, "2048");
+            assertEquals(2048, HTTPServer.defaultMaxBodySize());
+            System.setProperty(HTTPServer.MAX_BODY_SIZE_PROPERTY, "lots");
+            assertEquals(1024 * 1024, HTTPServer.defaultMaxBodySize());
+        } finally {
+            if (previous == null) System.clearProperty(HTTPServer.MAX_BODY_SIZE_PROPERTY);
+            else System.setProperty(HTTPServer.MAX_BODY_SIZE_PROPERTY, previous);
+        }
+    }
 }

@@ -62,7 +62,8 @@ String c = TerminalColor.ofHex("#ff8800");
 ## 4. Regras rápidas para agentes
 
 1. Use `Platform.*`; não instancie `LNX*`/`WIN*` direto.
-2. Código que depende de SO trata `MAC`/`UNKNOWN` (serviços retornam `null`).
+2. Código que depende de SO trata `MAC`/`UNKNOWN` (serviços lançam
+   `UnsupportedOperationException`).
 3. `NativeCache` sempre fechado (`try-with-resources` ou dono explícito).
 4. Layout binário documentado junto do `sizer`/writer (ver `br.commons.cache`).
 5. Bindings Windows: adicione função em `Kernel32`/`User32`/... seguindo o
@@ -84,9 +85,9 @@ String c = TerminalColor.ofHex("#ff8800");
 ## 6. Seleção de implementação
 
 - `Platform.CURRENT` via `os.name` (`win` → WINDOWS; `nix/nux/aix` → LINUX;
-  `mac` → MAC). `fileSystem()`/`terminal()`/`network()` criam lazy, sem
-  sincronização; em `MAC`/`UNKNOWN` logam FATAL e devolvem **`null`** apesar
-  do tipo não anotado (NPE adiante).
+  `mac` → MAC). `fileSystem()`/`terminal()`/`network()` usam holder idiom
+  (uma instância, criada pela inicialização de classe da JVM); em
+  `MAC`/`UNKNOWN` lançam `UnsupportedOperationException` com o `os.name`.
 - `Terminal` tem fábrica própria que lança `RuntimeException("unreachable")`
   fora de Linux/Windows.
 - `LNXFileSystem.jvmFS()` = `Path.of("").toAbsolutePath()`;
@@ -111,17 +112,15 @@ String c = TerminalColor.ofHex("#ff8800");
 - `put` só aloca: `Arena.allocate` já devolve o segmento zerado.
 - `close()` com leitor concorrente: fechar arena compartilhada em uso pode
   falhar/abortar acesso (`IllegalStateException`) no leitor. `AbstractCache`
-  mitiga checando `isClosed()`, mas a janela existe.
+  captura e relê uma vez via registro (ver `cache/AGENTS.md`).
 - Re-`put` de chave mantém a posição original na ordem.
 - `remove` em `ConcurrentLinkedQueue` é O(n).
 
 ## 9. Codecs — armadilhas
 
 - `writeString` trunca para `capacity - 4` bytes com WARN. `truncateUtf8`
-  recua só bytes de continuação (`10xxxxxx`), mas mantém o byte líder do
-  caractere cortado → pode gerar UTF-8 inválido (ex.: `"é"` com 1 byte
-  disponível grava `0xC3`). Correção: recuar também o byte líder quando a
-  sequência não cabe inteira.
+  corta sempre em fronteira de caractere (o caractere que não cabe inteiro
+  sai todo) → UTF-8 sempre válido.
 - `writeUuid(null)` e UUID nil (`0-0`) são indistinguíveis.
 - `writeMoney`: 2 casas `HALF_UP`; overflow de `long` vira `NULL_LONG` com
   WARN (dado perdido silenciosamente para o leitor).

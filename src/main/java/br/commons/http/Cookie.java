@@ -14,6 +14,15 @@ import java.time.Duration;
 public record Cookie(String name, String value, String path, @Nullable Duration maxAge, boolean httpOnly,
                      boolean secure, String sameSite) {
 
+    /** CR/LF would split the header; {@code ;} would add attributes to it. */
+    public Cookie {
+        for (val part : new String[] {name, value, path, sameSite}) {
+            if (part.indexOf('\r') >= 0 || part.indexOf('\n') >= 0 || part.indexOf(';') >= 0) {
+                throw new IllegalArgumentException("cookie " + name.strip() + ": CR, LF or ';' not allowed");
+            }
+        }
+    }
+
     public static Cookie session(String name, String value) {
         return new Cookie(name, value, "/", null, true, true, "Strict");
     }

@@ -34,58 +34,58 @@ public abstract class Platform {
         }
     }
 
-    private static @Nullable FileSystem fileSystem;
-    @SuppressWarnings("NullAway")
+    /**
+     * Holder idiom: each service is created once, by the JVM's class initialization (thread-safe, no lock on
+     * later calls). {@code null} = OS without a provider, reported by {@link #unsupported}.
+     */
+    private static final class FileSystemHolder {
+        static final @Nullable FileSystem INSTANCE = switch (CURRENT) {
+            case LINUX -> new LNXFileSystem();
+            case WINDOWS -> new WINFileSystem();
+            default -> null;
+        };
+    }
+
+    private static final class TerminalHolder {
+        static final @Nullable Terminal INSTANCE = switch (CURRENT) {
+            case LINUX -> new LNXTerminal();
+            case WINDOWS -> new WINTerminal();
+            default -> null;
+        };
+    }
+
+    private static final class NetworkHolder {
+        static final @Nullable Network INSTANCE = switch (CURRENT) {
+            case LINUX -> new LNXNetwork();
+            case WINDOWS -> new WINNetwork();
+            default -> null;
+        };
+    }
+
+    /** @throws UnsupportedOperationException on an OS without a provider (e.g. macOS) */
     public static FileSystem fileSystem() {
-        if (fileSystem == null) {
-            fileSystem = switch (CURRENT) {
-                case LINUX -> new LNXFileSystem();
-                case WINDOWS -> new WINFileSystem();
-                default -> null;
-            };
-
-            if (fileSystem == null) {
-                Logger.fatal("Unsupported platform: %s", CURRENT);
-            }
-        }
-
-        return fileSystem;
+        val instance = FileSystemHolder.INSTANCE;
+        if (instance == null) throw unsupported("FileSystem");
+        return instance;
     }
 
-    private static @Nullable Terminal terminal;
-    @SuppressWarnings("NullAway")
+    /** @throws UnsupportedOperationException on an OS without a provider (e.g. macOS) */
     public static Terminal terminal() {
-        if (terminal == null) {
-            terminal = switch (CURRENT) {
-                case LINUX -> new LNXTerminal();
-                case WINDOWS -> new WINTerminal();
-                default -> null;
-            };
-
-            if (terminal == null) {
-                Logger.fatal("Unsupported platform: %s", CURRENT);
-            }
-        }
-
-        return terminal;
+        val instance = TerminalHolder.INSTANCE;
+        if (instance == null) throw unsupported("Terminal");
+        return instance;
     }
 
-    private static @Nullable Network network;
-    @SuppressWarnings("NullAway")
+    /** @throws UnsupportedOperationException on an OS without a provider (e.g. macOS) */
     public static Network network() {
-        if (network == null) {
-            network = switch (CURRENT) {
-                case LINUX -> new LNXNetwork();
-                case WINDOWS -> new WINNetwork();
-                default -> null;
-            };
+        val instance = NetworkHolder.INSTANCE;
+        if (instance == null) throw unsupported("Network");
+        return instance;
+    }
 
-            if (network == null) {
-                Logger.fatal("Unsupported platform: %s", CURRENT);
-            }
-        }
-
-        return network;
+    private static UnsupportedOperationException unsupported(String service) {
+        return new UnsupportedOperationException(
+                service + " not supported on " + CURRENT + " (os.name=" + System.getProperty("os.name") + ")");
     }
 
     /** Verifica se a porta TCP já está em uso no host local. Ver {@link Network#isPortInUse(int)}. */

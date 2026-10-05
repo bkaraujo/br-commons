@@ -32,11 +32,11 @@ public final class WebServer {
     }
 
     public WebServer(int port, List<HTTPFilter> filters) {
-        this(port, new Router(), filters, Long.MAX_VALUE);
+        this(port, new Router(), filters, HTTPServer.defaultMaxBodySize());
     }
 
     public WebServer(int port, Router router, List<HTTPFilter> filters) {
-        this(port, router, filters, Long.MAX_VALUE);
+        this(port, router, filters, HTTPServer.defaultMaxBodySize());
     }
 
     public WebServer(int port, List<HTTPFilter> filters, long maxBodySize) {

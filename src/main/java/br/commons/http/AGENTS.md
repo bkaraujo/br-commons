@@ -112,8 +112,12 @@ inteiros arredondados para cima (`500ms` → 1 s).
 
 ## 8. Defaults perigosos
 
-- Construtores curtos usam `maxBodySize = Long.MAX_VALUE` (sem limite) e sem
-  multipart (multipart lido inteiro em memória como body comum).
+- Construtores curtos (`HTTPServer` e `WebServer`) usam
+  `HTTPServer.defaultMaxBodySize()`: 1 MiB, ou a system property
+  `br.commons.http.maxBodySize` (bytes; inválido → WARN e 1 MiB). Sem limite
+  só com `Long.MAX_VALUE` explícito. Sem multipart (lido em memória).
+- `header(nome, valor)` com CR/LF → `IllegalArgumentException`; `Cookie`
+  recusa CR, LF e `;` em nome, valor, path e sameSite.
 - `onFailure` padrão: 500 sem corpo.
 
 ## 9. Segurança — `X-REQUEST-ID` controlado pelo cliente

@@ -120,9 +120,11 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
 
 ## 9. `Meta`
 
-- `instance(type, args...)` chama `getConstructor()` **sem tipos** e
-  `newInstance(args)`: só funciona com `args` vazio. Com argumentos falha e
-  encerra a JVM. Para construtor com args, use reflexão direta.
+- `instance(type, args...)` → `Result<T, String>`: escolhe o construtor
+  público que aceita os `args` (primitivo casa com wrapper; `null` com
+  referência). Nenhum, ambíguo ou construtor que lança → `Failure`.
+  Armadilha: um único `String` cai em `instance(type, property)` (nome de
+  classe) — passe `(Object) texto`.
 - `exit(...)` loga ERROR e chama `System.exit`. Em teste isso mata o fork.
 - `fqn(Object)` de lambda (classe sintética) devolve `classe.metodo` do frame
   chamador; `method(lambda)` resolve rótulo para `Execution`.
@@ -142,18 +144,16 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
 - `locked(lock, Callable)` converte checked exception em
   `IllegalStateException`; `RuntimeException` passa intacta.
 - `virtual` usa `newVirtualThreadPerTaskExecutor` estático, nunca fechado.
-- `sleep`/`wait` engolem `InterruptedException` **sem** restaurar a flag de
-  interrupção — não use em código que precisa reagir a cancelamento.
+- `sleep`/`wait` terminam cedo na interrupção e **restauram** a flag: laços
+  devem testar `Thread.currentThread().isInterrupted()`.
 - `interrupt(thread)` dispara a interrupção numa virtual thread (assíncrono).
 - `result(future)` devolve `null` em falha (loga ERROR).
 
 ## 12. `Platform` e `RT`
 
 - `Platform.CURRENT` detectado por `os.name` no `<clinit>`.
-- `fileSystem()`/`terminal()`/`network()`: inicialização lazy **sem
-  sincronização** (corrida benigna: pode criar duas instâncias). SO não
-  suportado → `Logger.fatal` e retorno `null` (suprimido com
-  `@SuppressWarnings("NullAway")`).
+- `fileSystem()`/`terminal()`/`network()`: holder idiom, instância única
+  thread-safe. SO não suportado → `UnsupportedOperationException`.
 - `RT.running`: flag volátil de ciclo de vida. `RT.packages`:
   `CopyOnWriteArrayList` mutável — registre prefixos de infraestrutura de
   outros módulos no bootstrap.

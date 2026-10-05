@@ -317,4 +317,21 @@ class NativeCacheTest {
             assertEquals(second, cache.segment("key"));
         }
     }
+
+    /** Regression (C8): the cut kept the lead byte of the split character, leaving invalid UTF-8. */
+    @Test
+    void testWriteStringCutsOnACharacterBoundary() {
+        try (val cache = new NativeCache<String>()) {
+            for (val text : new String[] {"aé", "a€", "a😀", "éé", "😀😀"}) {
+                for (int capacity = 5; capacity < 4 + text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length; capacity++) {
+                    val segment = cache.put(text + capacity, capacity).get();
+                    NativeCache.writeString(segment, 0, capacity, text);
+                    val read = NativeCache.readString(segment, 0);
+                    assertNotNull(read);
+                    assertTrue(text.startsWith(read), text + " @" + capacity + " -> " + read);
+                    assertFalse(read.contains("\uFFFD"), text + " @" + capacity);
+                }
+            }
+        }
+    }
 }

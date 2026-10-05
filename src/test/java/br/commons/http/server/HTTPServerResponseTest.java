@@ -39,4 +39,15 @@ class HTTPServerResponseTest {
         assertTrue(streaming.streamWriter().isSuccess());
         assertFalse(streaming.hasBody());
     }
+
+    /** Regression (R2): CR/LF in a header or cookie split the response (header injection). */
+    @Test
+    void lineBreaksInHeadersAndCookiesAreRefused() {
+        val response = HTTPServerResponse.status(HTTPStatus.OK);
+        assertThrows(IllegalArgumentException.class, () -> response.header("HX-Location", "/a\r\nSet-Cookie: x=1"));
+        assertThrows(IllegalArgumentException.class, () -> response.header("X-A\nB", "v"));
+        assertThrows(IllegalArgumentException.class, () -> br.commons.http.Cookie.session("sid", "a\r\nb"));
+        assertThrows(IllegalArgumentException.class, () -> br.commons.http.Cookie.session("sid", "a; Domain=evil"));
+        assertEquals("/ok", response.header("HX-Location", "/ok").header("HX-Location"));
+    }
 }

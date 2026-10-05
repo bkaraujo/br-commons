@@ -231,9 +231,15 @@ public class NativeCache<K> implements AutoCloseable {
         return s.get(ValueLayout.JAVA_LONG_UNALIGNED, off);
     }
 
+    /**
+     * Longest prefix of at most {@code maxLen} bytes that ends on a character boundary. {@code bytes[len]} is the
+     * first byte left out: while it is a continuation byte the cut is inside a character, so the cut moves back
+     * to that character's lead byte, which is left out too.
+     */
     private static int truncateUtf8(byte[] bytes, int maxLen) {
-        int len = Math.min(bytes.length, maxLen);
-        while (len > 0 && (bytes[len - 1] & 0xC0) == 0x80) {
+        if (bytes.length <= maxLen) return bytes.length;
+        int len = Math.max(maxLen, 0);
+        while (len > 0 && (bytes[len] & 0xC0) == 0x80) {
             len--;
         }
         return len;

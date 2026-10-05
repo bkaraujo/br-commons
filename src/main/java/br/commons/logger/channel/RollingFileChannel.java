@@ -6,6 +6,7 @@ import br.commons.logger.LogChannel;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
+import java.nio.file.Path;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -13,9 +14,22 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public final class RollingFileChannel implements LogChannel {
     private final Queue<String> messages = new ConcurrentLinkedQueue<>();
 
+    private final RollingFileWriter writer;
+
     public RollingFileChannel() {
-        val runnable = new RollingFileWriter(messages, Platform.fileSystem().jvmFS());
-        Threads.virtual(runnable);
+        this(Platform.fileSystem().jvmFS());
+    }
+
+    /** One file per day ({@code yyyy-MM-dd.log}) under {@code directory}; the queue is drained on JVM shutdown. */
+    public RollingFileChannel(Path directory) {
+        writer = new RollingFileWriter(messages, directory);
+        Threads.virtual(writer);
+        Runtime.getRuntime().addShutdownHook(new Thread(this::close, "RollingFileChannel-shutdown"));
+    }
+
+    /** Writes what is queued and closes the file; later messages are not written. */
+    public void close() {
+        writer.stop(2_000);
     }
 
     @Override

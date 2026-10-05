@@ -67,4 +67,11 @@ class BundlesTest {
     void refusesToCreateAnIncompleteBundle() {
         assertThrows(IllegalStateException.class, () -> Bundles.of(BrokenMessages.class, "messages/broken", PT_BR));
     }
+
+    /** Regression (C14): a value containing another placeholder was substituted again. */
+    @Test
+    void valuesAreNotSubstitutedAgain() {
+        assertEquals("Olá, {day}! Hoje é 30/09/2026.", msg.greeting("{day}", LocalDate.of(2026, 9, 30)).value());
+        assertEquals("Olá, $1 \\! Hoje é 30/09/2026.", msg.greeting("$1 \\", LocalDate.of(2026, 9, 30)).value());
+    }
 }

@@ -52,7 +52,28 @@ public final class HTTPServer {
     }
 
     public HTTPServer(int port, List<HTTPFilter> filters, HTTPHandler handler, Function<Throwable, HTTPResponse> onFailure) {
-        this(port, filters, handler, onFailure, Long.MAX_VALUE);
+        this(port, filters, handler, onFailure, defaultMaxBodySize());
+    }
+
+    /** System property that overrides {@link #DEFAULT_MAX_BODY_SIZE} for the constructors without a limit. */
+    public static final String MAX_BODY_SIZE_PROPERTY = "br.commons.http.maxBodySize";
+    public static final long DEFAULT_MAX_BODY_SIZE = 1024 * 1024;
+
+    /**
+     * Body limit of the constructors that take none: {@value #MAX_BODY_SIZE_PROPERTY} (bytes) when set and valid,
+     * else 1 MiB. Read at construction. Unlimited needs the explicit {@code Long.MAX_VALUE}.
+     */
+    public static long defaultMaxBodySize() {
+        val configured = System.getProperty(MAX_BODY_SIZE_PROPERTY);
+        if (configured == null) return DEFAULT_MAX_BODY_SIZE;
+        try {
+            val parsed = Long.parseLong(configured.strip());
+            if (parsed > 0) return parsed;
+        } catch (NumberFormatException ignored) {
+            // falls through to the warning
+        }
+        Logger.warn("Invalid %s: %s — using %s bytes", MAX_BODY_SIZE_PROPERTY, configured, DEFAULT_MAX_BODY_SIZE);
+        return DEFAULT_MAX_BODY_SIZE;
     }
 
     public HTTPServer(int port, List<HTTPFilter> filters, HTTPHandler handler, Function<Throwable, HTTPResponse> onFailure, long maxBodySize) {

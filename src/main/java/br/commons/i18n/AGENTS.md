@@ -110,9 +110,9 @@ ainda é o pai na cadeia de candidatos.
 
 - `Handler` (record) resolve: `equals` por identidade, `hashCode` identidade,
   `toString` = `Bundle(base, locale)`.
-- Substituição: `String.replace("{nome}", formatado)` por parâmetro, em
-  ordem. Valor formatado que contenha `{outro}` pode ser substituído pelo
-  parâmetro seguinte — evite chaves de placeholder dentro de dados.
+- Substituição em passagem única (`Matcher.appendReplacement` +
+  `quoteReplacement`): valor com `{outro}`, `$` ou `\\` entra literal.
+  Placeholder sem parâmetro de mesmo nome fica no texto.
 - Parâmetro sem placeholder no template é aceito (não reportado).
 - Cada chamada formata via `Formats` do locale do bundle; um proxy por locale.
 

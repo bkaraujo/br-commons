@@ -121,8 +121,8 @@ HtmxResponse.of(resp).location("/orders").pushUrl("/orders").response(); // sem 
   detalhe vai como `""`.
 - `redirect` = navegação completa; `location` = navegação AJAX;
   `refresh()` = reload.
-- Valores de header não são sanitizados: CR/LF de dado externo em
-  `pushUrl`/`location` deve ser filtrado antes.
+- CR/LF em valor (`pushUrl`/`location` vindos de dado) → `HTTPServerResponse.header`
+  lança `IllegalArgumentException`: valide o dado antes de montar a resposta.
 
 ## 10. Extensão
 

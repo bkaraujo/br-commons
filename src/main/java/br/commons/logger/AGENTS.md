@@ -110,20 +110,18 @@ FATAL lança em seguida.
 
 ## 10. Canais de arquivo
 
-`FileChannel(path)`:
+`FileChannel(path[, Mode])`:
 - Thread daemon `FileChannel[nome]`, drena fila a cada 100 ms.
-- Abre com `TRUNCATE_EXISTING`: **apaga** o arquivo ao iniciar.
-- Laço infinito; o `finally` de flush só roda em erro. Mensagens nos últimos
-  ~100 ms antes do fim da JVM podem se perder (daemon não tem shutdown hook).
+- `Mode.APPEND` (padrão) acrescenta; `Mode.TRUNCATE` começa vazio.
+- `close()` e shutdown hook: param o laço, drenam a fila e fecham (espera
+  até 2 s). Mensagens após o `close` não são gravadas.
 - Falha ao abrir → `System.err`, canal vira no-op silencioso.
 
-`RollingFileChannel()`:
-- Diretório = `Platform.fileSystem().jvmFS()`; virtual thread com
-  `RollingFileWriter`, rotação diária (`MILLIS_IN_DAY`).
-- Laço roda **enquanto `RT.running`**. Se o canal for criado com
-  `RT.running == false`, o writer termina na hora e a fila cresce sem
-  consumo (vazamento). Ligue `RT.running` antes de criar o canal.
-- Mesma perda possível de mensagens finais.
+`RollingFileChannel([dir])`:
+- Diretório padrão = `Platform.fileSystem().jvmFS()`; virtual thread com
+  `RollingFileWriter`, rotação diária (`MILLIS_IN_DAY`, dia UTC).
+- Laço com flag própria (independe de `RT.running`); `close()` e shutdown
+  hook drenam a fila e fecham o arquivo.
 
 ## 11. Detalhes diversos
 
@@ -143,6 +141,5 @@ FATAL lança em seguida.
 | Necessidade           | Onde mexer                                              |
 |-----------------------|---------------------------------------------------------|
 | Saída JSON            | novo `LogChannel` ou formatação alternativa em `forward` |
-| Flush no shutdown     | shutdown hook drenando filas de `FileChannel`/rolling   |
 | Nível novo            | `LogLevel` + forwarder na cadeia + fachada `Logger`     |
 | SLF4J                 | bridge análoga ao JUL usando `*WithCaller`              |

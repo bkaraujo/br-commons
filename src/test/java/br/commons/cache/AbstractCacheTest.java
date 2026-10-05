@@ -184,4 +184,38 @@ class AbstractCacheTest {
         if (result instanceof Result.Failure<T, String>(var error)) return error;
         throw new AssertionError("esperava falha, veio " + result);
     }
+
+    /** Regression (C9): a read racing an unload touched the closed arena and threw IllegalStateException. */
+    @Test
+    void readsRacingUnloadNeverThrow() throws Exception {
+        val items = new java.util.ArrayList<Item>();
+        for (int i = 0; i < 200; i++) items.add(item(i));
+        val probe = items.get(100);
+        val cache = new ItemCache(Map.of(EAST, items));
+        val stop = new java.util.concurrent.atomic.AtomicBoolean();
+        val errors = new java.util.concurrent.CopyOnWriteArrayList<Throwable>();
+
+        val readers = new java.util.ArrayList<Thread>();
+        for (int r = 0; r < 4; r++) {
+            readers.add(Thread.ofPlatform().start(() -> {
+                while (!stop.get()) {
+                    try {
+                        cache.list(EAST);
+                        cache.find(EAST, probe.id());
+                    } catch (Throwable e) {
+                        errors.add(e);
+                        return;
+                    }
+                }
+            }));
+        }
+        for (int cycle = 0; cycle < 50; cycle++) {
+            cache.load(EAST).join();
+            cache.unload(EAST).join();
+        }
+        stop.set(true);
+        for (val reader : readers) reader.join(5_000);
+
+        assertEquals(List.of(), errors);
+    }
 }

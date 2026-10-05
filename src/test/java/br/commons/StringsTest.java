@@ -306,4 +306,12 @@ class StringsTest {
         assertFalse(Strings.isUpperCase(""));
         assertFalse(Strings.isLowerCase(""));
     }
+
+    /** Regression (C11): an interrupted sleep swallowed the interruption. */
+    @Test
+    void interruptedSleepKeepsTheFlag() {
+        Thread.currentThread().interrupt();
+        Threads.sleep(1_000);
+        assertTrue(Thread.interrupted()); // also clears it for the next tests
+    }
 }

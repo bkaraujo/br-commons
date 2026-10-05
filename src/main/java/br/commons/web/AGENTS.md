@@ -116,8 +116,8 @@ WebResponse.eventStream(out -> ...);            // SSE
 ## 8. Templates
 
 - `/a/{id}/b` → regex `^/a/(?<id>[^/]+)/b$`; literais com `Pattern.quote`.
-- Nome de parâmetro vira grupo nomeado: precisa ser identificador válido de
-  regex (`[A-Za-z][A-Za-z0-9]*`); `{order-id}` quebra no `Pattern.compile`.
+- Nome de parâmetro vira grupo nomeado: `[A-Za-z][A-Za-z0-9]*`. Nome
+  inválido (`{order-id}`) ou repetido → `register` devolve `Failure`.
 - Barras duplicadas/finais são ignoradas no template; o `path` da requisição
   já chega sem barra final.
 - Parâmetro casa um segmento só; caminhos aninhados → filtro (como

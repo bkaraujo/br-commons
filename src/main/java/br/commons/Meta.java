@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -34,13 +35,57 @@ public abstract class Meta {
         }
     }
 
-    public static <T> T instance(Class<T> type, Object ... args) {
-        try {
-            return cast(type.getConstructor().newInstance(args), type);
-        } catch (Throwable throwable) {
-            exit(99, "Failed to create %s: %s", type, throwable);
-            return cast(new Object(), type);
+    /**
+     * Instance built by the public constructor whose parameters accept {@code args} (primitives match their
+     * wrappers; {@code null} matches any reference type). No constructor, more than one, or a constructor that
+     * throws → {@code Failure}, never the end of the JVM. A single {@code String} argument resolves to
+     * {@link #instance(Class, String)} (class name) instead: pass it as {@code (Object) text}.
+     */
+    public static <T> Result<T, String> instance(Class<T> type, @Nullable Object... args) {
+        val candidates = Arrays.stream(type.getConstructors())
+                .filter(constructor -> accepts(constructor.getParameterTypes(), args))
+                .toList();
+        if (candidates.isEmpty()) {
+            return Result.failure("no public constructor of " + type.getName() + " accepts " + Arrays.toString(args));
         }
+        if (candidates.size() > 1) {
+            return Result.failure("ambiguous constructors of " + type.getName() + " for " + Arrays.toString(args));
+        }
+        try {
+            return Result.success(type.cast(candidates.getFirst().newInstance(args)));
+        } catch (InvocationTargetException e) {
+            return Result.failure("constructor of " + type.getName() + " failed: " + e.getCause());
+        } catch (ReflectiveOperationException e) {
+            return Result.failure("cannot create " + type.getName() + ": " + e);
+        }
+    }
+
+    private static boolean accepts(Class<?>[] parameters, @Nullable Object[] args) {
+        if (parameters.length != args.length) return false;
+        for (int i = 0; i < parameters.length; i++) {
+            val arg = args[i];
+            if (arg == null) {
+                if (parameters[i].isPrimitive()) return false;
+            } else if (!wrapper(parameters[i]).isInstance(arg)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Class<?> wrapper(Class<?> type) {
+        if (!type.isPrimitive()) return type;
+        return switch (type.getName()) {
+            case "int" -> Integer.class;
+            case "long" -> Long.class;
+            case "boolean" -> Boolean.class;
+            case "double" -> Double.class;
+            case "float" -> Float.class;
+            case "short" -> Short.class;
+            case "byte" -> Byte.class;
+            case "char" -> Character.class;
+            default -> Void.class;
+        };
     }
 
     public static void close(@Nullable Closeable closeable){

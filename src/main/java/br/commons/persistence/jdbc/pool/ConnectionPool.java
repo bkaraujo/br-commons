@@ -47,7 +47,7 @@ public final class ConnectionPool {
         }
 
         Threads.virtual(() -> {
-            while (RT.running) {
+            while (RT.running && !Thread.currentThread().isInterrupted()) {
                 Threads.sleep(30_000);
 
                 if (closed) return;

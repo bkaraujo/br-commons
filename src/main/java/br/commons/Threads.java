@@ -11,17 +11,24 @@ import java.util.concurrent.locks.Lock;
 public abstract class Threads {
     private Threads() {}
 
-    @SuppressWarnings("EmptyCatch")
+    /**
+     * {@link Thread#sleep} without the checked exception. An interruption ends the sleep early and the interrupt
+     * flag is restored, so loops must check {@code Thread.currentThread().isInterrupted()} to stop.
+     */
     public static void sleep(long millis) {
         try {
             Thread.sleep(millis);
-        } catch (InterruptedException ignored) {}
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 
-    @SuppressWarnings("EmptyCatch")
+    /** {@link CountDownLatch#await} without the checked exception; same interruption rule as {@link #sleep}. */
     public static void wait(CountDownLatch letch) {
         try { letch.await(); }
-        catch (InterruptedException ignored) {}
+        catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     public static void locked(Lock lock, Runnable runnable) {

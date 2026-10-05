@@ -114,4 +114,29 @@ class MetaTest {
     static class TestContainer {
         public String value = "test";
     }
+
+    public static final class Point {
+        public final int x;
+        public final String label;
+        public Point(int x, String label) { this.x = x; this.label = label; }
+        public Point(int x) { this(x, "none"); }
+        public Point() { throw new IllegalStateException("boom"); }
+    }
+
+    /** Regression (C10): with args it looked up the no-arg constructor and ended the JVM. */
+    @Test
+    void instanceWithArgsPicksTheMatchingConstructor() {
+        val two = Meta.instance(Point.class, 3, "a").get();
+        assertEquals(3, two.x);
+        assertEquals("a", two.label);
+        assertEquals("none", Meta.instance(Point.class, 4).get().label);
+        assertEquals(5, Meta.instance(Point.class, 5, null).get().x);
+    }
+
+    @Test
+    void instanceWithArgsFailsInsteadOfExiting() {
+        assertTrue(Meta.instance(Point.class, (Object) "wrong").isFailure()); // a lone String would pick instance(type, property)
+        assertTrue(Meta.instance(Point.class, (Object) null).isFailure()); // int does not take null
+        assertTrue(Meta.instance(Point.class, new Object[0]).isFailure());  // the constructor throws
+    }
 }

@@ -25,6 +25,10 @@ import java.util.stream.Collectors;
  * overwritten in {@code UPDATE} (e.g.: {@code TMS_CREATE_AT}) are declared in
  * {@link #updateImmutableColumns()}.
  *
+ * <p>Every generated statement uses {@link #qualifiedTable()} ({@code schema.table} when a schema is given).
+ * {@link #save(Object)} is a single native upsert on PostgreSQL ({@code INSERT ... ON CONFLICT}) and H2
+ * ({@code MERGE ... USING}); other databases fall back to SELECT + INSERT/UPDATE in one transaction.
+ *
  * @param <T> type of the entity persisted in this table
  */
 @NullMarked
@@ -43,6 +47,9 @@ public abstract class JDBCRepository<T> {
 
     private final List<String> primaryKeys = new ArrayList<>();
     public List<String> primaryKeys() { return primaryKeys; }
+
+    /** {@code DatabaseMetaData.getDatabaseProductName()} in upper case, read during introspection. */
+    private String product = "";
 
     protected JDBCRepository(String table) {
         this(null, table);
@@ -75,14 +82,14 @@ public abstract class JDBCRepository<T> {
 
     public List<T> findAll() {
         return dataSource.query(
-                "SELECT " + columnList() + " FROM " + table,
+                "SELECT " + columnList() + " FROM " + qualifiedTable(),
                 this::mapList
         );
     }
 
     public Optional<T> findById(Object... pk) {
         return dataSource.query(
-                "SELECT " + columnList() + " FROM " + table + " WHERE " + pkWhere(),
+                "SELECT " + columnList() + " FROM " + qualifiedTable() + " WHERE " + pkWhere(),
                 JDBCParameter.of(pk),
                 this::mapList
         ).stream().findFirst();
@@ -90,7 +97,7 @@ public abstract class JDBCRepository<T> {
 
     public boolean exists(Object... pk) {
         return dataSource.query(
-                "SELECT 1 FROM " + table + " WHERE " + pkWhere(),
+                "SELECT 1 FROM " + qualifiedTable() + " WHERE " + pkWhere(),
                 JDBCParameter.of(pk),
                 rs -> rs.next().get()
         );
@@ -98,7 +105,7 @@ public abstract class JDBCRepository<T> {
 
     public long count() {
         return dataSource.query(
-                "SELECT COUNT(*) FROM " + table,
+                "SELECT COUNT(*) FROM " + qualifiedTable(),
                 rs -> { rs.next().get(); return rs.getLong(1).get(); }
         );
     }
@@ -115,14 +122,24 @@ public abstract class JDBCRepository<T> {
         return entity;
     }
 
-    /** Inserts or updates the entity atomically (checks existence and saves in the same transaction). */
+    /**
+     * Inserts or updates the entity. PostgreSQL: {@code INSERT ... ON CONFLICT}, atomic in the database. H2: its
+     * {@code MERGE} can still raise a duplicate key (SQLState 23505) when another transaction inserts the same key
+     * at the same time, so the statement is repeated — the row now exists and the MERGE updates it. Other
+     * databases: SELECT + INSERT/UPDATE in one transaction, which a concurrent INSERT of the same key can beat.
+     */
     public T save(T entity) {
         val vals = values(entity);
-        val pk = pkValues(vals);
+        val upsert = upsertSql();
+        if (upsert != null) {
+            upsert(upsert, insertParams(vals));
+            return entity;
+        }
 
+        val pk = pkValues(vals);
         dataSource.transaction(tx -> {
             val exists = tx.query(
-                    "SELECT 1 FROM " + table + " WHERE " + pkWhere(),
+                    "SELECT 1 FROM " + qualifiedTable() + " WHERE " + pkWhere(),
                     JDBCParameter.of(pk),
                     rs -> rs.next().get()
             ).get();
@@ -135,9 +152,27 @@ public abstract class JDBCRepository<T> {
         return entity;
     }
 
+    private static final int UPSERT_ATTEMPTS = 3;
+
+    private void upsert(String sql, List<JDBCParameter> parameters) {
+        for (int attempt = 1; ; attempt++) {
+            Result<Boolean, String> outcome = dataSource.transaction(tx -> Result.success(tx.execute(sql, parameters)));
+            if (outcome instanceof Result.Failure<Boolean, String>(String error)) {
+                if (attempt < UPSERT_ATTEMPTS && isDuplicateKey(error)) continue;
+                throw new IllegalStateException("save into " + qualifiedTable() + " failed: " + error);
+            }
+            return;
+        }
+    }
+
+    /** SQLState 23505 (unique violation), as H2 writes it at the end of the message: {@code [23505-252]}. */
+    private static boolean isDuplicateKey(String error) {
+        return error.contains("[23505-");
+    }
+
     public void deleteById(Object... pk) {
         dataSource.execute(
-                "DELETE FROM " + table + " WHERE " + pkWhere(),
+                "DELETE FROM " + qualifiedTable() + " WHERE " + pkWhere(),
                 JDBCParameter.of(pk)
         );
     }
@@ -145,6 +180,11 @@ public abstract class JDBCRepository<T> {
     // ----------------------------------------------------------------------
     // SQL + parâmetros
     // ----------------------------------------------------------------------
+
+    /** {@code schema.table}, or {@code table} when there is no schema: the name every generated statement uses. */
+    public String qualifiedTable() {
+        return schema == null || schema.isBlank() ? table : schema + "." + table;
+    }
 
     protected String columnList() {
         return String.join(", ", columns);
@@ -164,12 +204,34 @@ public abstract class JDBCRepository<T> {
 
     private String insertSql() {
         val placeholders = columns.stream().map(c -> "?").collect(Collectors.joining(", "));
-        return "INSERT INTO " + table + " (" + columnList() + ") VALUES (" + placeholders + ")";
+        return "INSERT INTO " + qualifiedTable() + " (" + columnList() + ") VALUES (" + placeholders + ")";
     }
 
     private String updateSql() {
         val set = updatableColumns().stream().map(c -> c + " = ?").collect(Collectors.joining(", "));
-        return "UPDATE " + table + " SET " + set + " WHERE " + pkWhere();
+        return "UPDATE " + qualifiedTable() + " SET " + set + " WHERE " + pkWhere();
+    }
+
+    /** Native upsert for the database in use, or {@code null} when there is none (fallback in {@link #save}). */
+    private @Nullable String upsertSql() {
+        if (primaryKeys.isEmpty()) return null;
+        val placeholders = columns.stream().map(c -> "?").collect(Collectors.joining(", "));
+        val updatable = updatableColumns();
+        return switch (product) {
+            case "POSTGRESQL" -> "INSERT INTO " + qualifiedTable() + " (" + columnList() + ") VALUES (" + placeholders + ")"
+                    + " ON CONFLICT (" + String.join(", ", primaryKeys) + ")"
+                    + (updatable.isEmpty()
+                        ? " DO NOTHING"
+                        : " DO UPDATE SET " + updatable.stream().map(c -> c + " = EXCLUDED." + c).collect(Collectors.joining(", ")));
+            case "H2" -> "MERGE INTO " + qualifiedTable() + " T USING (VALUES (" + placeholders + ")) S (" + columnList() + ")"
+                    + " ON " + primaryKeys.stream().map(c -> "T." + c + " = S." + c).collect(Collectors.joining(" AND "))
+                    + (updatable.isEmpty()
+                        ? ""
+                        : " WHEN MATCHED THEN UPDATE SET " + updatable.stream().map(c -> c + " = S." + c).collect(Collectors.joining(", ")))
+                    + " WHEN NOT MATCHED THEN INSERT (" + columnList() + ") VALUES ("
+                    + columns.stream().map(c -> "S." + c).collect(Collectors.joining(", ")) + ")";
+            default -> null;
+        };
     }
 
     private List<JDBCParameter> insertParams(Map<String, @Nullable Object> vals) {
@@ -211,6 +273,8 @@ public abstract class JDBCRepository<T> {
     }
 
     private Boolean readMetaData(JDBCMetaData md, @Nullable String schemaPattern) {
+        product = md.getDatabaseProductName().map(name -> name.toUpperCase(Locale.ROOT)).getOrElse("");
+
         val columnsRs = md.getColumns(null, schemaPattern, table, null).get();
         while (columnsRs.next().get()) {
             columns.add(columnsRs.getString("COLUMN_NAME").get());

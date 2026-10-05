@@ -54,4 +54,13 @@ class RouterTest {
         assertTrue(router.get("/late", MediaType.APPLICATION_JSON, Void.class, request -> WebResponse.noContent()).isFailure());
         assertNull(router.match(HTTPMethod.GET, "/late"));
     }
+
+    /** Regression (C15): a parameter name that is not a valid regex group name broke in Pattern.compile. */
+    @Test
+    void invalidOrRepeatedParameterNamesFailTheRegistration() {
+        val router = new Router();
+        assertTrue(router.get("/orders/{order-id}", MediaType.APPLICATION_JSON, Void.class, r -> WebResponse.noContent()).isFailure());
+        assertTrue(router.get("/a/{id}/b/{id}", MediaType.APPLICATION_JSON, Void.class, r -> WebResponse.noContent()).isFailure());
+        assertTrue(router.get("/orders/{orderId}", MediaType.APPLICATION_JSON, Void.class, r -> WebResponse.noContent()).isSuccess());
+    }
 }

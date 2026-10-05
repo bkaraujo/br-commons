@@ -2,6 +2,7 @@ package br.commons.persistence.json;
 
 import br.commons.Logger;
 import br.commons.Platform;
+import br.commons.Threads;
 import br.commons.persistence.Storage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -14,11 +15,22 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
+/**
+ * JSON files on disk, one object per file, one field per key. {@link #write} is a read-modify-write of the whole
+ * file: serialized per file (lock shared by every instance of the JVM) and published by an atomic move of a
+ * temporary file, so concurrent writers do not lose fields and a crash never leaves a half-written file.
+ */
 @NullMarked
 public final class LocalFileStorage implements Storage {
+
+    /** One lock per file, shared by every instance: two storages over the same root must not interleave. */
+    private static final ConcurrentHashMap<Path, ReentrantLock> LOCKS = new ConcurrentHashMap<>();
 
     private final Path root;
     private final ObjectMapper mapper;
@@ -47,8 +59,12 @@ public final class LocalFileStorage implements Storage {
 
     @Override
     public void write(String file, String jsonKey, byte[] content) {
+        val path = resolve(file).toAbsolutePath().normalize();
+        Threads.locked(LOCKS.computeIfAbsent(path, _ -> new ReentrantLock()), () -> rewrite(path, file, jsonKey, content));
+    }
+
+    private void rewrite(Path path, String file, String jsonKey, byte[] content) {
         try {
-            val path = resolve(file);
             Files.createDirectories(path.getParent());
 
             ObjectNode rootNode;
@@ -61,7 +77,9 @@ public final class LocalFileStorage implements Storage {
             val newNode = mapper.readTree(content);
             rootNode.set(jsonKey, newNode);
 
-            mapper.writerWithDefaultPrettyPrinter().writeValue(path.toFile(), rootNode);
+            val temporary = path.resolveSibling(path.getFileName() + ".tmp");
+            mapper.writerWithDefaultPrettyPrinter().writeValue(temporary.toFile(), rootNode);
+            Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new UncheckedIOException("Erro ao gravar campo " + jsonKey + " em " + file, e);
         }

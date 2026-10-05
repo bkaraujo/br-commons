@@ -1,6 +1,5 @@
 package br.commons.logger.channel;
 
-import br.commons.RT;
 import br.commons.Threads;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -13,6 +12,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static br.commons.chrono.Dates.MILLIS_IN_DAY;
 
@@ -24,6 +25,10 @@ final class RollingFileWriter implements Runnable {
     private @org.jspecify.annotations.Nullable BufferedWriter currentWriter;
     private long currentDayCached;
 
+    /** Own flag, not {@code RT.running}: a channel created before the runtime starts must still write. */
+    private volatile boolean running = true;
+    private final CountDownLatch finished = new CountDownLatch(1);
+
     public RollingFileWriter(Queue<String> messages, Path rootDirectory) {
         this.rootDirectory = rootDirectory;
         this.messages = messages;
@@ -34,26 +39,42 @@ final class RollingFileWriter implements Runnable {
         // Initialize the first writer
         rotateWriter();
 
-        while (RT.running) {
-            val nowDay = System.currentTimeMillis() / MILLIS_IN_DAY;
-            if (nowDay != currentDayCached) { rotateWriter(); }
+        try {
+            while (running && !Thread.currentThread().isInterrupted()) {
+                val nowDay = System.currentTimeMillis() / MILLIS_IN_DAY;
+                if (nowDay != currentDayCached) { rotateWriter(); }
 
-            if (messages.isEmpty()) {
-                Threads.sleep(100);
-                continue;
-            }
-
-            String message;
-            val writer = currentWriter;
-            if (writer != null) {
-                while ((message = messages.poll()) != null) {
-                    write(writer, message);
+                if (messages.isEmpty()) {
+                    Threads.sleep(100);
+                    continue;
                 }
-                flush(writer);
+                drain();
             }
+            drain();
+            close(currentWriter);
+        } finally {
+            finished.countDown();
         }
+    }
 
-        close(currentWriter);
+    /** Stops the loop and waits (up to {@code timeoutMillis}) for the queue to be written and the file closed. */
+    void stop(long timeoutMillis) {
+        running = false;
+        try {
+            finished.await(timeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void drain() {
+        String message;
+        val writer = currentWriter;
+        if (writer == null) return;
+        while ((message = messages.poll()) != null) {
+            write(writer, message);
+        }
+        flush(writer);
     }
 
     private void rotateWriter() {
