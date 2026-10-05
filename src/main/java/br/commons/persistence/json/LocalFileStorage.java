@@ -2,11 +2,11 @@ package br.commons.persistence.json;
 
 import br.commons.Logger;
 import br.commons.Platform;
+import br.commons.Result;
 import br.commons.Threads;
 import br.commons.persistence.Storage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -14,9 +14,11 @@ import tools.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
@@ -36,34 +38,33 @@ public final class LocalFileStorage implements Storage {
     private final ObjectMapper mapper;
 
     public LocalFileStorage(String path, ObjectMapper mapper) {
-        this.root = Platform.fileSystem().jvmFS().resolve(path);
+        this.root = Platform.fileSystem().jvmFS().resolve(path).toAbsolutePath().normalize();
         this.mapper = mapper;
         Logger.info("datafiles: %s", root);
     }
 
     @Override
-    public byte @Nullable [] read(String file, String jsonKey) {
-        val path = resolve(file);
-        if (!Files.exists(path)) return null;
-
-        try {
-            val rootNode = mapper.readTree(path.toFile());
-            val field = rootNode.get(jsonKey);
-            if (field == null || field.isNull()) return null;
-
-            return mapper.writeValueAsBytes(field);
-        } catch (JacksonException e) {
-            throw new IllegalStateException("Erro ao ler campo " + jsonKey + " em " + file, e);
-        }
+    public Result<Optional<byte[]>, String> read(String file, String jsonKey) {
+        return resolve(file).flatMap(path -> {
+            if (!Files.exists(path)) return Result.success(Optional.empty());
+            try {
+                val rootNode = mapper.readTree(path.toFile());
+                val field = rootNode.get(jsonKey);
+                if (field == null || field.isNull()) return Result.success(Optional.empty());
+                return Result.success(Optional.of(mapper.writeValueAsBytes(field)));
+            } catch (JacksonException e) {
+                return Result.failure("Erro ao ler campo " + jsonKey + " em " + file + ": " + e.getMessage());
+            }
+        });
     }
 
     @Override
-    public void write(String file, String jsonKey, byte[] content) {
-        val path = resolve(file).toAbsolutePath().normalize();
-        Threads.locked(LOCKS.computeIfAbsent(path, _ -> new ReentrantLock()), () -> rewrite(path, file, jsonKey, content));
+    public Result<Void, String> write(String file, String jsonKey, byte[] content) {
+        return resolve(file).flatMap(path ->
+                Threads.locked(LOCKS.computeIfAbsent(path, _ -> new ReentrantLock()), () -> rewrite(path, file, jsonKey, content)));
     }
 
-    private void rewrite(Path path, String file, String jsonKey, byte[] content) {
+    private Result<Void, String> rewrite(Path path, String file, String jsonKey, byte[] content) {
         try {
             Files.createDirectories(path.getParent());
 
@@ -80,14 +81,15 @@ public final class LocalFileStorage implements Storage {
             val temporary = path.resolveSibling(path.getFileName() + ".tmp");
             mapper.writerWithDefaultPrettyPrinter().writeValue(temporary.toFile(), rootNode);
             Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Erro ao gravar campo " + jsonKey + " em " + file, e);
+            return Result.success();
+        } catch (IOException | JacksonException e) {
+            return Result.failure("Erro ao gravar campo " + jsonKey + " em " + file + ": " + e.getMessage());
         }
     }
 
     @Override
     public boolean exists(String file) {
-        return Files.exists(resolve(file));
+        return resolve(file).map(Files::exists).getOrElse(false);
     }
 
     @Override
@@ -104,7 +106,17 @@ public final class LocalFileStorage implements Storage {
         }
     }
 
-    private Path resolve(String file) {
-        return root.resolve(file);
+    /**
+     * The file under the root, or {@code Failure} when the name leaves it ({@code ..}, absolute path, another
+     * drive): {@code file} may come from a request (path traversal).
+     */
+    private Result<Path, String> resolve(String file) {
+        try {
+            val path = root.resolve(file).normalize();
+            if (!path.startsWith(root)) return Result.failure("file outside the storage root: " + file);
+            return Result.success(path);
+        } catch (InvalidPathException e) {
+            return Result.failure("invalid file name: " + file);
+        }
     }
 }

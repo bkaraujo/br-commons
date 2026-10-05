@@ -21,25 +21,25 @@ class InMemoryStorageTest {
     void writeAndRead_returnsStoredBytes() {
         val data = "hello".getBytes();
         storage.write("file1", "key1", data);
-        assertArrayEquals(data, storage.read("file1", "key1"));
+        assertArrayEquals(data, storage.read("file1", "key1").get().orElseThrow());
     }
 
     @Test
     void read_missingFile_returnsNull() {
-        assertNull(storage.read("nonexistent", "key"));
+        assertTrue(storage.read("nonexistent", "key").get().isEmpty());
     }
 
     @Test
     void read_missingKey_returnsNull() {
         storage.write("file1", "key1", new byte[]{1});
-        assertNull(storage.read("file1", "missing"));
+        assertTrue(storage.read("file1", "missing").get().isEmpty());
     }
 
     @Test
     void write_overwritesExistingKey() {
         storage.write("file1", "key", "old".getBytes());
         storage.write("file1", "key", "new".getBytes());
-        assertArrayEquals("new".getBytes(), storage.read("file1", "key"));
+        assertArrayEquals("new".getBytes(), storage.read("file1", "key").get().orElseThrow());
     }
 
     // ── exists ────────────────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ class InMemoryStorageTest {
     void singleFile_multipleKeys() {
         storage.write("file1", "key1", "a".getBytes());
         storage.write("file1", "key2", "b".getBytes());
-        assertArrayEquals("a".getBytes(), storage.read("file1", "key1"));
-        assertArrayEquals("b".getBytes(), storage.read("file1", "key2"));
+        assertArrayEquals("a".getBytes(), storage.read("file1", "key1").get().orElseThrow());
+        assertArrayEquals("b".getBytes(), storage.read("file1", "key2").get().orElseThrow());
     }
 }

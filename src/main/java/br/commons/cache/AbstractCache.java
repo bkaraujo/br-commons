@@ -64,7 +64,10 @@ public abstract class AbstractCache<T> {
     public CompletableFuture<Result<Void, String>> load(String partition) {
         return Execution.nanos(CALLER, () -> {
             val future = new CompletableFuture<NativeCache<UUID>>();
-            registry.put(partition, future);
+            val previous = registry.put(partition, future);
+            // Reloading a partition replaces its cache: the old one is closed once its populate is done, or its
+            // native memory would leak. Readers still holding it re-read from the registry (see tolerantFind).
+            if (previous != null) previous.thenAccept(NativeCache::close);
 
             return CacheWorker.submitResult(() -> {
                 val cache = new NativeCache<UUID>();
@@ -102,17 +105,26 @@ public abstract class AbstractCache<T> {
     }
 
     public CompletableFuture<Result<Void, String>> upsert(String partition, T model) {
-        return Execution.nanos(CALLER, () -> onCache(partition, cache -> store(cache, model)));
+        return Execution.nanos(CALLER, () -> onCache(partition, cache -> compacting(cache, store(cache, model))));
     }
 
     public CompletableFuture<Result<Void, String>> evict(String partition, UUID id) {
-        return Execution.nanos(CALLER, () -> onCache(partition, cache -> cache.remove(id)));
+        return Execution.nanos(CALLER, () -> onCache(partition, cache -> compacting(cache, cache.remove(id))));
+    }
+
+    /**
+     * After a mutation, on the worker (the single writer): when dead segments pass half of the arena, copy the live
+     * ones to a new arena. Upserts and evictions of a long-lived partition otherwise grow it without bound.
+     */
+    private static Result<Void, String> compacting(NativeCache<UUID> cache, Result<Void, String> mutation) {
+        if (mutation.isFailure() || !cache.needsCompaction()) return mutation;
+        return cache.compact(NativeCache.COMPACT_GRACE);
     }
 
     public CompletableFuture<Result<Void, String>> evictEverywhere(UUID id) {
         return Execution.nanos(CALLER, () -> {
             val pending = registry.keySet().stream()
-                    .map(partition -> onCache(partition, cache -> cache.remove(id)))
+                    .map(partition -> onCache(partition, cache -> compacting(cache, cache.remove(id))))
                     .toList();
 
             return CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new))

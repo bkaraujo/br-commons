@@ -31,17 +31,34 @@ class LocalFileStorageTest {
             val storage = i % 2 == 0 ? first : second;
             threads.add(Thread.ofPlatform().start(() -> {
                 try { start.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-                storage.write("data.json", key, ("\"" + key + "\"").getBytes(StandardCharsets.UTF_8));
+                assertTrue(storage.write("data.json", key, ("\"" + key + "\"").getBytes(StandardCharsets.UTF_8)).isSuccess());
             }));
         }
         start.countDown();
         for (val thread : threads) thread.join(10_000);
 
         for (int i = 0; i < 16; i++) {
-            val value = first.read("data.json", "k" + i);
-            assertNotNull(value, "k" + i);
-            assertEquals("\"k" + i + "\"", new String(value, StandardCharsets.UTF_8));
+            val value = first.read("data.json", "k" + i).get();
+            assertTrue(value.isPresent(), "k" + i);
+            assertEquals("\"k" + i + "\"", new String(value.get(), StandardCharsets.UTF_8));
         }
         assertFalse(Files.exists(dir.resolve("data.json.tmp")), "temporary file must be moved, not left behind");
+    }
+
+    /** Regression (S3): {@code ..} or an absolute path escaped the root (path traversal). */
+    @Test
+    void namesOutsideTheRootAreRefused() throws Exception {
+        val root = Files.createDirectories(dir.resolve("root"));
+        Files.writeString(dir.resolve("secret.json"), "{\"k\":\"secret\"}");
+        val storage = new LocalFileStorage(root.toString(), JsonMapper.builder().build());
+
+        assertTrue(storage.read("../secret.json", "k").isFailure());
+        assertTrue(storage.read(dir.resolve("secret.json").toString(), "k").isFailure());
+        assertTrue(storage.write("../evil.json", "k", "1".getBytes(StandardCharsets.UTF_8)).isFailure());
+        assertFalse(Files.exists(dir.resolve("evil.json")));
+        assertFalse(storage.exists("../secret.json"));
+
+        assertTrue(storage.write("sub/../ok.json", "k", "1".getBytes(StandardCharsets.UTF_8)).isSuccess());
+        assertTrue(storage.read("ok.json", "k").get().isPresent());
     }
 }

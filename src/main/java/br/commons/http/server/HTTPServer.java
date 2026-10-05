@@ -140,8 +140,11 @@ public final class HTTPServer {
     }
 
     private void dispatch(HttpExchange exchange) {
-        val requestId = requestId(exchange.getRequestHeaders().getFirst(HTTPMessage.REQUEST_ID_HEADER));
+        // Identity is always the server's; the client's id is kept apart, only to correlate logs and the response.
+        val requestId = UUID.randomUUID().toString();
+        val clientRequestId = HTTPServerRequest.clientRequestId(exchange.getRequestHeaders().getFirst(HTTPMessage.REQUEST_ID_HEADER));
         MDC.push(HTTPMessage.REQUEST_ID, requestId);
+        if (!clientRequestId.isEmpty()) MDC.push(HTTPMessage.CLIENT_REQUEST_ID, clientRequestId);
         HTTPServerRequest request = null;
 
         try {
@@ -164,6 +167,7 @@ public final class HTTPServer {
             if (request != null) deleteQuietly(request.multipart());
             exchange.close();
             MDC.pop(HTTPMessage.REQUEST_ID);
+            if (!clientRequestId.isEmpty()) MDC.pop(HTTPMessage.CLIENT_REQUEST_ID);
         }
     }
 
@@ -203,10 +207,6 @@ public final class HTTPServer {
     }
 
     /** The client's {@value HTTPMessage#REQUEST_ID_HEADER}, or a new one when it is missing or blank. */
-    public static String requestId(@Nullable String header) {
-        return header != null && !header.isBlank() ? header : UUID.randomUUID().toString();
-    }
-
     /** Method outside {@link HTTPMethod} (HEAD, TRACE…) receives 405 instead of blowing up as a failure. */
     private static @Nullable HTTPMethod method(String name) {
         for (val method : HTTPMethod.values()) {
@@ -303,7 +303,9 @@ public final class HTTPServer {
     private static void write(HttpExchange exchange, HTTPResponse response) throws IOException {
         response.headers().forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
         response.cookies().forEach(cookie -> exchange.getResponseHeaders().add("Set-Cookie", cookie.header()));
-        if (!response.requestId().isEmpty()) exchange.getResponseHeaders().set(HTTPMessage.REQUEST_ID_HEADER, response.requestId());
+        // Echo the client's id when it sent a valid one (end-to-end correlation); otherwise the server's.
+        val echoed = Objects.requireNonNullElse(MDC.get(HTTPMessage.CLIENT_REQUEST_ID), response.requestId());
+        if (!echoed.isEmpty()) exchange.getResponseHeaders().set(HTTPMessage.REQUEST_ID_HEADER, echoed);
         if (response.isStreaming()) { writeStreaming(exchange, response); return; }
 
         val body = response.body();

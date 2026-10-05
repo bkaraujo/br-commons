@@ -10,6 +10,8 @@ import lombok.Getter;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +42,13 @@ public class DataSource implements Transactions {
      * {@link JDBCTransaction#close()} (via {@link #unregister(JDBCTransaction)}).
      */
     private final Set<JDBCTransaction> live = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Outermost transactions open on this thread, most recent first, whatever their name: {@link #afterCommit}
+     * attaches to the top one. Looking only at {@code "default"} ran the action at once inside a named
+     * transaction — before its commit.
+     */
+    private final ThreadLocal<Deque<JDBCTransaction>> open = ThreadLocal.withInitial(ArrayDeque::new);
 
     /**
      * Creates a new DataSource with the specified properties.
@@ -98,6 +107,7 @@ public class DataSource implements Transactions {
             val transaction = new JDBCTransaction(this, name, connection);
             holder.set(transaction);
             live.add(transaction);
+            open.get().push(transaction);
             return initialize(transaction);
         });
     }
@@ -139,8 +149,7 @@ public class DataSource implements Transactions {
 
     @Override
     public void afterCommit(Runnable action) {
-        val holder = transactions.get("default");
-        val current = holder == null ? null : holder.get();
+        val current = open.get().peek();
         if (current == null) {
             action.run();
         } else {
@@ -151,6 +160,7 @@ public class DataSource implements Transactions {
     /** Removes the transaction from the live registry. Called by {@link JDBCTransaction#close()}. */
     void unregister(JDBCTransaction transaction) {
         live.remove(transaction);
+        open.get().remove(transaction);
     }
 
     /**
@@ -176,60 +186,65 @@ public class DataSource implements Transactions {
         return pool.aquire(timeoutMs);
     }
 
-    private <T> T readOnly(Function<JDBCTransaction, Result<T, String>> work) {
+    /**
+     * The transaction for a {@link #query} or {@link #execute}: a failure to open it is a failure of the call
+     * (no database, pool exhausted), thrown as {@link IllegalStateException} with the cause's message.
+     */
+    private JDBCTransaction opened() {
         return switch (begin()) {
-            case Result.Failure(var error) -> {
-                Logger.fatal(() -> error);
-                throw new RuntimeException("Unreachable");
-            }
-            case Result.Success(var transaction) -> {
-                if (transaction == null) {
-                    Logger.fatal("Transaction is null");
-                    throw new RuntimeException("Unreachable");
-                }
-
-                try {
-                    val result =  work.apply(transaction);
-                    // Only rolls back if it's the outermost level: a nested read within a write
-                    // cannot discard the work in progress (nor mark rollbackOnly — it's not a failure).
-                    transaction.rollback();
-
-                    yield result.get();
-                } finally { transaction.close(); }
+            case Result.Failure<JDBCTransaction, String>(var error) -> throw new IllegalStateException(error);
+            case Result.Success<JDBCTransaction, String>(var transaction) -> {
+                if (transaction == null) throw new IllegalStateException("DataSource '" + name + "' opened a null transaction");
+                yield transaction;
             }
         };
     }
 
-    private <T> T mutating(Function<JDBCTransaction, Result<T, String>> work) {
-        return switch (begin()) {
-            case Result.Failure(var error) -> {
-                Logger.fatal(() -> error);
-                throw new RuntimeException("Unreachable");
-            }
-            case Result.Success(var transaction) -> {
-                if (transaction == null) {
-                    Logger.fatal("Transaction is null");
-                    throw new RuntimeException("Unreachable");
-                }
-                try {
-                    val result = work.apply(transaction);
-                    if (result.isSuccess()) {
-                        transaction.commit();
-                    } else {
-                        // Nested: commit()/rollback() are no-op, but the mark poisons the outer level,
-                        // which will roll back everything instead of committing partial work.
-                        transaction.markRollbackOnly();
-                        transaction.rollback();
-                    }
-                    yield result.get();
-                } catch (RuntimeException ex) {
-                    transaction.markRollbackOnly();
-                    transaction.rollback();
-                    Logger.fatal(() -> ex.toString());
-                    throw new RuntimeException("Unreachable");
-                } finally { transaction.close(); }
-            }
+    /** Value of a successful work; a {@code Failure} becomes {@link IllegalStateException} with its message. */
+    private static <T> T valueOf(Result<T, String> result) {
+        return switch (result) {
+            case Result.Success<T, String>(var value) -> value;
+            case Result.Failure<T, String>(var error) -> throw new IllegalStateException(error);
         };
+    }
+
+    private <T> T readOnly(Function<JDBCTransaction, Result<T, String>> work) {
+        val transaction = opened();
+        final Result<T, String> result;
+        try {
+            result = work.apply(transaction);
+            // Only rolls back if it's the outermost level: a nested read within a write
+            // cannot discard the work in progress (nor mark rollbackOnly — it's not a failure).
+            transaction.rollback();
+        } finally { transaction.close(); }
+        return valueOf(result);
+    }
+
+    /**
+     * Runs {@code work} and commits, or rolls back on {@code Failure} or exception. An exception thrown by
+     * {@code work} reaches the caller unchanged (type and cause), after the rollback.
+     */
+    private <T> T mutating(Function<JDBCTransaction, Result<T, String>> work) {
+        val transaction = opened();
+        final Result<T, String> result;
+        try {
+            result = work.apply(transaction);
+            if (result.isSuccess()) {
+                if (transaction.commit() instanceof Result.Failure<Boolean, String>(var error)) {
+                    throw new IllegalStateException("commit failed: " + error);
+                }
+            } else {
+                // Nested: commit()/rollback() are no-op, but the mark poisons the outer level,
+                // which will roll back everything instead of committing partial work.
+                transaction.markRollbackOnly();
+                transaction.rollback();
+            }
+        } catch (RuntimeException ex) {
+            transaction.markRollbackOnly();
+            transaction.rollback();
+            throw ex;
+        } finally { transaction.close(); }
+        return valueOf(result);
     }
 
     public <T> T query(String query, Function<JDBCResultSet, T> function) {

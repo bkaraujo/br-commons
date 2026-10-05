@@ -334,4 +334,33 @@ class NativeCacheTest {
             }
         }
     }
+
+    /** Regression (C7): remove and overwrite only unindexed; memory grew until close(). */
+    @Test
+    void testCompactKeepsMemoryProportionalToLiveRecords() throws Exception {
+        try (val cache = new NativeCache<String>()) {
+            cache.put("keep", 16).get().set(ValueLayout.JAVA_LONG_UNALIGNED, 0, 42L);
+            for (int i = 0; i < 10_000; i++) {
+                cache.put("hot", 64).get().set(ValueLayout.JAVA_LONG_UNALIGNED, 0, i);
+                if (cache.needsCompaction()) assertTrue(cache.compact(java.time.Duration.ofMillis(10)).isSuccess());
+            }
+            assertTrue(cache.allocatedBytes() <= 4 * (16 + 64), "allocated " + cache.allocatedBytes());
+            assertEquals(42L, cache.segment("keep").get(ValueLayout.JAVA_LONG_UNALIGNED, 0));
+            assertEquals(9_999L, cache.segment("hot").get(ValueLayout.JAVA_LONG_UNALIGNED, 0));
+            assertEquals(List.of("keep", "hot"), cache.keys().get());
+        }
+    }
+
+    @Test
+    void testOldSegmentsSurviveTheGraceThenCloseIsClean() throws Exception {
+        val cache = new NativeCache<String>();
+        val old = cache.put("k", 8).get();
+        old.set(ValueLayout.JAVA_LONG_UNALIGNED, 0, 7L);
+        cache.remove("k");
+        cache.put("k", 8).get().set(ValueLayout.JAVA_LONG_UNALIGNED, 0, 8L);
+        assertTrue(cache.compact(java.time.Duration.ofSeconds(30)).isSuccess());
+        assertEquals(7L, old.get(ValueLayout.JAVA_LONG_UNALIGNED, 0), "old segment readable during the grace");
+        cache.close(); // closes the retired arena too
+        assertThrows(IllegalStateException.class, () -> old.get(ValueLayout.JAVA_LONG_UNALIGNED, 0));
+    }
 }

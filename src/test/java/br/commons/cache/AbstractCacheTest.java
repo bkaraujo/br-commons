@@ -218,4 +218,71 @@ class AbstractCacheTest {
 
         assertEquals(List.of(), errors);
     }
+
+    @SuppressWarnings("unchecked")
+    private static NativeCache<UUID> nativeOf(ItemCache cache, String partition) throws Exception {
+        val field = AbstractCache.class.getDeclaredField("registry");
+        field.setAccessible(true);
+        val registry = (Map<String, java.util.concurrent.CompletableFuture<NativeCache<UUID>>>) field.get(cache);
+        return registry.get(partition).join();
+    }
+
+    /** Regression (C6): loading a partition again replaced its cache without closing it (native memory leak). */
+    @Test
+    void reloadClosesThePreviousCache() throws Exception {
+        val stored = item(10);
+        val cache = loaded(EAST, List.of(stored));
+        val first = nativeOf(cache, EAST);
+
+        assertTrue(cache.load(EAST).join().isSuccess());
+        assertTrue(first.isClosed());
+        assertEquals(stored, cache.find(EAST, stored.id()).get());
+
+        cache.unload(EAST).join();
+    }
+
+    /** Regression (C7): repeated upserts of the same record grew the partition's native memory without bound. */
+    @Test
+    void repeatedUpsertsAreCompacted() throws Exception {
+        val stored = item(10);
+        val cache = loaded(EAST, List.of(stored));
+        for (int i = 0; i < 2_000; i++) {
+            assertTrue(cache.upsert(EAST, new Item(stored.id(), i)).join().isSuccess());
+        }
+        assertTrue(nativeOf(cache, EAST).allocatedBytes() <= 4 * SIZE, "allocated " + nativeOf(cache, EAST).allocatedBytes());
+        assertEquals(new Item(stored.id(), 1_999), cache.find(EAST, stored.id()).get());
+
+        cache.unload(EAST).join();
+    }
+
+    /** Plan C9 × C7: reads racing compactions (old arena closed after the grace) never report a false miss. */
+    @Test
+    void readsRacingCompactionNeverMiss() throws Exception {
+        val probe = item(1);
+        val hot = item(2);
+        val cache = loaded(EAST, List.of(probe, hot));
+        val stop = new java.util.concurrent.atomic.AtomicBoolean();
+        val misses = new java.util.concurrent.atomic.AtomicInteger();
+        val errors = new java.util.concurrent.CopyOnWriteArrayList<Throwable>();
+        val reader = Thread.ofPlatform().start(() -> {
+            while (!stop.get()) {
+                try {
+                    if (cache.find(EAST, probe.id()).isFailure()) misses.incrementAndGet();
+                } catch (Throwable e) {
+                    errors.add(e);
+                    return;
+                }
+            }
+        });
+        val deadline = System.nanoTime() + java.time.Duration.ofMillis(2_500).toNanos();
+        for (int i = 0; System.nanoTime() < deadline; i++) {
+            cache.upsert(EAST, new Item(hot.id(), i)).join();
+        }
+        stop.set(true);
+        reader.join(5_000);
+
+        assertEquals(List.of(), errors);
+        assertEquals(0, misses.get());
+        cache.unload(EAST).join();
+    }
 }

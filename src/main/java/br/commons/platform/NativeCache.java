@@ -12,11 +12,13 @@ import java.lang.foreign.ValueLayout;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 
 /**
@@ -44,7 +46,17 @@ public class NativeCache<K> implements AutoCloseable {
     public static final long NULL_LONG = Long.MIN_VALUE;
     public static final int  NULL_INT  = Integer.MIN_VALUE;
 
-    private final Arena arena;
+    /** Grace before closing an arena replaced by {@link #compact}: readers still holding its segments finish. */
+    public static final Duration COMPACT_GRACE = Duration.ofSeconds(1);
+
+    /** Replaced by {@link #compact}; volatile so {@link #put} always allocates in the current one. */
+    private volatile Arena arena;
+    /** Arenas replaced by {@link #compact} and not closed yet (grace period); closed at the latest by {@link #close}. */
+    private final Set<Arena> retired = ConcurrentHashMap.newKeySet();
+    /** Bytes allocated in the current arena, live or dead. */
+    private final AtomicLong allocatedBytes = new AtomicLong();
+    /** Bytes of segments no longer indexed (removed or overwritten): memory only {@link #compact} gives back. */
+    private final AtomicLong deadBytes = new AtomicLong();
     private final Map<K, MemorySegment> index = new ConcurrentHashMap<>();
     /** Insertion order of keys — the index is hash, and listing without stable order is unstable listing. */
     private final Queue<K> order = new ConcurrentLinkedQueue<>();
@@ -59,8 +71,11 @@ public class NativeCache<K> implements AutoCloseable {
         if (closed) return Result.failure(ERROR_CLOSED);
         // Arena.allocate already zeroes the segment: no heap copy, no int narrowing.
         val segment = arena.allocate(size);
+        allocatedBytes.addAndGet(size);
         // Overwriting a key keeps the original position: only new key enters at the end of order.
-        if (index.put(key, segment) == null) order.add(key);
+        val previous = index.put(key, segment);
+        if (previous == null) order.add(key);
+        else deadBytes.addAndGet(previous.byteSize());
         return Result.success(segment);
     }
 
@@ -98,8 +113,70 @@ public class NativeCache<K> implements AutoCloseable {
 
     public Result<Void, String> remove(K key) {
         if (closed) return Result.failure(ERROR_CLOSED);
-        if (index.remove(key) != null) order.remove(key);
+        val removed = index.remove(key);
+        if (removed != null) {
+            order.remove(key);
+            deadBytes.addAndGet(removed.byteSize());
+        }
         return Result.success();
+    }
+
+    public long allocatedBytes() {
+        return allocatedBytes.get();
+    }
+
+    public long deadBytes() {
+        return deadBytes.get();
+    }
+
+    /** Whether dead segments are more than half of the allocated bytes — the point where {@link #compact} pays. */
+    public boolean needsCompaction() {
+        return !closed && deadBytes.get() > allocatedBytes.get() / 2;
+    }
+
+    /**
+     * Copies the live segments to a new arena and indexes the copies, then closes the old arena after
+     * {@code grace}: memory becomes proportional to the live records again. A reader that still holds an old
+     * segment keeps working during the grace; after it, the access throws {@link IllegalStateException} and the
+     * reader must look the key up again ({@code AbstractCache} does). Must not run concurrently with
+     * {@link #put}/{@link #remove} (single writer, e.g. the cache worker).
+     */
+    public Result<Void, String> compact(Duration grace) {
+        if (closed) return Result.failure(ERROR_CLOSED);
+        val fresh = Arena.ofShared();
+        long live = 0;
+        for (val key : order) {
+            val segment = index.get(key);
+            if (segment == null) continue;
+            val copy = fresh.allocate(segment.byteSize());
+            copy.copyFrom(segment);
+            index.put(key, copy);
+            live += segment.byteSize();
+        }
+        val old = arena;
+        arena = fresh;
+        allocatedBytes.set(live);
+        deadBytes.set(0);
+        retired.add(old);
+        Thread.ofVirtual().name("native-cache-retire").start(() -> {
+            try {
+                Thread.sleep(grace);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            retire(old);
+        });
+        return Result.success();
+    }
+
+    private void retire(Arena old) {
+        if (!retired.remove(old)) return; // close() got there first
+        try {
+            old.close();
+        } catch (IllegalStateException busy) {
+            Logger.warn("Retired arena still in use, closing on NativeCache.close(): %s", busy.toString());
+            retired.add(old);
+        }
     }
 
     /** Indexed keys, in insertion order. */
@@ -134,6 +211,10 @@ public class NativeCache<K> implements AutoCloseable {
         if (closed) return;
         closed = true;
         arena.close();
+        for (val old : List.copyOf(retired)) {
+            retired.remove(old);
+            try { old.close(); } catch (IllegalStateException e) { Logger.warn("Retired arena close failed: %s", e.toString()); }
+        }
         index.clear();
         order.clear();
     }

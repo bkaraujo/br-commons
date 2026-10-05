@@ -7,6 +7,15 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public record Attribute(String name, @Nullable String value) implements Content {
 
+    /**
+     * Names are written raw, so they are checked here, once, when the node is built — not on render. Accepted:
+     * {@code [A-Za-z_:@][A-Za-z0-9_:.@-]*} ({@code data-x}, {@code @click}, {@code x-on:click},
+     * {@code hx-on::after-request}). Space, {@code =}, quotes, {@code <}, {@code >} and {@code /} would inject markup.
+     */
+    public Attribute {
+        if (!Names.isAttribute(name)) throw new IllegalArgumentException("invalid attribute name: " + name);
+    }
+
     void render(StringBuilder out) {
         out.append(' ').append(name);
         if (value != null) {

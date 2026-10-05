@@ -106,9 +106,11 @@ String c = TerminalColor.ofHex("#ff8800");
 
 - `Arena.ofShared()`: segmentos acessíveis de qualquer thread; índice
   `ConcurrentHashMap`, ordem `ConcurrentLinkedQueue`.
-- **Memória só é liberada no `close()`**: `remove` e `put` sobre chave
-  existente apenas desindexam; o segmento antigo continua alocado. Cache com
-  muitos upserts cresce até o fechamento (`unload` em `br.commons.cache`).
+- `remove` e `put` sobre chave existente desindexam e contam bytes mortos
+  (`deadBytes`); `compact(grace)` copia os vivos para nova arena e fecha a
+  antiga após `grace` (ou no `close`). Escritor único: não chame `compact`
+  junto com `put`/`remove`. Leitor com segmento antigo após a graça →
+  `IllegalStateException` (reler a chave).
 - `put` só aloca: `Arena.allocate` já devolve o segmento zerado.
 - `close()` com leitor concorrente: fechar arena compartilhada em uso pode
   falhar/abortar acesso (`IllegalStateException`) no leitor. `AbstractCache`

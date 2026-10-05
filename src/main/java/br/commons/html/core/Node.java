@@ -28,6 +28,11 @@ public sealed interface Node extends Content permits Node.Element, Node.Text, No
         private static final Set<String> VOID = Set.of("area", "base", "basefont", "br", "col", "embed", "frame",
                 "hr", "img", "input", "isindex", "link", "meta", "param", "source", "track", "wbr");
 
+        /** Tag names are written raw: {@code [A-Za-z][A-Za-z0-9-]*} (custom elements included), checked once here. */
+        public Element {
+            if (!Names.isTag(tag)) throw new IllegalArgumentException("invalid tag name: " + tag);
+        }
+
         @Override
         public void render(StringBuilder out) {
             out.append('<').append(tag);

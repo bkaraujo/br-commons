@@ -104,8 +104,10 @@ raw(markup);                          // SEM escape — restrito por ArchUnit
   filhos passados a um void são **descartados em silêncio**.
 - `Escape.into` troca `& < > " '` por entidades, igual para texto e atributo
   (atributos sempre entre aspas duplas).
-- **Não escapados**: nome de tag e nome de atributo. `element(tagExterno)` ou
-  `hxOn(eventoExterno, ...)` permitem injeção.
+- Nomes de tag e atributo não são escapados, mas são **validados na
+  construção** (`Node.Element`, `Attribute`): tag `[A-Za-z][A-Za-z0-9-]*`,
+  atributo `[A-Za-z_:@][A-Za-z0-9_:.@-]*`; inválido →
+  `IllegalArgumentException`. Validação por laço de caracteres (sem regex).
 - `<script>`/`<style>` inline: use `scriptText(js)`/`styleText(css)` (sem
   escape; recusam `</script`/`</style`). `text(...)` escaparia e quebraria o
   código. Só código do desenvolvedor, nunca dado; prefira arquivo estático.

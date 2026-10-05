@@ -117,4 +117,41 @@ class TransactionHooksTest {
             dataSource.close();
         }
     }
+
+    /** Regression (C2): afterCommit only looked at the "default" transaction and ran at once inside a named one. */
+    @Test
+    void afterCommitWaitsForANamedTransaction() {
+        val dataSource = dataSource("hooks_named");
+        try {
+            val transaction = dataSource.begin("other").get();
+            dataSource.afterCommit(() -> events.add("after other"));
+            events.add("work");
+            assertEquals(List.of("work"), events);
+            transaction.commit();
+            transaction.close();
+            assertEquals(List.of("work", "after other"), events);
+        } finally {
+            dataSource.close();
+        }
+    }
+
+    /** Regression (C1): an exception from the work became RuntimeException("Unreachable"), losing type and cause. */
+    @Test
+    void exceptionsReachTheCallerUnchanged() {
+        val dataSource = dataSource("hooks_exception");
+        try {
+            val error = new br.commons.business.BusinessException(new br.commons.business.BusinessError.Conflict("dup"));
+            val thrown = assertThrows(br.commons.business.BusinessException.class, () -> dataSource.transaction(tx -> {
+                tx.execute("INSERT INTO T VALUES (1)");
+                throw error;
+            }));
+            assertEquals(error, thrown);
+            assertEquals(0, count(dataSource), "rolled back");
+
+            val sqlError = assertThrows(IllegalStateException.class, () -> dataSource.execute("INSERT INTO NOPE VALUES (1)"));
+            org.junit.jupiter.api.Assertions.assertTrue(sqlError.getMessage().contains("NOPE"), sqlError.getMessage());
+        } finally {
+            dataSource.close();
+        }
+    }
 }

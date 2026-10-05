@@ -95,8 +95,10 @@ try (var s = HTTPSession.open(req.requestId())) {    // quem abre fecha
 
 ## 7. Ciclo de uma requisição (`HTTPServer.dispatch`)
 
-1. `requestId` = header `X-REQUEST-ID` do cliente, ou UUID novo; vai para
-   `MDC` (`requestId`) — prefixa todo log da requisição.
+1. `requestId` = UUID gerado pelo servidor, sempre; vai para `MDC`
+   (`requestId`). O `X-REQUEST-ID` do cliente, se casar
+   `[A-Za-z0-9._-]{1,64}`, vai para `MDC` (`clientRequestId`) e é ecoado na
+   resposta; senão a resposta ecoa o id do servidor.
 2. Método fora de `HTTPMethod` (HEAD, TRACE...) → 405 sem passar na cadeia.
 3. Query parseada com `URLDecoder` → falha vira 400.
 4. Multipart (se `Limits` configurado e `Content-Type` aceito) → streaming
@@ -120,17 +122,13 @@ inteiros arredondados para cima (`500ms` → 1 s).
   recusa CR, LF e `;` em nome, valor, path e sameSite.
 - `onFailure` padrão: 500 sem corpo.
 
-## 9. Segurança — `X-REQUEST-ID` controlado pelo cliente
+## 9. Segurança — correlação × identidade
 
-- O id vem do cliente sem validação e entra no MDC/log: valor com quebra de
-  linha ou muito longo permite **log injection**. Considere validar (UUID ou
-  regex curta) em `HTTPServer.requestId`.
-- `HTTPSession` é indexada por esse id em mapa estático. Duas requisições
-  simultâneas com o mesmo id: o `open` da segunda **substitui** a sessão da
-  primeira, e `current()` na primeira passa a devolver atributos da segunda.
-  `close` remove só a própria instância (`remove(id, this)`), mas a janela de
-  mistura existe. Não guarde dado sensível/autorização em `HTTPSession` sem
-  gerar id no servidor, ou chaveie por identidade da requisição.
+- `requestId()` (chave de `HTTPSession` e do MDC) é sempre do servidor:
+  duas requisições com o mesmo `X-REQUEST-ID` nunca compartilham sessão.
+- `clientRequestId()` / `HTTPServerRequest.clientRequestId(header)`: id do
+  cliente validado (`[A-Za-z0-9._-]{1,64}`) ou vazio — só correlação; valor
+  inválido nunca chega ao log.
 
 ## 10. Multipart
 
@@ -157,6 +155,6 @@ inteiros arredondados para cima (`500ms` → 1 s).
 | Necessidade              | Onde mexer                                          |
 |--------------------------|-----------------------------------------------------|
 | HEAD automático          | `HTTPServer.method` + resposta sem corpo            |
-| Validar request id       | `HTTPServer.requestId`                              |
+| Formato do id do cliente | `HTTPServerRequest.CLIENT_REQUEST_ID_FORMAT`        |
 | Compressão               | `HTTPFilter` envolvendo body/stream                 |
 | HTTPS                    | trocar `HttpServer` por `HttpsServer` em `start`    |

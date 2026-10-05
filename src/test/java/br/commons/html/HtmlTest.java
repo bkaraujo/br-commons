@@ -237,4 +237,21 @@ class HtmlTest {
         assertThrows(IllegalArgumentException.class, () -> scriptText("x</SCRIPT><img src=x>"));
         assertThrows(IllegalArgumentException.class, () -> styleText("</style>"));
     }
+
+    /** Regression (S4): tag and attribute names were written raw, so a name from data injected markup. */
+    @Test
+    void invalidTagAndAttributeNamesAreRefused() {
+        assertThrows(IllegalArgumentException.class, () -> element("x onload=alert(1)"));
+        assertThrows(IllegalArgumentException.class, () -> element("div><script"));
+        assertThrows(IllegalArgumentException.class, () -> element(""));
+        assertThrows(IllegalArgumentException.class, () -> new br.commons.html.core.Attribute("a\" onclick=\"x", "v"));
+        assertThrows(IllegalArgumentException.class, () -> br.commons.htmx.Htmx.hxOn("click onmouseover", "x()"));
+        assertThrows(IllegalArgumentException.class, () -> br.commons.htmx.Htmx.hxOn("click/x", "x()"));
+
+        assertEquals("<my-widget data-id=\"1\" @click=\"go()\" x-on:click=\"go()\"></my-widget>",
+                element("my-widget", new br.commons.html.core.Attribute("data-id", "1"),
+                        new br.commons.html.core.Attribute("@click", "go()"),
+                        new br.commons.html.core.Attribute("x-on:click", "go()")).render());
+        assertEquals("hx-on::after-request", br.commons.htmx.Htmx.hxOnHtmx("after-request", "x()").name());
+    }
 }

@@ -4,11 +4,13 @@ import br.commons.Strings;
 import br.commons.http.Multipart;
 import br.commons.http.message.HTTPMethod;
 import br.commons.http.message.HTTPRequest;
-import br.commons.http.server.HTTPServer;
 import br.commons.http.server.MultipartParser;
+import br.commons.http.message.HTTPMessage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
+import java.util.regex.Pattern;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -56,6 +58,22 @@ public final class HTTPServerRequest implements HTTPRequest {
 
     @Override
     public String requestId() { return requestId; }
+
+    /**
+     * The client's {@value HTTPMessage#REQUEST_ID_HEADER} when valid ({@code [A-Za-z0-9._-]{1,64}}), empty
+     * otherwise. Correlation only: per-request state is keyed by {@link #requestId()}, which the server generates.
+     */
+    public String clientRequestId() {
+        return clientRequestId(header(HTTPMessage.REQUEST_ID_HEADER));
+    }
+
+    /** What a client may send as {@value HTTPMessage#REQUEST_ID_HEADER}: no spaces, CR/LF or log markup. */
+    private static final Pattern CLIENT_REQUEST_ID_FORMAT = Pattern.compile("[A-Za-z0-9._-]{1,64}");
+
+    /** {@code header} when it matches {@code [A-Za-z0-9._-]{1,64}}; empty otherwise (never logged raw). */
+    public static String clientRequestId(@Nullable String header) {
+        return header != null && CLIENT_REQUEST_ID_FORMAT.matcher(header).matches() ? header : "";
+    }
 
     @Override
     public HTTPMethod method() { return method; }

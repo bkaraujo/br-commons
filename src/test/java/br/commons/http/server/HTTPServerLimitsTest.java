@@ -165,4 +165,40 @@ class HTTPServerLimitsTest {
             else System.setProperty(HTTPServer.MAX_BODY_SIZE_PROPERTY, previous);
         }
     }
+
+    /** Regression (S1): an invalid client id is not echoed; the server's id goes back instead. */
+    @Test
+    void invalidClientRequestIdIsNotEchoed() throws Exception {
+        val response = send(HttpRequest.newBuilder(URI.create(base + "/")).header("X-Request-ID", "bad id with spaces"));
+        val echoed = response.headers().firstValue("X-REQUEST-ID").orElseThrow();
+        assertNotEquals("bad id with spaces", echoed);
+        assertFalse(echoed.isBlank());
+    }
+
+    /** Regression (S2): the session was keyed by the client's id, so two requests with the same id swapped state. */
+    @Test
+    void requestsWithTheSameClientIdGetDistinctSessions() throws Exception {
+        val inside = new java.util.concurrent.CyclicBarrier(2);
+        HTTPHandler handler = request -> {
+            try (val session = br.commons.http.HTTPSession.open(request.requestId())) {
+                session.attribute("owner", request.parameters().get("who"));
+                try { inside.await(2, java.util.concurrent.TimeUnit.SECONDS); } catch (Exception e) { throw new IllegalStateException(e); }
+                val owner = br.commons.http.HTTPSession.current().flatMap(s -> s.attribute("owner", String.class)).getOrElse("none");
+                return HTTPServerResponse.status(HTTPStatus.OK, owner.getBytes(StandardCharsets.UTF_8));
+            }
+        };
+        val sessions = new HTTPServer(0, List.of(), handler);
+        sessions.start().getOrThrow();
+        try {
+            val url = "http://localhost:" + sessions.port() + "/?who=";
+            val a = client.sendAsync(HttpRequest.newBuilder(URI.create(url + "a")).header("X-Request-ID", "same").build(),
+                    HttpResponse.BodyHandlers.ofString());
+            val b = client.sendAsync(HttpRequest.newBuilder(URI.create(url + "b")).header("X-Request-ID", "same").build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals("a", a.get(5, java.util.concurrent.TimeUnit.SECONDS).body());
+            assertEquals("b", b.get(5, java.util.concurrent.TimeUnit.SECONDS).body());
+        } finally {
+            sessions.stop(Duration.ofMillis(100));
+        }
+    }
 }

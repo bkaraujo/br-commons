@@ -105,8 +105,8 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
   close + `Failure`.
 - `markRollbackOnly` envenena: o externo faz rollback mesmo com sucesso.
 - `commit`/`rollback` em nível aninhado são no-op.
-- `afterCommit` (de `DataSource`) olha **só** a transação de nome `"default"`;
-  transação com outro nome → ação roda imediatamente, antes do commit.
+- `afterCommit` (de `DataSource`) anexa à transação externa mais recente
+  aberta na thread, qualquer que seja o nome; sem transação → roda na hora.
 - Ações pós-commit que falham são logadas e não afetam as demais.
 - Thread que abre e não fecha → transação órfã (log de aviso identifica a
   thread dona). Virtual threads não herdam a transação.
@@ -114,11 +114,9 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 ## 8. Atalhos de `DataSource` e falhas
 
 - `query`/`execute`/`transaction` abrem (ou participam de) transação e
-  **lançam** em falha: `Result.get()` loga FATAL e lança `RuntimeException`.
-- `mutating`: `RuntimeException` do trabalho → rollback, `Logger.fatal` e
-  relança `RuntimeException("Unreachable")` **sem causa** — o tipo original
-  (ex.: `BusinessException`) é perdido. Para preservar, use `inTransaction`,
-  que relança a exceção original.
+  **lançam** em falha: `Failure` (abrir, SQL, commit) → `IllegalStateException`
+  com a mensagem; `RuntimeException` do trabalho → rollback e relançada
+  **intacta** (tipo e causa, ex.: `BusinessException`).
 - `inTransaction`: falha ao abrir → `IllegalStateException`; falha no commit
   → `IllegalStateException`.
 - `readOnly`: faz rollback ao fim (só no externo); nunca marca rollback-only.
@@ -164,8 +162,8 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 - `write` = ler → alterar campo → regravar, serializado por lock por arquivo
   (compartilhado entre instâncias na JVM) e publicado por `*.tmp` +
   `ATOMIC_MOVE`. Outro processo escrevendo o mesmo arquivo ainda corre.
-- `resolve(file)` não normaliza: `file` com `..` escapa da raiz — nunca use
-  nome vindo do usuário.
+- `read`/`write` devolvem `Result`; nome que sai da raiz (`..`, caminho
+  absoluto) → `Failure` sem tocar o disco; `exists` → `false`.
 - `EntityDiff.of(mapper, antes, depois)`: diff textual para auditoria/log.
 
 ## 13. Extensão

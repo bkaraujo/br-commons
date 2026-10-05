@@ -111,9 +111,12 @@ CacheWorker.awaitIdle();                // shutdown definitivo (fim da app)
 
 ## 8. Armadilhas
 
-- `load` duas vezes para a mesma partição sobrescreve o future **sem fechar**
-  o cache anterior → vazamento de memória nativa. Faça `unload` antes ou
-  trate recarga.
+- `load` de partição já carregada substitui o cache e fecha o anterior
+  quando o populate dele termina; leitores que ainda o seguravam releem do
+  registro.
+- Após cada `upsert`/`evict` na worker, se bytes mortos > metade do alocado,
+  `NativeCache.compact` copia os vivos para nova arena (antiga fecha após
+  `COMPACT_GRACE` = 1 s).
 - Upsert enviado durante o populate pode ser descartado (cache ainda não
   pronto) e o loader pode ter lido estado antigo → janela de inconsistência
   logo após `load`.
@@ -138,5 +141,4 @@ sucesso. `verdict` desembrulha `CompletionException`, loga em ERROR e devolve
 |-----------------------------|---------------------------------------------------|
 | Chave não-UUID              | generalizar `NativeCache<UUID>`/`keyer`           |
 | Registro de tamanho variável| `sizer` por modelo já permite; cuide do layout    |
-| Recarga segura              | `load`: fechar future anterior se existir         |
 | Paralelizar caches          | um worker por cache (hoje global, ordem FIFO)     |

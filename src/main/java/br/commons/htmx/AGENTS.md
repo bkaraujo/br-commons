@@ -101,8 +101,9 @@ HtmxResponse.of(resp).location("/orders").pushUrl("/orders").response(); // sem 
 - `hxSync(selector, strategy)` → `"<selector>:<token>"`.
 - `hxSwapOob(style, selector)` → `"<token>:<selector>"`.
 - `hxOn(event, js)` → atributo `hx-on:<event>`; `hxOnHtmx(event, js)` →
-  `hx-on::<event>` (eventos `htmx:`). O **nome** do atributo inclui `event`
-  sem validação: evento vindo de dado externo permite injetar atributos.
+  `hx-on::<event>` (eventos `htmx:`). O nome do atributo inclui `event` e
+  passa pela validação de `Attribute` (espaço, `=`, `/`... →
+  `IllegalArgumentException`).
 - `hxParams(...)`, `hxParamsExcept(...)` (`not a,b`), `hxParamsAll` (`*`),
   `hxParamsNone` (`none`).
 
