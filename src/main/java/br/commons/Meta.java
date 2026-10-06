@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
@@ -76,18 +77,7 @@ public abstract class Meta {
     }
 
     private static Class<?> wrapper(Class<?> type) {
-        if (!type.isPrimitive()) return type;
-        return switch (type.getName()) {
-            case "int" -> Integer.class;
-            case "long" -> Long.class;
-            case "boolean" -> Boolean.class;
-            case "double" -> Double.class;
-            case "float" -> Float.class;
-            case "short" -> Short.class;
-            case "byte" -> Byte.class;
-            case "char" -> Character.class;
-            default -> Void.class;
-        };
+        return MethodType.methodType(type).wrap().returnType();
     }
 
     public static void close(@Nullable Closeable closeable){

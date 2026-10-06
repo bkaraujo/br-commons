@@ -18,10 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @NullMarked
 public final class Errors {
 
-    public static final String LOCALE_PROPERTY = "br.commons.locale";
-    public static final Locale PT_BR = Locale.of("pt", "BR");
-    public static final Locale EN_US = Locale.of("en", "US");
-
     private static final String ERRORS = "br/commons/i18n/errors";
     private static final String HTTP_STATUS = "br/commons/i18n/http_status";
     private static final Map<Locale, ErrorMessages> MESSAGES = new ConcurrentHashMap<>();
@@ -30,21 +26,17 @@ public final class Errors {
 
     /** Messages in the configured locale; one validated proxy per locale, created on first use. */
     public static ErrorMessages get() {
-        return get(locale());
+        return get(I18N.locale());
     }
 
     public static ErrorMessages get(Locale locale) {
-        return MESSAGES.computeIfAbsent(supported(locale), l -> Bundles.of(ErrorMessages.class, ERRORS, l));
+        return MESSAGES.computeIfAbsent(I18N.supported(locale), l -> Bundles.of(ErrorMessages.class, ERRORS, l));
     }
 
-    /** Configured locale, read at each call: tests and the application may change the property at runtime. */
-    public static Locale locale() {
-        return supported(Locale.forLanguageTag(System.getProperty(LOCALE_PROPERTY, "pt-BR").strip()));
-    }
 
     /** Description of a registered HTTP status code in the configured locale. */
     public static String httpStatus(int code) {
-        val bundle = ResourceBundle.getBundle(HTTP_STATUS, locale(), Errors.class.getClassLoader(),
+        val bundle = ResourceBundle.getBundle(HTTP_STATUS, I18N.locale(), Errors.class.getClassLoader(),
                 ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES));
         try {
             return bundle.getString(Integer.toString(code));
@@ -53,7 +45,4 @@ public final class Errors {
         }
     }
 
-    private static Locale supported(Locale locale) {
-        return "pt".equals(locale.getLanguage()) ? PT_BR : EN_US;
-    }
 }

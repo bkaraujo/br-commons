@@ -26,12 +26,15 @@ final class Names {
     static boolean isAttribute(String name) {
         if (name.isEmpty()) return false;
         val first = name.charAt(0);
-        if (!letter(first) && first != '_' && first != ':' && first != '@') return false;
+        if (!letter(first) && "_:@".indexOf(first) < 0) return false;
         for (int i = 1; i < name.length(); i++) {
-            val c = name.charAt(i);
-            if (!letter(c) && !digit(c) && c != '_' && c != ':' && c != '.' && c != '@' && c != '-') return false;
+            if (!attributePart(name.charAt(i))) return false;
         }
         return true;
+    }
+
+    private static boolean attributePart(char c) {
+        return letter(c) || digit(c) || "_:.@-".indexOf(c) >= 0;
     }
 
     private static boolean letter(char c) {

@@ -144,15 +144,9 @@ public final class Router {
             if (segment.isEmpty()) continue;
             regex.append('/');
             if (segment.startsWith("{") && segment.endsWith("}")) {
-                val name = segment.substring(1, segment.length() - 1);
-                if (!PARAM_NAME.matcher(name).matches()) {
-                    return Result.failure(Errors.get().invalidPathParameter(name, template).value());
-                }
-                if (paramNames.contains(name)) {
-                    return Result.failure(Errors.get().repeatedPathParameter(name, template).value());
-                }
-                paramNames.add(name);
-                regex.append("(?<").append(name).append(">[^/]+)");
+                val error = param(segment.substring(1, segment.length() - 1), template, paramNames);
+                if (error != null) return Result.failure(error);
+                regex.append("(?<").append(paramNames.getLast()).append(">[^/]+)");
             } else {
                 regex.append(Pattern.quote(segment));
             }
@@ -160,6 +154,14 @@ public final class Router {
         if (regex.length() == 1) regex.append('/');
         regex.append('$');
         return Result.success(Pattern.compile(regex.toString()));
+    }
+
+    /** Registers a path parameter name; the error message when it is invalid or repeated. */
+    private static @Nullable String param(String name, String template, List<String> paramNames) {
+        if (!PARAM_NAME.matcher(name).matches()) return Errors.get().invalidPathParameter(name, template).value();
+        if (paramNames.contains(name)) return Errors.get().repeatedPathParameter(name, template).value();
+        paramNames.add(name);
+        return null;
     }
 
     @NullMarked

@@ -2,6 +2,7 @@ package br.commons.logger;
 
 import br.commons.Strings;
 import br.commons.platform.terminal.TerminalColor;
+import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
@@ -28,16 +29,11 @@ public enum LogLevel {
 
 
     public static LogLevel fromSlf4jLevel(String level) {
-        return switch (Strings.upper(level)) {
-            case "VERBOSE" -> VERBOSE;
-            case "TRACE" -> TRACE;
-            case "DEBUG" -> DEBUG;
-            case "INFO" -> INFO;
-            case "WARN", "WARNING" -> WARN;
-            case "ERROR" -> ERROR;
-            case "FATAL" -> FATAL;
-            case "OFF" -> OFF;
-            default -> INFO;
-        };
+        val name = Strings.upper(level);
+        if (name.equals("WARNING")) return WARN;
+        for (val candidate : values()) {
+            if (candidate.name().equals(name)) return candidate;
+        }
+        return INFO;
     }
 }

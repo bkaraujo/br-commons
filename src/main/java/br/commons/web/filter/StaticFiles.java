@@ -87,24 +87,32 @@ public final class StaticFiles implements HTTPFilter {
         if (request.method() != HTTPMethod.GET || !request.path().startsWith(prefix)) return next.handle(request);
 
         val name = request.path().substring(prefix.length());
-        if (name.isEmpty() || name.contains("..") || name.contains("\\")) return HTTPServerResponse.status(HTTPStatus.NOT_FOUND);
+        if (!safe(name)) return HTTPServerResponse.status(HTTPStatus.NOT_FOUND);
 
         try {
             val entry = find(name);
             if (entry == null) return HTTPServerResponse.status(HTTPStatus.NOT_FOUND);
-            if (entry.etag().equals(request.header("If-None-Match"))) {
-                return HTTPServerResponse.status(HTTPStatus.NOT_MODIFIED)
-                        .header("ETag", entry.etag())
-                        .header("Cache-Control", cacheControl);
-            }
-            return HTTPServerResponse.status(HTTPStatus.OK, entry.content())
-                    .header("Content-Type", type(name))
-                    .header("ETag", entry.etag())
-                    .header("Cache-Control", cacheControl)
-                    .header("X-Content-Type-Options", "nosniff");
+            return respond(request, name, entry);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private static boolean safe(String name) {
+        return !name.isEmpty() && !name.contains("..") && !name.contains("\\");
+    }
+
+    private HTTPResponse respond(HTTPRequest request, String name, Entry entry) throws IOException {
+        if (entry.etag().equals(request.header("If-None-Match"))) {
+            return HTTPServerResponse.status(HTTPStatus.NOT_MODIFIED)
+                    .header("ETag", entry.etag())
+                    .header("Cache-Control", cacheControl);
+        }
+        return HTTPServerResponse.status(HTTPStatus.OK, entry.content())
+                .header("Content-Type", type(name))
+                .header("ETag", entry.etag())
+                .header("Cache-Control", cacheControl)
+                .header("X-Content-Type-Options", "nosniff");
     }
 
     /**

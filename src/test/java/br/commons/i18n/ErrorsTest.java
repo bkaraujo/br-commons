@@ -17,19 +17,19 @@ class ErrorsTest {
 
     @AfterEach
     void reset() {
-        System.clearProperty(Errors.LOCALE_PROPERTY);
+        System.clearProperty(I18N.LOCALE_PROPERTY);
     }
 
     @Test
     void errorBundleIsCompleteInEverySupportedLocale() {
-        for (val locale : new Locale[] {Errors.PT_BR, Errors.EN_US}) {
+        for (val locale : new Locale[] {I18N.PT_BR, I18N.EN_US}) {
             assertEquals(java.util.List.of(), Bundles.check(ErrorMessages.class, "br/commons/i18n/errors", locale), locale.toString());
         }
     }
 
     @Test
     void everyRegisteredHttpStatusHasADescriptionInEverySupportedLocale() throws IllegalAccessException {
-        for (val locale : new Locale[] {Errors.PT_BR, Errors.EN_US}) {
+        for (val locale : new Locale[] {I18N.PT_BR, I18N.EN_US}) {
             val bundle = ResourceBundle.getBundle("br/commons/i18n/http_status", locale,
                     ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES));
             for (val field : HTTPStatus.class.getFields()) {
@@ -49,15 +49,15 @@ class ErrorsTest {
 
     @Test
     void propertySwitchesToEnglish() {
-        System.setProperty(Errors.LOCALE_PROPERTY, "en-US");
+        System.setProperty(I18N.LOCALE_PROPERTY, "en-US");
         assertEquals("Route not found", Errors.get().routeNotFound().value());
         assertEquals("Resource not found", HTTPStatus.NOT_FOUND.description());
     }
 
     @Test
     void unsupportedLanguageFallsBackToEnglish() {
-        System.setProperty(Errors.LOCALE_PROPERTY, "fr-FR");
-        assertEquals(Errors.EN_US, Errors.locale());
+        System.setProperty(I18N.LOCALE_PROPERTY, "fr-FR");
+        assertEquals(I18N.EN_US, I18N.locale());
     }
 
     @Test

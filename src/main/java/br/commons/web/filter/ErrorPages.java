@@ -1,7 +1,5 @@
 package br.commons.web.filter;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
 import br.commons.Result;
 import br.commons.http.HTTPStatus;
@@ -11,6 +9,8 @@ import br.commons.http.message.HTTPRequest;
 import br.commons.http.message.HTTPResponse;
 import br.commons.http.server.HTTPFilter;
 import br.commons.http.server.HTTPHandler;
+import br.commons.i18n.Errors;
+import br.commons.i18n.I18N;
 import br.commons.web.ErrorPage;
 import br.commons.web.server.WebResponse;
 import com.google.errorprone.annotations.CheckReturnValue;
@@ -78,11 +78,22 @@ public final class ErrorPages implements HTTPFilter {
         try {
             response = next.handle(request);
         } catch (RuntimeException | Error e) {
-            val page = pages.get(HTTPStatus.INTERNAL_SERVER_ERROR.code());
+            val page = fatal(request, e);
             if (page == null) throw e;
-            Logger.error("Fatal error dispatching %s: %s", request.path(), e.toString());
-            return render(page, request, HTTPStatus.INTERNAL_SERVER_ERROR, null);
+            return page;
         }
+        return replace(request, response);
+    }
+
+    /** The 500 page for an exception in the chain; {@code null} without one (the caller rethrows). */
+    private @Nullable HTTPResponse fatal(HTTPRequest request, Throwable error) {
+        val page = pages.get(HTTPStatus.INTERNAL_SERVER_ERROR.code());
+        if (page == null) return null;
+        Logger.error("Fatal error dispatching %s: %s", request.path(), error.toString());
+        return render(page, request, HTTPStatus.INTERNAL_SERVER_ERROR, null);
+    }
+
+    private HTTPResponse replace(HTTPRequest request, HTTPResponse response) {
         if (response.isStreaming() || response.mediaType() == MediaType.TEXT_HTML) return response;
         val page = pages.get(response.status().code());
         if (page == null) return response;
@@ -117,7 +128,7 @@ public final class ErrorPages implements HTTPFilter {
                 <body><main><h1>%1$d</h1><p>%3$s</p><p><a href="/">%5$s</a></p></main></body>
                 </html>
                 """.formatted(status.code(), escape(status.name()), escape(status.description()),
-                        Errors.locale().toLanguageTag(), escape(Errors.get().errorPageBackHome().value()));
+                I18N.locale().toLanguageTag(), escape(Errors.get().errorPageBackHome().value()));
     }
 
     private static String escape(String text) {
