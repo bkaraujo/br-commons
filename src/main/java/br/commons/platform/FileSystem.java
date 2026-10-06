@@ -47,7 +47,7 @@ public interface FileSystem {
 
     static void copy(final byte [] bytes, final Path target) {
         Logger.trace("Copying %s to %s", bytes.length, target.toAbsolutePath());
-        if (Files.isWritable(target)) {
+        if (!writable(target)) {
             Logger.error("Path is not writable %s", target.toAbsolutePath());
             return;
         }
@@ -59,6 +59,13 @@ public interface FileSystem {
         } catch (Throwable throwable) {
             Logger.error("Unpredicted message", throwable);
         }
+    }
+
+    /** An existing file must be writable; a new one needs a writable directory. */
+    private static boolean writable(final Path target) {
+        if (Files.exists(target)) return Files.isWritable(target);
+        val parent = target.toAbsolutePath().getParent();
+        return parent != null && Files.isWritable(parent);
     }
 
     static Result<Path, Throwable> move(final Path source, final Path target) {

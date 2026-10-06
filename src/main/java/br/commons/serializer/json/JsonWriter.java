@@ -1,6 +1,6 @@
 package br.commons.serializer.json;
 
-import br.commons.i18n.Errors;
+import br.commons.locale.i18n.Errors;
 
 import br.commons.serializer.Serializer;
 import br.commons.serializer.document.Document;

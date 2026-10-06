@@ -1,8 +1,7 @@
 package br.commons.html.form;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Result;
+import br.commons.locale.i18n.Errors;
 import org.jspecify.annotations.NullMarked;
 
 import java.time.DateTimeException;

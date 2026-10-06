@@ -63,8 +63,8 @@ MessageBus.submit(new OrderPlaced("A-17", new BigDecimal("99.90")));
 - **Todos** os consumidores rodam (fan-out completo).
 - Mensagem sem consumidor: no-op silencioso.
 - Exceção de consumidor **propaga** para o `submit`; consumidores seguintes
-  não rodam. `RuntimeException`/`Error` sobem intactas; checked exceptions vêm
-  embrulhadas em `RuntimeException("Failed to process <fqn>: ...")`.
+  não rodam. `RuntimeException`/`Error` sobem intactas; checked vêm em
+  `RuntimeException` com texto i18n `Errors.get().messageProcessingFailed`.
 
 ## 5. `MessageResult`
 
@@ -138,6 +138,13 @@ Se precisar de horário, declare componente: `record X(long at) implements Messa
 - Instâncias inscritas ficam referenciadas até `unsubscribe`/`reset()`;
   objeto de vida curta inscrito precisa de `unsubscribe` ao fim (ex.: `close()`).
 
+### 8.4 Somente métodos públicos
+
+`subscribe` usa `getClass().getMethods()`: métodos públicos, incluindo
+herdados. Métodos `protected`/package/`private` anotados são ignorados **sem
+warn**. `setAccessible(true)` existe para permitir classes não públicas
+(anônimas, locais, aninhadas) com métodos públicos.
+
 ### 8.5 `unsubscribe`
 
 - `unsubscribe(Object)`: casa por identidade; remove todos os listeners da
@@ -147,13 +154,6 @@ Se precisar de horário, declare componente: `record X(long at) implements Messa
   instância e publica `Registry` novo (via `publish`). `submit` já em curso
   termina no snapshot antigo — o listener removido ainda pode rodar uma vez.
 - Depois do `unsubscribe` a instância pode ser inscrita de novo.
-
-### 8.4 Somente métodos públicos
-
-`subscribe` usa `getClass().getMethods()`: métodos públicos, incluindo
-herdados. Métodos `protected`/package/`private` anotados são ignorados **sem
-warn**. `setAccessible(true)` existe para permitir classes não públicas
-(anônimas, locais, aninhadas) com métodos públicos.
 
 ## 9. Ordem de execução
 
@@ -207,8 +207,10 @@ record MessageProcessor(Object container, MethodHandle handle)
 - `invoke` (não `invokeExact`) adapta tipos: o parâmetro estático é
   `Message`, o handle espera o subtipo; cast acontece no call site.
 - Retorno é cast para `MessageResult`. Hoje o bus descarta o valor.
-- `Throwable` checked → `RuntimeException` com `Meta.fqn(message)` na
-  mensagem; `RuntimeException`/`Error` relançadas sem embrulho.
+- `Throwable` checked → `RuntimeException` cuja mensagem vem de
+  `Errors.get().messageProcessingFailed(Meta.fqn(message), cause)` (bundle
+  `br/commons/i18n/errors*.properties`, chave `messageProcessingFailed`);
+  `RuntimeException`/`Error` relançadas sem embrulho.
 
 ## 13. Pontos de extensão sugeridos
 

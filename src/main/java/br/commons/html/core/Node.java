@@ -1,6 +1,6 @@
 package br.commons.html.core;
 
-import br.commons.i18n.Errors;
+import br.commons.locale.i18n.Errors;
 
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -64,7 +64,10 @@ public sealed interface Node extends Content permits Node.Element, Node.Text, No
         }
     }
 
-    /** Markup written without escaping; created only by {@code Html#raw}, which ArchUnit restricts. */
+    /**
+     * Markup written without escaping; created only in {@code br.commons.html} ({@code Html#raw},
+     * {@code scriptText}, {@code styleText}), which {@code HtmlArchitectureTest} enforces.
+     */
     @NullMarked
     record Raw(String markup) implements Node {
         @Override

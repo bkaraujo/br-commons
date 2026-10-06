@@ -45,7 +45,7 @@ public final class CacheServer implements Lifecycle {
             cache.close().join().ifFailure(error -> Logger.warn("Cache unload failed: %s", error));
         }
         caches.clear();
-        return worker.stop().mapFailure(BusinessError.BusinessRule::new);
+        return worker.stop().mapFailure(BusinessError.Infrastructure::new);
     }
 
     /** Waits for the writes already sent (tests, diagnostics), without stopping. */

@@ -1,13 +1,12 @@
 package br.commons.http.server.message;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Result;
 import br.commons.Strings;
 import br.commons.http.Cookie;
 import br.commons.http.HTTPStatus;
 import br.commons.http.message.HTTPResponse;
 import br.commons.http.server.HTTPServer;
+import br.commons.locale.i18n.Errors;
 import br.commons.logger.MDC;
 import com.google.errorprone.annotations.CheckReturnValue;
 import org.jspecify.annotations.NullMarked;

@@ -1,36 +1,16 @@
 package br.commons.html;
 
 import br.commons.html.core.Node;
-import br.commons.html.html4.CellAlign;
-import br.commons.html.html4.CellVerticalAlign;
-import br.commons.html.html4.Html4;
-import br.commons.html.html4.ParamValueType;
-import br.commons.html.html4.TableFrame;
-import br.commons.html.html4.TableRules;
-import br.commons.html.html5.Autocapitalize;
-import br.commons.html.html5.CrossOrigin;
-import br.commons.html.html5.EnterKeyHint;
-import br.commons.html.html5.FetchPriority;
-import br.commons.html.html5.Html5;
-import br.commons.html.html5.ImageDecoding;
-import br.commons.html.html5.InputMode;
-import br.commons.html.html5.LinkTarget;
-import br.commons.html.html5.Loading;
-import br.commons.html.html5.PopoverState;
-import br.commons.html.html5.Preload;
-import br.commons.html.html5.ReferrerPolicy;
-import br.commons.html.html5.TextWrap;
-import br.commons.html.html5.TrackKind;
-import br.commons.i18n.Text;
+import br.commons.html.html4.*;
+import br.commons.html.html5.*;
+import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static br.commons.html.Html.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class HtmlTest {
 
@@ -63,11 +43,11 @@ class HtmlTest {
         assertEquals(Markup.flat("""
                 <!DOCTYPE html>
                 <html lang="pt-BR">
-                  <head><meta charset="utf-8"><title>JUDAS</title></head>
+                  <head><meta charset="utf-8"><title>Exemplo</title></head>
                   <body><main><h1></h1></main></body>
                 </html>
                 """), Html5.document(html(lang("pt-BR"),
-                head(Html5.metaCharset("utf-8"), title(text(t("JUDAS")))), body(Html5.main(h1())))));
+                head(Html5.metaCharset("utf-8"), title(text(t("Exemplo")))), body(Html5.main(h1())))));
         assertEquals(Markup.flat("""
                 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
                 <html>

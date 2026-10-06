@@ -1,5 +1,7 @@
 package br.commons.i18n;
 
+import br.commons.locale.i18n.Formats;
+import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

@@ -1,12 +1,8 @@
 package br.commons.html;
 
 import br.commons.html.core.Node;
-import br.commons.html.form.Field;
-import br.commons.html.form.FieldSpec;
-import br.commons.html.form.InputType;
-import br.commons.html.form.Option;
-import br.commons.html.form.Violation;
-import br.commons.i18n.Text;
+import br.commons.html.form.*;
+import br.commons.locale.i18n.Text;
 import lombok.val;
 
 import java.util.List;

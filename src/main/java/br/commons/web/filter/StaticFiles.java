@@ -1,7 +1,5 @@
 package br.commons.web.filter;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Strings;
 import br.commons.http.HTTPStatus;
 import br.commons.http.message.HTTPMethod;
@@ -10,6 +8,7 @@ import br.commons.http.message.HTTPResponse;
 import br.commons.http.server.HTTPFilter;
 import br.commons.http.server.HTTPHandler;
 import br.commons.http.server.message.HTTPServerResponse;
+import br.commons.locale.i18n.Errors;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -22,13 +21,13 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.HexFormat;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 /**
  * Serves files under a URL prefix from the classpath or, in development, from a directory on disk

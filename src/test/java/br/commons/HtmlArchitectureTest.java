@@ -3,7 +3,12 @@ package br.commons;
 import br.commons.html.Html;
 import br.commons.html.core.Attribute;
 import br.commons.html.core.Node;
+import br.commons.locale.i18n.Text;
+import com.tngtech.archunit.core.domain.JavaCall;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.properties.HasName;
+import com.tngtech.archunit.core.domain.properties.HasOwner;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
@@ -15,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Visible attributes ({@code title}, {@code placeholder}, {@code aria-label}, {@code alt}) take only a
- * {@link br.commons.i18n.Text} (spec §2.5, §13.2). Naming an attribute freely is {@code protected} in
+ * {@link Text} (spec §2.5, §13.2). Naming an attribute freely is {@code protected} in
  * {@link Html}, for the versions; outside {@code br.commons.html} (and {@code br.commons.htmx}, which builds the htmx
  * attributes) nobody may extend it to reach that, nor build an {@link Attribute} directly. Everyone else uses the
  * typed factories.
@@ -27,6 +32,18 @@ class HtmlArchitectureTest {
             .should().beAssignableTo(Html.class)
             .orShould().callConstructor(Attribute.class, String.class, String.class)
             .because("a free string must not reach a visible attribute; use the typed factories of Html4/Html5");
+
+    /**
+     * Markup without escaping ({@link Html#raw}, {@link Node.Raw}) is written as is, so only the reviewed code of
+     * {@code br.commons.html} produces it (spec §14.1): {@code scriptText}/{@code styleText} with their own guard.
+     */
+    static final ArchRule RAW_ONLY_IN_HTML = noClasses()
+            .that().resideOutsideOfPackage("br.commons.html..")
+            .should().callMethodWhere(JavaCall.Predicates.target(HasName.Predicates.name("raw"))
+                    .and(JavaCall.Predicates.target(HasOwner.Predicates.With.owner(
+                            JavaClass.Predicates.assignableTo(Html.class)))))
+            .orShould().callConstructor(Node.Raw.class, String.class)
+            .because("markup that is not escaped is an injection risk; render with the DSL or scriptText/styleText");
 
     private static final JavaClasses CLASSES = new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
@@ -75,6 +92,19 @@ class HtmlArchitectureTest {
     }
 
     @Test
+    void onlyTheHtmlPackageWritesRawMarkup() {
+        RAW_ONLY_IN_HTML.check(CLASSES);
+    }
+
+    @Test
+    void catchesAViewThatWritesRawMarkup() {
+        val classes = new ClassFileImporter().importClasses(RawView.class);
+        val report = RAW_ONLY_IN_HTML.evaluate(classes).getFailureReport().getDetails();
+        assertTrue(report.stream().anyMatch(line -> line.contains(RawView.class.getSimpleName() + ".viaFactory")));
+        assertTrue(report.stream().anyMatch(line -> line.contains(RawView.class.getSimpleName() + ".viaRecord")));
+    }
+
+    @Test
     void catchesAViewThatNamesAnAttribute() {
         val classes = new ClassFileImporter().importClasses(FreeAltView.class, FreeTitleHtml.class);
         val report = ATTRIBUTES_BY_NAME_ONLY_IN_HTML.evaluate(classes).getFailureReport().getDetails();
@@ -86,6 +116,17 @@ class HtmlArchitectureTest {
     static final class FreeAltView {
         Node render() {
             return Html.element("img", new Attribute("alt", "free text"));
+        }
+    }
+
+    /** A view outside {@code br.commons.html} that writes markup without escaping, by the factory and directly. */
+    static final class RawView {
+        static Node viaFactory() {
+            return Html.raw("<b>free</b>");
+        }
+
+        static Node viaRecord() {
+            return new Node.Raw("<b>free</b>");
         }
     }
 

@@ -1,8 +1,7 @@
 package br.commons.persistence.jdbc;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Result;
+import br.commons.locale.i18n.Errors;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/** JUDAS additions to the POC data source: initializer (RLS binding), inTransaction and afterCommit. */
+/** Additions to the POC data source: initializer (RLS binding), inTransaction and afterCommit. */
 class TransactionHooksTest {
 
     private final AtomicInteger initialized = new AtomicInteger();

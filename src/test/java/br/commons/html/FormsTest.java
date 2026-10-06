@@ -8,7 +8,7 @@ import br.commons.html.html4.Html4;
 import br.commons.html.html4.Html4Dialect;
 import br.commons.html.html5.Html5;
 import br.commons.html.html5.Html5Dialect;
-import br.commons.i18n.Text;
+import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

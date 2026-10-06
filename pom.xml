@@ -55,10 +55,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <dependency><groupId>br.judas</groupId><artifactId>judas-commons</artifactId><version>${project.version}</version></dependency>
-            <dependency><groupId>br.judas</groupId><artifactId>judas-backend</artifactId><version>${project.version}</version></dependency>
-            <dependency><groupId>br.judas</groupId><artifactId>judas-commons</artifactId><version>${project.version}</version><type>test-jar</type></dependency>
-
             <dependency><groupId>tools.jackson.core</groupId><artifactId>jackson-databind</artifactId><version>${version.jackson}</version></dependency>
             <dependency><groupId>tools.jackson.dataformat</groupId><artifactId>jackson-dataformat-yaml</artifactId><version>${version.jackson}</version></dependency>
             <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>${version.postgresql}</version></dependency>
@@ -182,7 +178,7 @@
                     <compilerArgs>
                         <arg>-XDcompilePolicy=simple</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/test/java/.* -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=br.commons,br.judas -XepOpt:NullAway:ExcludedFieldAnnotations=lombok.Getter</arg>
+                        <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/test/java/.* -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=br.commons -XepOpt:NullAway:ExcludedFieldAnnotations=lombok.Getter</arg>
                     </compilerArgs>
                     <annotationProcessorPaths>
                         <path><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><version>${version.lombok}</version></path>
@@ -276,7 +272,7 @@
     <!-- ============================================================ -->
     <!-- Examples: complete applications in src/main/examples         -->
     <!-- mvn -Pexamples compile exec:java                             -->
-    <!--   -Dexamples.main=br.commons.examples.htmx.tracker.TrackerApp -->
+    <!--   -Dexamples.main=br.commons.examples.tracker.htmx.TrackerApp -->
     <!--   -Dexec.args=PORT                                           -->
     <!-- Off by default: not in the jar nor in the quality gates.     -->
     <!-- ============================================================ -->
@@ -284,7 +280,7 @@
         <profile>
             <id>examples</id>
             <properties>
-                <examples.main>br.commons.examples.jquery.tasks.TasksApp</examples.main>
+                <examples.main>br.commons.examples.tasks.jquery.TasksApp</examples.main>
             </properties>
             <build>
                 <plugins>

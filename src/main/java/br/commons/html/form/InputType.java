@@ -1,9 +1,8 @@
 package br.commons.html.form;
 
-import br.commons.i18n.Errors;
-import br.commons.i18n.Text;
-
 import br.commons.Result;
+import br.commons.locale.i18n.Errors;
+import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 

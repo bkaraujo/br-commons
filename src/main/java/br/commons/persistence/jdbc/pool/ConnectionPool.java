@@ -1,8 +1,7 @@
 package br.commons.persistence.jdbc.pool;
 
-import br.commons.i18n.Errors;
-
 import br.commons.*;
+import br.commons.locale.i18n.Errors;
 import br.commons.persistence.jdbc.JDBCProperties;
 import br.commons.persistence.jdbc.Results;
 import br.commons.persistence.jdbc.primitives.JDBCConnection;

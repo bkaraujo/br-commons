@@ -25,7 +25,7 @@ import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** JUDAS additions to the br-community server: body limit, unknown methods, cookies, graceful stop. */
+/** Additions to the br-community server: body limit, unknown methods, cookies, graceful stop. */
 class HTTPServerLimitsTest {
 
     private final HttpClient client = HttpClient.newHttpClient();

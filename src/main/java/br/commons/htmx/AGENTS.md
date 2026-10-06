@@ -2,18 +2,18 @@
 
 Atributos `hx-*` como DSL estática ao lado da DSL HTML, e leitura/escrita dos
 headers `HX-*`. Depende de `br.commons.html` e da camada HTTP; nenhum deles
-depende deste pacote (`HtmlArchitectureTest`).
+depende deste pacote, e ele não conhece `br.commons.web` (`HtmlArchitectureTest`).
 
 Referência: https://htmx.org/reference/
 
 | Tipo            | Papel                                                      |
 |-----------------|------------------------------------------------------------|
-| `Htmx`          | `hxGet`, `hxPost`, `hxTarget`, `hxSwap`, `hxTrigger`, ... → `Attribute` |
+| `Htmx`          | `hxGet`, `hxPost`, `hxTarget`, `hxSwap`, `hxTrigger`, ... → `Attribute`; `hxPartial(...)` → elemento `<hx-partial>` |
 | `HxSwap`        | `innerHTML`, `outerHTML`, `textContent`, `beforebegin`, ... `delete`, `none` |
-| `SwapSpec`      | Swap + modificadores (`settle`, `show`, `scroll`, `transition`) |
+| `SwapSpec`      | Swap + modificadores (`swap`, `settle`, `show`, `scroll`, `transition`, `ignoreTitle`, `focusScroll`) |
 | `ScrollEdge`    | `top`/`bottom` para `scroll`/`show`                        |
 | `HxSync`        | Estratégias de `hx-sync` (`drop`, `abort`, `replace`, `queue ...`) |
-| `HtmxRequest`   | Lê `HX-Request`, `HX-Target`, `HX-Trigger`, `HX-Boosted`... |
+| `HtmxRequest`   | Lê `HX-Request`, `HX-Target`, `HX-Trigger`, `HX-Trigger-Name`, `HX-Boosted`, `HX-History-Restore-Request`... |
 | `HtmxResponse`  | Escreve `HX-Location`, `HX-Retarget`, `HX-Reswap`, `HX-Trigger`... |
 
 ## 1. Atributos na view
@@ -89,8 +89,11 @@ HtmxResponse.of(resp).location("/orders").pushUrl("/orders").response(); // sem 
 
 - Cada método devolve `br.commons.html.core.Attribute(nome, valor)`; o escape
   do valor é responsabilidade do renderizador HTML.
-- Atributos de flag (`hxValidate`, `hxPreserve`, `hxDisable`,
-  `hxHistoryOff`...) usam `flag(nome)` (atributo booleano).
+- Atributos de flag (`hxPreserve`, `hxHistoryElt`, `hxDisable`) usam
+  `flag(nome)` (atributo booleano, valor `null`). `hxValidate` = `"true"`,
+  `hxHistoryOff` = `hx-history="false"`.
+- `hxPartial(content...)` cria o elemento `<hx-partial>` (comando de swap no
+  corpo da resposta), não um atributo.
 - Enums implementam `Keyword.token()`: o texto exato do htmx
   (`HxSwap.OUTER_HTML.token()` = `outerHTML`).
 - `SwapSpec` é imutável: cada modificador cria nova instância; `token()` junta
@@ -121,7 +124,8 @@ HtmxResponse.of(resp).location("/orders").pushUrl("/orders").response(); // sem 
   `"a, b"`; algum com detalhe (`Map`) → JSON via `Json.write`, evento sem
   detalhe vai como `""`.
 - `redirect` = navegação completa; `location` = navegação AJAX;
-  `refresh()` = reload.
+  `refresh()` = reload. Também `replaceUrl`, `noPushUrl`/`noReplaceUrl`,
+  `reselect`, `reswap(SwapSpec)`, `triggerAfterSwap`/`triggerAfterSettle`.
 - CR/LF em valor (`pushUrl`/`location` vindos de dado) → `HTTPServerResponse.header`
   lança `IllegalArgumentException`: valide o dado antes de montar a resposta.
 

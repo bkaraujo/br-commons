@@ -12,7 +12,7 @@ filtros prontos.
 | `router/Router`              | Registro `método + template → handler`; `match`, `Allow` |
 | `router/Route`               | Rota registrada (fonte do OpenAPI)                    |
 | `router/RouteRule`           | Política de registro injetada no `Router`             |
-| `server/WebServer`           | Custódia do `HTTPServer`; `register(WebResource)`     |
+| `server/WebServer`           | Custódia do `HTTPServer`; `register(WebResource)`; `Lifecycle` |
 | `server/WebResource`         | Fatia de rotas: `routes(Router)`                      |
 | `server/WebRequest`          | Request + path params + `body(Class)` pelo `consumes` |
 | `server/WebResponse`         | `ok`, `created`, `json`, `html`, `redirect`, `problem`, `eventStream` |
@@ -59,11 +59,10 @@ var server = new WebServer(8080, new Router(), List.of(new RequestLoggingFilter(
 server.register(new OrderResource()); server.start().ifFailure(Logger::error);
 ```
 
-`PreflightFilter` é inserido automaticamente antes dos seus filtros.
-
-Páginas de erro, qualquer status, antes do `start()` (ver §13):
-`server.defaultErrorPages()` (404/500 embutidas),
-`server.errorPage(HTTPStatus.NOT_FOUND, "/errors/404.html")` ou `errorPage(status, (req, st) -> html)`.
+`Lifecycle` (via `br.Application.modules()`): `initialize()` = `start()` na thread não-daemon
+`web-server` (segura a JVM); `terminate()` = `stop()`. `ErrorPages` + `PreflightFilter` vêm antes dos seus filtros.
+Páginas de erro (`Result`, antes do start; §13): `defaultErrorPages()` (404/500),
+`errorPage(HTTPStatus.NOT_FOUND, "/errors/404.html")` ou `errorPage(status, (req, st) -> html)`.
 
 ## 3. Corpo da requisição (`WebRequest.body`)
 
@@ -88,7 +87,7 @@ WebResponse.eventStream(out -> ...);            // SSE
 3. Rota específica antes da genérica (`/x/new` antes de `/x/{id}`).
 4. Erro ao cliente sempre `ProblemDetail`; nunca CPF/dado pessoal no detalhe.
 5. Não registre `OPTIONS` (falha): o servidor responde sozinho.
-6. Registre tudo antes de `start()`.
+6. Registre tudo antes de `start()`/`initialize()`.
 
 ## 6. Checklist de revisão
 
@@ -160,7 +159,10 @@ Responde `OPTIONS` antes dos filtros do cliente (preflight não carrega
 
 Só vale se `Accept` contém `text/html` (navegação); API/`fetch`/HTMX seguem
 com `ProblemDetail`. Resposta já HTML ou streaming passa intacta. Páginas
-embutidas usam `Errors` (texto e `lang` no `br.commons.locale`).
+embutidas (`defaults()`): texto = `HTTPStatus.description()` (bundle
+`http_status`), link "voltar" de `Errors`, `lang` = `I18N.locale()`
+(`br.commons.locale`). `errorPage(status, "/recurso.html")` lê do classpath
+uma vez; recurso ausente → `Failure`.
 
 Primeiro filtro da cadeia (antes do `PreflightFilter`): cobre 404/405 do
 dispatcher e respostas de filtros (`StaticFiles`). Troca só o corpo:

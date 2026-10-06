@@ -1,215 +1,228 @@
-# br.commons.serializer — reading, creating and persisting documents
+# br.commons.serializer — ler, criar e persistir documentos
 
-JSON and YAML documents read into one common internal representation and queried
-through a single API. Formats only read/validate (and YAML persists).
+Documentos JSON e YAML lidos para uma representação interna comum e consultados
+por uma única API. Formatos só leem/validam (e o YAML persiste).
 
-| Type                               | Role                                                          |
-|------------------------------------|---------------------------------------------------------------|
-| `Serializer`                       | **The only read API**; also `builder(...)` and `overlay(...)` |
-| `Json`                             | Factories: `from(String)`, `write(Object)`                    |
-| `Yaml`                             | Factories: `from(Path)`, `fromClasspath`, `from(Map)`, `save` |
-| `document.builder.DocumentBuilder` | Creates/edits a document: `put`, `append`, `clear`, `build`   |
-| `document.builder.Entry`           | Key/value pair for `append`                                   |
-| `document.Document`                | Immutable internal representation; internal use (see §8)      |
+| Tipo                               | Papel                                                          |
+|------------------------------------|----------------------------------------------------------------|
+| `Serializer`                       | **Única API de leitura**; também `builder(...)` e `overlay(...)` |
+| `Json`                             | Fábricas: `from(String)`, `write(Object)`                      |
+| `Yaml`                             | Fábricas: `from(Path)`, `fromClasspath`, `from(Map)`, `from()`, `save` |
+| `document.builder.DocumentBuilder` | Cria/edita documento: `put`, `append`, `clear`, `build`        |
+| `document.builder.Entry`           | Par chave/valor para `append`                                  |
+| `document.Document`                | Representação interna imutável; uso interno (ver §8)           |
 
-## 1. Read
+## 1. Ler
 
 ```java
-Serializer body = Json.from(text);                      // IllegalArgumentException if invalid
-Serializer cfg  = Yaml.from(Path.of("app.yaml"));       // empty if the file is missing
-Serializer res  = Yaml.fromClasspath("defaults.yaml");  // empty if the resource is missing
-Serializer mem  = Yaml.from(Map.of("port", 8080));      // copy of the map
+Serializer body = Json.from(text);                      // IllegalArgumentException se inválido
+Serializer cfg  = Yaml.from(Path.of("app.yaml"));       // vazio se o arquivo falta/ilegível
+Serializer res  = Yaml.fromClasspath("defaults.yaml");  // vazio se o recurso falta
+Serializer mem  = Yaml.from(Map.of("port", 8080));      // cópia do map; Yaml.from() = vazio
 ```
-Always declare the variable as `Serializer`: `Json`/`Yaml` are not document types.
+Declare sempre a variável como `Serializer`: `Json`/`Yaml` não são tipos de documento.
 
-## 2. Query
+## 2. Consultar
 
-Key = dotted path; a numeric segment indexes a list (`server.ports.0.number`).
+Chave = caminho pontuado; segmento numérico indexa lista (`server.ports.0.number`).
 
 ```java
-cfg.contains("server.port");                  // exists? (a null value counts)
-cfg.asString("server.host");                  // null when missing
-cfg.asInt("server.port", 8080);               // with default
-cfg.asEnum("log.level", LogLevel.class);      // null if missing or unknown name
+cfg.contains("server.port");                  // existe? (valor null conta)
+cfg.asString("server.host");                  // null se ausente
+cfg.asInt("server.port", 8080);               // com default
+cfg.asEnum("log.level", LogLevel.class);      // null se ausente ou nome desconhecido
 cfg.asInts("ports");                          // "1, 2, 3" -> int[]
-cfg.asTuples("props");                        // list of {name, value} -> Tuple[]
-Serializer db = cfg.subtree("db");            // sub-document or null
-List<Serializer> users = cfg.list("users");   // list items; empty if not a list
-cfg.folder();                                 // folder of the source file or null
+cfg.asTuples("props");                        // lista de {name, value} -> Tuple[]
+Serializer db = cfg.subtree("db");            // subdocumento ou null
+List<Serializer> users = cfg.list("users");   // itens; vazio (+warn) se não for lista
+cfg.folder();                                 // pasta do arquivo de origem ou null
 ```
 
-Scalars: `asString/asByte/asShort/asInt/asLong/asFloat/asDouble/asBoolean`.
+Escalares: `asString/asByte/asShort/asInt/asLong/asFloat/asDouble/asBoolean`;
+`isEmpty()` = documento ausente, map vazio ou lista vazia.
 
-## 3. Binding to types
+## 3. Binding para tipos
 
 ```java
 record Server(String host, int port) {}
-Server s = Yaml.from(path).as(Server.class);              // whole document
-List<Item> items = Json.from("[...]").asList(Item.class); // top-level list
+Server s = Yaml.from(path).as(Server.class);              // documento inteiro
+List<Item> items = Json.from("[...]").asList(Item.class); // lista de topo
 ```
 
-Supports `record` (canonical constructor), declared `List<T>`, scalars, `UUID`, enums.
+Suporta `record` (construtor canônico), `List<T>` declarada, escalares, `UUID`, enums.
 
-## 4. Create, edit and persist
+## 4. Criar, editar e persistir
 
 ```java
 Serializer doc = Serializer.builder()
-        .put("server.port", 8080)                   // creates intermediate maps
-        .append("users", "name", "ana")             // item {name: ana} in list users
-        .append(new Entry("env", "prod"))           // top-level key
+        .put("server.port", 8080)                   // cria maps intermediários
+        .append("users", "name", "ana")             // item {name: ana} na lista users
+        .append(new Entry("env", "prod"))           // chave de topo
         .build();
 Yaml.save(doc, Path.of("app.yaml"));
 
 Serializer edited = Serializer.builder(cfg).put("server.port", 9090).build();
-Yaml.save(edited);                                  // writes to cfg's source
-String json = Json.write(edited);                   // documents serialize too
+Yaml.save(edited);                                  // grava na origem de cfg
+String json = Json.write(edited);                   // documentos também serializam
 ```
 
-- A document is **immutable**: `builder(base)` copies; `base` does not change.
-- `Yaml.save(doc)` without a source (not loaded from a file) only logs a warning.
+Documento **imutável** (`builder(base)` copia). `Yaml.save` sem origem: warning; falha de escrita: log de erro.
 
-## 5. Cache (hot path)
+## 5. Cache (caminho quente)
 
-| System property                            | Default | Effect                          |
+| System property                            | Default | Efeito                          |
 |--------------------------------------------|---------|---------------------------------|
-| `br.commons.serializer.cache.ttl.seconds`  | `60`    | Validity window of each entry   |
-| `br.commons.serializer.cache.size`         | `256`   | Entries per cache (LRU)         |
+| `br.commons.serializer.cache.ttl.seconds`  | `60`    | Janela de validade de cada entrada |
+| `br.commons.serializer.cache.size`         | `256`   | Entradas por cache (LRU)        |
 
-Read once at startup: changing them requires a **restart**. `<= 0` disables.
-The same source within the window returns the **same document instance**.
+Lidas uma vez (`CacheSettings`): mudar exige **restart**; `<= 0` desliga. Mesma
+origem dentro da janela devolve a **mesma instância** de documento.
 
-## 6. Quick rules for agents
+## 6. Regras rápidas para agentes
 
-1. Read only through `Serializer` methods; never use `Document` directly.
-2. Never try to mutate a document; edit with `Serializer.builder(doc)`.
-3. After writing a file, re-read with `Yaml.from(path)` (cache already invalidated).
-4. Never write a YAML file outside `Yaml.save`: the cache won't know (§10.3).
-5. A bad scalar in JSON throws `NumberFormatException`; in YAML it is `Logger.fatal`.
-6. `asInts`/`asBytes`… on a missing key is `Logger.fatal`: check `contains`.
-7. New format = a reader that produces `Document.of(...)` (§13).
+1. Leia só por métodos de `Serializer`; nunca use `Document` diretamente.
+2. Nunca tente mutar um documento; edite com `Serializer.builder(doc)`.
+3. Depois de gravar, releia com `Yaml.from(path)` (cache já invalidado).
+4. Nunca grave YAML fora de `Yaml.save`: o cache não saberá (§10.3).
+5. Escalar inválido em JSON lança `NumberFormatException`; em YAML é `Logger.fatal`.
+6. `asInts`/`asBytes`… em chave ausente é `Logger.fatal`: confira `contains`.
+7. Formato novo = leitor que produz `Document.of(...)` (§13).
 
-## 7. Review checklist
+## 7. Checklist de revisão
 
-- [ ] Variables typed as `Serializer`, not `Document`.
-- [ ] Explicit defaults (`asInt(key, def)`) for optional configuration.
-- [ ] Writes go through `Serializer.builder` + `Yaml.save`.
-- [ ] New tests use `@TempDir` for files.
+- [ ] Variáveis tipadas como `Serializer`, não `Document`.
+- [ ] Defaults explícitos (`asInt(key, def)`) para configuração opcional.
+- [ ] Escritas passam por `Serializer.builder` + `Yaml.save`.
+- [ ] Testes novos usam `@TempDir` para arquivos.
 
 ---
 
-<!-- End of the usage section (up to line 100). Below: advanced implementation. -->
+<!-- Fim da seção de uso (até a linha 100). Abaixo, implementação avançada. -->
 
-# Advanced implementation
+# Implementação avançada
 
-## 8. Architecture
+## 8. Arquitetura
 
 ```
-Serializer (read API)  <—  document.Document (only implementation) / document.Overlay
+Serializer (API de leitura)  <—  document.Document (única implementação) / document.Overlay
           ^                              ^
-Json ——> json.JsonReader ——(validates)——> Document.of(tree, null, WIRE)
+Json ——> json.JsonReader ——(JsonParser valida)——> Document.of(tree, null, WIRE)
 Json.write ——> json.JsonWriter
-Yaml ——> yaml.YamlReader ——(validates)——> Document.of(tree, path, CONFIG)
-Yaml.save ——> yaml.YamlWriter ——> file + DocumentCache.invalidate(path)
+Yaml ——> yaml.YamlReader ——(valida)——> Document.of(tree, path, CONFIG)
+Yaml.save ——> yaml.YamlWriter ——> arquivo + DocumentCache.invalidate(path)
 ```
 
 ```
-serializer/            Serializer, Json, Yaml                 (the API)
+serializer/            Serializer, Json, Yaml                 (a API)
 ├── document/          Document (+unwrap), DocumentCache, Overlay, Policy
 │   ├── builder/       DocumentBuilder, Entry
 │   ├── cache/         LruCache, CacheSettings
-│   ├── navigation/    Trees                                  (dotted paths, flat index)
-│   └── binding/       TreeBinder, Scalars                    (records, scalar coercion)
+│   ├── navigation/    Trees                                  (caminhos pontuados, índice plano)
+│   └── binding/       TreeBinder, Scalars                    (records, coerção de escalar)
 ├── json/              JsonReader, JsonWriter, JsonParser
 └── yaml/              YamlReader, YamlWriter
 ```
 
-- `document`: the representation and everything shared; knows no format.
-- `json`/`yaml`: syntax, validation and writing only; they do not see each other.
-- `Json`/`Yaml` are `final` factory classes; they do not extend `Serializer`.
-- Sub-packages are `public` only because Java has no sub-package access.
-  `SerializerArchitectureTest` (ArchUnit) enforces: outside `br.commons.serializer..`
-  only the root package is used; formats are independent; `document` ignores formats.
+- `document`: a representação e tudo que é compartilhado; não conhece formato.
+- `json`/`yaml`: só sintaxe, validação e escrita; um não vê o outro.
+- `Json`/`Yaml` são classes `final` de fábrica; não estendem `Serializer`.
+- Subpacotes são `public` só porque Java não tem acesso por subpacote.
+  `SerializerArchitectureTest` (ArchUnit, sobre `br.commons`) garante: fora de
+  `br.commons.serializer..` só o pacote raiz é usado; formatos independentes;
+  `document` ignora formatos.
+- Erros de validação/binding vêm localizados de `br.commons.locale.i18n.Errors`
+  (`jsonUnexpectedContent`, `yamlRootNotMap`, `keyMustBeText`,
+  `unsupportedTargetType`, `cannotBindNull`, `buildFailed`…).
 
-## 9. `Document` — the invariant
+## 9. `Document` — o invariante
 
-`Document.of` deep-copies and validates:
+`Document.of` copia profundamente e valida:
 
-- Map → `Collections.unmodifiableMap(LinkedHashMap)` (keeps order, allows `null`).
+- Map → `Collections.unmodifiableMap(LinkedHashMap)` (mantém ordem, aceita `null`).
 - List → `Collections.unmodifiableList(ArrayList)`.
-- Scalar: `String`, `Number`, `Boolean`, `null` pass; an enum becomes `name()`;
-  anything else becomes `toString()` (e.g. `UUID`).
-- Non-`String` map key → `IllegalArgumentException`.
+- Escalar: `String`, `Number`, `Boolean`, `null` passam; enum vira `name()`;
+  o resto vira `toString()` (ex.: `UUID`).
+- Chave de map não `String` → `IllegalArgumentException`.
 
-Sub-documents (`subtree`, `list`) share the subtree without copying and inherit
-`source` and `policy`. `subtree` of a list returns `{lastSegment: list}`.
+Subdocumentos (`subtree`, `list`) compartilham a subárvore sem copiar e herdam
+`source` e `policy`. `subtree` de uma lista devolve `{últimoSegmento: lista}`.
 
-Lookup: flat index (`Trees.flatten`) built on first use (`volatile` field,
-benign race); a list is indexed whole and per element. A path that is an
-intermediate map falls back to `Trees.find`. Non-numeric list index →
-`Logger.fatal`; index past the end → warning + `null`.
+Busca: índice plano (`Trees.flatten`) criado no primeiro uso (campo `volatile`,
+corrida benigna); lista é indexada inteira e por elemento. Caminho que é map
+intermediário cai em `Trees.find`. Índice de lista não numérico →
+`Logger.fatal`; índice além do fim → warning + `null`.
 
-`contains` = key in the index (even with a `null` value) or found in the tree.
+`contains` = chave no índice (mesmo com valor `null`) ou achada na árvore.
 
-## 10. Two-level cache
+YAML: raiz que não é map → `IllegalArgumentException` (`yamlRootNotMap`); em
+`Yaml.from(Path)` toda falha de leitura é capturada → log de erro + vazio; em
+`fromClasspath` só recurso ausente vira vazio (raiz inválida/IO lança).
+`asList` em documento que não é lista → warning + lista vazia.
+
+## 10. Cache em dois níveis
 
 ### 10.1 `LruCache<K,V>`
 
-- Access-order `LinkedHashMap` + `removeEldestEntry`; each entry keeps `expiresAt`.
-- `lookup` returns the value (may be `null`, via an internal sentinel) or
-  `LruCache.MISS`; no lambda, no allocation. The caller computes and calls `put`.
-- Plain `ReentrantLock` (`get` on an access-order map mutates it).
-- Injectable clock (`LongSupplier`) — tests use `AtomicLong` (`LruCacheTest`).
-- Two threads may compute the same value; the second overwrites. Safe
-  because everything stored is immutable.
+- `LinkedHashMap` em ordem de acesso + `removeEldestEntry`; cada entrada guarda `expiresAt`.
+- `lookup` devolve o valor (pode ser `null`, via sentinela interno) ou
+  `LruCache.MISS`; sem lambda, sem alocação. Quem chama calcula e faz `put`.
+- `ReentrantLock` simples (`get` em map de ordem de acesso o altera).
+- Relógio injetável (`LongSupplier`) — testes usam `AtomicLong` (`LruCacheTest`).
+  `LruCache.standard()` usa `CacheSettings` + `System::nanoTime`.
+- Duas threads podem calcular o mesmo valor; a segunda sobrescreve. Seguro
+  porque tudo que é guardado é imutável.
 
-### 10.2 Values per document
+### 10.2 Valores por documento
 
-Each `Document` owns an `LruCache<Key(path, type), Object>`: converted scalars
-(absence = `null` included), `subtree` (`Serializer.class`) and `list`
-(`List.class`). Since the document is immutable there is never invalidation, only
-expiry/eviction. `as`/`asList` are **not** cached (fresh binding on every call).
+Cada `Document` tem um `LruCache<Key(path, type), Object>`: escalares
+convertidos (ausência = `null` incluída), `subtree` (`Serializer.class`) e `list`
+(`List.class`). Como o documento é imutável nunca há invalidação, só
+expiração/despejo. `as`/`asList` **não** são cacheados (binding novo a cada chamada).
 
-### 10.3 Documents per source — `DocumentCache`
+### 10.3 Documentos por origem — `DocumentCache`
 
-Keys: normalized absolute `Path`, `"classpath:" + resource`, JSON text.
-`Yaml.from(Map)` and `Yaml.from((Path) null)` bypass the cache.
+Chaves: `Path` absoluto normalizado, `"classpath:" + recurso`, texto JSON.
+`Yaml.from(Map)`/`Yaml.from()` e `Yaml.from((Path) null)` não passam pelo cache.
 
-- A file changed externally stays stale until the window expires.
-- A missing/unreadable file is cached too (empty document) for the window.
-- `YamlWriter.save` invalidates the source in `finally`, even if writing fails.
-- JSON bodies are cached: up to `size` texts retained for `ttl`. If that is heavy
-  (large bodies), reduce `size` or disable.
+- Arquivo alterado por fora fica velho até a janela expirar.
+- Arquivo ausente/ilegível também é cacheado (documento vazio) pela janela.
+- `YamlWriter.save` invalida a origem no `finally`, mesmo se a escrita falhar.
+- Corpos JSON são cacheados: até `size` textos retidos por `ttl`. Se pesar
+  (corpos grandes), reduza `size` ou desligue.
 
 ## 11. `Policy`
 
-| Policy   | Who     | Text       | Invalid number                          |
-|----------|---------|------------|-----------------------------------------|
-| `WIRE`   | JSON    | raw        | `NumberFormatException` propagates      |
-| `CONFIG` | YAML    | `trim()`   | `Logger.fatal` (terminates the process) |
+| Policy   | Quem    | Texto      | Número inválido                          |
+|----------|---------|------------|------------------------------------------|
+| `WIRE`   | JSON    | cru        | `NumberFormatException` propaga          |
+| `CONFIG` | YAML    | `trim()`   | `Logger.fatal` (encerra o processo)      |
 
-In `CONFIG`, a type not supported by `Scalars` falls to `type.cast` (fails at the
-caller). A builder without a base uses `CONFIG`; with a base it inherits its policy.
+Em `CONFIG`, tipo não suportado por `Scalars` cai em `type.cast` (falha em quem
+chama). Builder sem base usa `CONFIG`; com base herda a policy dela.
 
 ## 12. `DocumentBuilder`
 
-- Works on a mutable copy; `build()` always yields a new `Document` (the builder
-  is reusable).
-- `put("a.b.c", v)`: creates missing maps; a `Map`/`List` value is copied.
-- `append(key, Entry...)`: adds to the existing list or creates it.
-- `append(Entry...)`/`append(key, String)`: top-level keys.
-- An intermediate segment that is a list: a new map is appended to it.
+- Trabalha numa cópia mutável; `build()` sempre gera `Document` novo (builder
+  reutilizável). `Serializer.builder()` = `DocumentBuilder.create()`;
+  `builder(base)` = `DocumentBuilder.edit(base)` (mesma origem e policy).
+- `put("a.b.c", v)`: cria maps faltantes; valor `Map`/`List` é copiado.
+- `append(key, Entry...)`/`append(key, name, value)`: adiciona à lista
+  existente ou a cria.
+- `append(Entry...)`/`append(key, String)`: chaves de topo.
+- Segmento intermediário que é lista: um map novo é anexado a ela.
 
-## 13. `Overlay` and new formats
+## 13. `Overlay` e formatos novos
 
-`Serializer.overlay(base, overrides)`: scalars check `overrides` first
-(on every call; `trim`); `asInts`… inherit it through the default over `asString`;
-structure and binding go to `base`. `Document.unwrap` goes through the overlay
-(persisting an overlay writes `base`, without the overrides).
+`Serializer.overlay(base, overrides)`: escalares consultam `overrides` primeiro
+(a cada chamada; `trim`); número inválido no override → `Logger.fatal`; enum/UUID
+inválido → `null`. `asInts`… herdam via default sobre `asString`; estrutura e
+binding vão para `base`. `Document.unwrap` atravessa o overlay (persistir um
+overlay grava `base`, sem os overrides).
 
-New format (e.g. TOML): package `br.commons.serializer.toml` with a reader that
-validates the syntax and calls `DocumentCache.cached(source, () -> Document.of(tree, path, policy))`;
-a new static factory (`Toml`) returning `Serializer`. Do not add read methods
-outside `Serializer`.
+Formato novo (ex.: TOML): pacote `br.commons.serializer.toml` com leitor que
+valida a sintaxe e chama `DocumentCache.cached(source, () -> Document.of(tree, path, policy))`;
+nova fábrica estática (`Toml`) devolvendo `Serializer`. Não adicione métodos de
+leitura fora de `Serializer`.
 
-Tests mirror main: `src/test/java/br/commons/serializer/` (`document/…`, `yaml/`, `JsonTest`,
+Testes espelham o main: `src/test/java/br/commons/serializer/` (`document/…`, `yaml/`, `JsonTest`,
 `SerializerArchitectureTest`).

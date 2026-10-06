@@ -1,7 +1,7 @@
 # br.commons — núcleo utilitário do br-engine
 
-Classes estáticas e tipos base usados por todos os outros pacotes. Este
-arquivo cobre **só** as classes da raiz; cada subpacote tem seu AGENTS.md.
+Tipos base usados por todos os pacotes. Cobre **só** a raiz (e `br.Application`,
+`annotation.Lifecycle`, sem AGENTS.md próprio); cada subpacote tem o seu.
 
 | Tipo       | Papel                                                            |
 |------------|------------------------------------------------------------------|
@@ -14,6 +14,8 @@ arquivo cobre **só** as classes da raiz; cada subpacote tem seu AGENTS.md.
 | `RT`       | Estado de runtime: `running`, prefixos de pacotes de infraestrutura |
 | `Parser<T>`| Contrato `parseable(raw)` + `parse(raw)`                         |
 | `Tuple`    | Par `name`/`value` (string)                                      |
+| `annotation.Lifecycle` | `initialize()`/`terminate()` → `Result<Void, BusinessError>` (default: sucesso) |
+| `br.Application` | Bootstrap: `modules()` → `List<Lifecycle>`; `run()`            |
 
 ## 1. `Result`
 
@@ -51,8 +53,7 @@ varargs. Detalhes em `br/commons/logger/AGENTS.md`.
 ```java
 Meta.fqn(obj); Meta.fqn(Classe.class);   // nome qualificado
 Meta.instance(Classe.class);             // construtor público sem args
-Meta.assignable(sub, Base.class);
-Meta.close(closeable);                   // fecha logando falha
+Meta.assignable(sub, Base.class); Meta.close(closeable);  // close loga falha
 ```
 
 `instance` e `cast` chamam `exit(99)` (encerra a JVM) se falharem.
@@ -65,13 +66,19 @@ Strings.read(path);                      // UTF-8
 Strings.read(bytes);                     // UTF-8, fallback ISO-8859-1
 Strings.sha256(texto);
 Threads.locked(lock, () -> ...);         // Runnable ou Callable<T>
-Threads.virtual(() -> tarefa());         // virtual thread
-Threads.daemon("nome", runnable);
+Threads.virtual(() -> tarefa()); Threads.daemon("nome", runnable);  // ou detached
 Platform.CURRENT;                        // WINDOWS, LINUX, MAC, UNKNOWN
 Platform.fileSystem();                   // implementação do SO (ver platform/)
 ```
 
-## 5. Regras rápidas para agentes
+## 5. Ciclo de vida (`br.Application`)
+
+Subclasse implementa `modules()`; `run()` chama `initialize()` na ordem e
+registra shutdown hook que chama `terminate()` em ordem inversa. Falha →
+`BusinessError.toConsole`, módulo não entra no `terminate` e os demais
+seguem. JVM só fica viva com thread não-daemon (ex.: `WebServer`).
+
+## 6. Regras rápidas para agentes
 
 1. Erro esperado → `Result`; exceção só para bug ou borda de framework.
 2. Nunca `System.out`/`printStackTrace`: use `Logger`.
@@ -79,10 +86,9 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
 4. Reflexão → `Meta`, não `Class.forName` espalhado.
 5. Lock → `Threads.locked` (garante `unlock` no `finally`).
 6. Nada de `Thread.sleep` com `try/catch` manual: `Threads.sleep`.
-7. Lembre que `Meta.instance`/`cast` encerram a JVM em falha — não use para
-   instanciar algo opcional.
+7. `Meta.instance`/`cast` encerram a JVM em falha: nunca para algo opcional.
 
-## 6. Checklist de revisão
+## 7. Checklist de revisão
 
 - [ ] Nenhum `Result.get()` em caminho onde falha é esperada.
 - [ ] Logs com texto externo usam sobrecarga `Supplier`.
@@ -95,7 +101,7 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
 
 # Implementação avançada
 
-## 7. `Result` em detalhe
+## 8. `Result` em detalhe
 
 - Selado (`permits Success, Failure`): `switch` exaustivo sem `default`.
 - `Success.value` é `@Nullable`; `Failure.error` não.
@@ -104,8 +110,10 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
 - `recover` converte falha em sucesso; `mapFailure` traduz o erro entre
   camadas (infra `String` → domínio `BusinessError`).
 - `ifSuccess`/`ifFailure` devolvem `this` (encadeáveis).
+- `Lifecycle` usa `Result<Void, BusinessError>`: falha de infra (`String`)
+  vira `mapFailure(BusinessError.Infrastructure::new)` (texto já localizado).
 
-## 8. `Logger` — gate e custo
+## 9. `Logger` — gate e custo
 
 - Nível efetivo = override por pacote (`LogFilter`, hierárquico) ou global.
   `OFF` tem ordinal 0 e é tratado à parte.
@@ -118,7 +126,7 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
 - No `<clinit>`, elege JBoss LogManager para JUL se presente no classpath e
   `java.util.logging.manager` não definido (carrega sem inicializar).
 
-## 9. `Meta`
+## 10. `Meta`
 
 - `instance(type, args...)` → `Result<T, String>`: escolhe o construtor
   público que aceita os `args` (primitivo casa com wrapper; `null` com
@@ -132,14 +140,14 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
   `mainPackageName()` acham o ponto de entrada do usuário.
 - SO corrente: use `Platform.CURRENT`.
 
-## 10. `Strings`
+## 11. `Strings`
 
 - `isNumeric("")`, `isUpperCase("")`, `isLowerCase("")` → `false`.
 - `read(byte[])` sem detecção de charset: UTF-8 estrito, senão ISO-8859-1.
 - `bytes/shorts/ints/longs/floats/doubles(String)` parseiam listas a partir de
   texto (aceitam `null`).
 
-## 11. `Threads`
+## 12. `Threads`
 
 - `locked(lock, Callable)` converte checked exception em
   `IllegalStateException`; `RuntimeException` passa intacta.
@@ -149,11 +157,12 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
 - `interrupt(thread)` dispara a interrupção numa virtual thread (assíncrono).
 - `result(future)` devolve `null` em falha (loga ERROR).
 
-## 12. `Platform` e `RT`
+## 13. `Platform` e `RT`
 
 - `Platform.CURRENT` detectado por `os.name` no `<clinit>`.
 - `fileSystem()`/`terminal()`/`network()`: holder idiom, instância única
   thread-safe. SO não suportado → `UnsupportedOperationException`.
+- `Platform.isPortInUse(port)` delega a `network()`.
 - `RT.running`: flag volátil de ciclo de vida. `RT.packages`:
   `CopyOnWriteArrayList` mutável — registre prefixos de infraestrutura de
   outros módulos no bootstrap.

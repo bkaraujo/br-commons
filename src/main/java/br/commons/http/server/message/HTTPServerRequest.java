@@ -2,19 +2,20 @@ package br.commons.http.server.message;
 
 import br.commons.Strings;
 import br.commons.http.Multipart;
+import br.commons.http.message.HTTPMessage;
 import br.commons.http.message.HTTPMethod;
 import br.commons.http.message.HTTPRequest;
+import br.commons.http.server.HTTPServer;
 import br.commons.http.server.MultipartParser;
-import br.commons.http.message.HTTPMessage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.util.regex.Pattern;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * The request as the {@link HTTPServer} reads it from the exchange. Header names are lowercased in

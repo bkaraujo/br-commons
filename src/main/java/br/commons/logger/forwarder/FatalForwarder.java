@@ -56,7 +56,7 @@ public sealed class FatalForwarder implements LogForwarder permits ErrorForwarde
                 LogLevel.FATAL,
                 messageSupplier
         ));
-        // JUDAS adaptation (spec §2.4): a fatal message no longer ends the JVM. The callers throw right after
+        // Adaptation from the POC (spec §2.4): a fatal message no longer ends the JVM. The callers throw right after
         // logging, and in a server the exception reaches the error filter instead of killing every request.
     }
 

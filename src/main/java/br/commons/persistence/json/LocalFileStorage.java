@@ -1,11 +1,10 @@
 package br.commons.persistence.json;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
 import br.commons.Platform;
 import br.commons.Result;
 import br.commons.Threads;
+import br.commons.locale.i18n.Errors;
 import br.commons.persistence.Storage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;

@@ -1,6 +1,6 @@
 package br.commons;
 
-import br.commons.i18n.Errors;
+import br.commons.locale.i18n.Errors;
 
 import br.commons.logger.LogChannel;
 import br.commons.logger.LogFilter;

@@ -12,11 +12,11 @@ Referência: https://developer.mozilla.org/en-US/docs/Web/HTTP
 | `message/HTTPRequest`/`HTTPResponse` | Contratos de requisição e resposta              |
 | `message/HTTPMethod`               | `GET, POST, PUT, PATCH, DELETE, OPTIONS`           |
 | `HTTPStatus`                       | Constantes 1xx–5xx; `custom(code, ...)` validado; `description()` via i18n |
-| `MediaType`                        | Enum de MIME; `contentType()` com charset          |
+| `MediaType`                        | Enum de MIME; `contentType()` com charset (multipart sem); `fromContentType` |
 | `Cookie`                           | `Set-Cookie`; `session(...)`, `expired(...)`       |
 | `HTTPSession`                      | Atributos por requisição, chave = request id       |
 | `Multipart`                        | Campos em memória + arquivos temporários           |
-| `server/HTTPServer`                | Servidor, cadeia de filtros, limites               |
+| `server/HTTPServer`                | Servidor, cadeia de filtros, limites (o `Lifecycle` é o `WebServer`) |
 | `server/HTTPFilter`/`HTTPHandler`  | Elo da cadeia / fim da cadeia                      |
 | `server/MultipartParser`           | Parser streaming RFC 7578                          |
 | `server/message/HTTPServer*`       | Implementações concretas de request/response       |
@@ -34,7 +34,7 @@ var server = new HTTPServer(8080, List.of(log), app,
         new MultipartParser.Limits(uploadDir, 50_000_000, 60_000_000));
 server.start().ifFailure(Logger::error);
 server.port();                       // porta real (útil com 0)
-server.stop(Duration.ofSeconds(5));
+server.stop(Duration.ofSeconds(5));  // stop() = sem espera
 ```
 
 Filtros executam na ordem da lista; cada um decide chamar `next.handle`.

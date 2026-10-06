@@ -1,9 +1,8 @@
 package br.commons.persistence.jdbc;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
 import br.commons.Result;
+import br.commons.locale.i18n.Errors;
 import br.commons.persistence.jdbc.pool.ConnectionPool;
 import br.commons.persistence.jdbc.primitives.JDBCConnection;
 import br.commons.persistence.jdbc.primitives.JDBCParameter;
@@ -12,11 +11,7 @@ import lombok.Getter;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;

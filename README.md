@@ -41,7 +41,7 @@ em compilação (JSpecify + NullAway).
 | `text` | Normalização de texto |
 | `web` | Rotas, JSON, `WebServer` e filtros sobre `http` |
 
-Cada pacote tem um `AGENTS.md` com uso, regras, checklist de revisão e
+Cada pacote tem um `src/main/java/br/commons/locale/i18n/AGENTS.md` com uso, regras, checklist de revisão e
 detalhes de implementação — é a documentação de referência.
 
 ## Exemplo rápido
@@ -92,15 +92,21 @@ Aplicações completas em `src/main/examples`, fora do jar e dos quality gates:
 
 | Exemplo | Classe principal |
 |---|---|
-| Lista de tarefas com jQuery sobre API JSON | `br.commons.examples.jquery.tasks.TasksApp` |
-| Controle de horas com htmx | `br.commons.examples.htmx.tracker.TrackerApp` |
+| Lista de tarefas com jQuery sobre API JSON (porta 5000) | `br.commons.examples.tasks.jquery.TasksApp` |
+| Lista de tarefas com htmx (porta 5003) | `br.commons.examples.tasks.htmx.TasksApp` |
+| Controle de horas com htmx (porta 5001) | `br.commons.examples.tracker.htmx.TrackerApp` |
+| Controle de horas com jQuery sobre API JSON (porta 5002) | `br.commons.examples.tracker.jquery.TrackerApp` |
 | Cache por sessão de usuário (console) | `br.commons.examples.cache.session.SessionCacheApp` |
 
 ```sh
 mvn -Pexamples compile exec:java                                    # TasksApp na porta 5000
 mvn -Pexamples compile exec:java \
-    -Dexamples.main=br.commons.examples.htmx.tracker.TrackerApp -Dexec.args=8080
+    -Dexamples.main=br.commons.examples.tracker.htmx.TrackerApp -Dexec.args=8080
 ```
+
+Cada aplicação segue `br.commons.examples.<aplicação>.[shared, htmx, jquery]`: `shared` tem o domínio
+(modelos, stores, campos e validação, sem HTTP nem HTML); `htmx` renderiza no servidor; `jquery` renderiza no
+navegador sobre uma API JSON.
 
 ## Configuração
 

@@ -1,9 +1,8 @@
 package br.commons.http;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Result;
 import br.commons.http.message.HTTPRequest;
+import br.commons.locale.i18n.Errors;
 import br.commons.logger.MDC;
 import com.google.errorprone.annotations.CheckReturnValue;
 import lombok.val;

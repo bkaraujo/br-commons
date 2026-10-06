@@ -1,7 +1,7 @@
 package br.commons.html;
 
 import br.commons.html.form.Violation;
-import br.commons.i18n.Text;
+import br.commons.locale.i18n.Text;
 
 import java.util.List;
 import java.util.Map;

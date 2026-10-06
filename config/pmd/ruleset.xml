@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ruleset name="judas-quality"
+<ruleset name="br-engine-quality"
          xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
 
     <description>
-        JUDAS quality gates (spec §16.1), taken from the POC ruleset.
+        Quality gates (spec §16.1), taken from the POC ruleset.
         - CyclomaticComplexity: per-method complexity &lt;= 7 (reportLevel 8); the class total is not gated.
         - NcssCount: method size in statements (PMD 7 has no line numbers in XPath).
         Duplication is measured by CPD (maven-pmd-plugin, minimumTokens=100).

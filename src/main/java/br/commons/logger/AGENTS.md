@@ -7,8 +7,8 @@ filtro por pacote, registro, MDC, canais de saída, forwarders e ponte JUL.
 |------------------------|----------------------------------------------------------|
 | `LogLevel`             | `OFF < VERBOSE < TRACE < DEBUG < INFO < WARN < ERROR < FATAL` |
 | `LogFilter`            | Nível por pacote, hierárquico, com cache por classe      |
-| `LogRecord`            | `timestamp`, `level`, `threadName`, `Supplier` da mensagem, chamador |
-| `MDC`                  | Contexto por thread (`[k=v, ...]` prefixado na linha)    |
+| `LogRecord`            | `timestamp`, `level`, `threadName`, `messageSupplier`, `callerClass` |
+| `MDC`                  | Contexto por thread: `push`/`get`/`pop`/`prefix` (`[k=v, ...]`) |
 | `LogChannel`           | Destino: `write(String linha)`                           |
 | `LogForwarder`         | Métodos por nível recebendo `Supplier<String>`           |
 | `channel/`             | `ConsoleChannel`, `FileChannel`, `RollingFileChannel`, `Ansi` |
@@ -26,6 +26,15 @@ Logger.clearPackageFilters();
 ```
 
 `OFF` silencia tudo (tratado à parte, não por ordinal).
+
+Mensagem usa placeholder `String.format` (`%s`, `%d`), **não** `{}`:
+
+```java
+Logger.info("Pedido %s pago em %d ms", id, ms);
+Logger.debug("Custo: %s", Logger.lazy(() -> caro()));     // avaliado só se emitir
+if (Logger.enabled(LogLevel.DEBUG, CALLER)) { ... }       // CALLER = Meta.fqn(X.class): gate sem StackWalker
+Logger.stackTrace(LogLevel.DEBUG);                         // pilha atual no nível
+```
 
 ## 2. Canais
 
@@ -54,6 +63,9 @@ pool de threads.
 ```java
 JULBridgeHandler.install();   // remove handlers do root JUL e redireciona
 ```
+
+Já instalada no init estático do `Logger` (após eleger o `LogManager` do
+JBoss, se estiver no classpath e `java.util.logging.manager` não definido).
 
 Mapeamento: `≤FINEST` TRACE, `≤FINE` DEBUG, `≤INFO` INFO, `≤WARNING` WARN,
 acima ERROR. Falha ao encaminhar vai para `stderr`, nunca propaga.
@@ -99,8 +111,8 @@ o gate; forwarders nunca filtram.
 ## 8. Forwarders
 
 Hierarquia selada em cadeia: cada classe adiciona um nível e é `final` no
-método. `fatal` **não** encerra a JVM (adaptação JUDAS, spec §2.4) — quem loga
-FATAL lança em seguida.
+método. `fatal` **não** encerra a JVM (por decisão) — quem loga FATAL lança
+em seguida. `Logger.fatal` anexa a pilha do chamador à mensagem.
 
 ## 9. `LogFilter`
 
@@ -119,9 +131,9 @@ FATAL lança em seguida.
 
 `RollingFileChannel([dir])`:
 - Diretório padrão = `Platform.fileSystem().jvmFS()`; virtual thread com
-  `RollingFileWriter`, rotação diária (`MILLIS_IN_DAY`, dia UTC).
+  `RollingFileWriter`, um arquivo `yyyy-MM-dd.log` por dia (`MILLIS_IN_DAY`, dia UTC).
 - Laço com flag própria (independe de `RT.running`); `close()` e shutdown
-  hook drenam a fila e fecham o arquivo.
+  hook drenam a fila e fecham o arquivo (espera até 2 s).
 
 ## 11. Detalhes diversos
 

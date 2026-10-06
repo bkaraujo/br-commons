@@ -1,12 +1,11 @@
 package br.commons.web.server;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Result;
 import br.commons.http.HTTPStatus;
 import br.commons.http.MediaType;
 import br.commons.http.message.HTTPMethod;
 import br.commons.http.server.message.HTTPServerRequest;
+import br.commons.locale.i18n.Errors;
 import br.commons.web.router.Router;
 import lombok.val;
 import org.junit.jupiter.api.Test;
@@ -19,7 +18,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** JUDAS additions: url-encoded forms, HTML responses and post/redirect/get. */
+/** Additions to the POC: url-encoded forms, HTML responses and post/redirect/get. */
 class WebFormTest {
 
     private WebRequest post(String body) {

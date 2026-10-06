@@ -1,10 +1,9 @@
 package br.commons.serializer.document.builder;
 
 import br.commons.serializer.Serializer;
+import br.commons.serializer.document.Document;
 import br.commons.serializer.document.Policy;
 import br.commons.serializer.document.navigation.Trees;
-import br.commons.serializer.document.Document;
-import br.commons.serializer.document.DocumentCache;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

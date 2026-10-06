@@ -45,7 +45,7 @@ public abstract class Threads {
         catch (RuntimeException exception) {
             throw exception;
         } catch (Exception exception) {
-            // JUDAS adaptation (spec §2.4): an exception becomes an exception, not the end of the JVM.
+            // Adaptation from the POC (spec §2.4): an exception becomes an exception, not the end of the JVM.
             throw new IllegalStateException(exception);
         } finally { lock.unlock(); }
     }

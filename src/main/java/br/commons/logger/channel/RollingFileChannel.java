@@ -3,7 +3,6 @@ package br.commons.logger.channel;
 import br.commons.Platform;
 import br.commons.Threads;
 import br.commons.logger.LogChannel;
-import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
 import java.nio.file.Path;

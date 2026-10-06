@@ -1,5 +1,8 @@
 package br.commons.i18n;
 
+import br.commons.locale.i18n.CurrencyAmount;
+import br.commons.locale.i18n.Text;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;

@@ -1,7 +1,7 @@
 package br.commons.business;
 
 import br.commons.Logger;
-import br.commons.i18n.I18N;
+import br.commons.locale.i18n.I18N;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -67,4 +67,15 @@ public sealed interface BusinessError {
         @Override public String toString() { return "Conflict[key=" + key + ", args=" + Arrays.toString(args) + "]"; }
     }
 
+    /**
+     * A failure outside the domain (port taken, worker that does not stop), whose text the library already localized
+     * ({@code Errors}): there is no key to translate, so {@link #render} gives it as is. {@link #key()} is the text.
+     */
+    @NullMarked
+    record Infrastructure(String message) implements BusinessError {
+        @Override public String key() { return message; }
+        @Override public Object[] args() { return new Object[0]; }
+        @Override public String render(Locale locale) { return message; }
+        @Override public String render() { return message; }
+    }
 }

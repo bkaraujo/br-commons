@@ -1,9 +1,8 @@
 package br.commons.cache;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
 import br.commons.Result;
+import br.commons.locale.i18n.Errors;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -31,6 +30,10 @@ final class CacheWorker {
             executor = Executors.newSingleThreadExecutor(
                     r -> Thread.ofPlatform().name("cache-worker").daemon(false).unstarted(r));
         }
+    }
+
+    boolean running() {
+        return executor != null;
     }
 
     /** Runs the task's {@code Result} on the worker; an exception becomes {@code Failure}. */

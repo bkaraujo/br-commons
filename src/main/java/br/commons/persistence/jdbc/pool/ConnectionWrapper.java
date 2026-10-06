@@ -1,6 +1,6 @@
 package br.commons.persistence.jdbc.pool;
 
-import br.commons.i18n.Errors;
+import br.commons.locale.i18n.Errors;
 
 import org.jspecify.annotations.NullMarked;
 

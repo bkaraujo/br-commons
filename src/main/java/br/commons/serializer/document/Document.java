@@ -1,26 +1,20 @@
 package br.commons.serializer.document;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
+import br.commons.locale.i18n.Errors;
 import br.commons.serializer.Serializer;
+import br.commons.serializer.document.binding.Scalars;
+import br.commons.serializer.document.binding.TreeBinder;
 import br.commons.serializer.document.builder.DocumentBuilder;
 import br.commons.serializer.document.cache.CacheSettings;
 import br.commons.serializer.document.cache.LruCache;
-import br.commons.serializer.document.binding.Scalars;
-import br.commons.serializer.document.binding.TreeBinder;
 import br.commons.serializer.document.navigation.Trees;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * The internal representation of every document read, regardless of format: an immutable tree of

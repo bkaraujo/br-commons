@@ -1,9 +1,8 @@
 package br.commons.platform;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
 import br.commons.Result;
+import br.commons.locale.i18n.Errors;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

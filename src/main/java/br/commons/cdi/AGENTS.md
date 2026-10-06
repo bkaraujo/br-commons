@@ -8,8 +8,8 @@ injeção de dependência mínima (service locator).
 ```java
 Context.set(Repo.class, () -> new JdbcRepo(ds));   // registra instância criada pelo supplier
 Context.set(Clock.class);                           // instancia via construtor público sem args
-Repo repo = Context.get(Repo.class);                // lança IllegalStateException se ausente
-Repo r2 = Context.tryGet(Repo.class);               // cria (construtor vazio) e registra se ausente
+Repo repo = Context.get(Repo.class);                // lança IllegalStateException (msg localizada) se ausente
+Cache c = Context.tryGet(Cache.class);              // classe concreta: cria (construtor vazio) e registra se ausente
 Repo r3 = Context.tryGet(Repo.class, JdbcRepo::new);
 Context.remove(Repo.class);
 Context.clear();                                    // testes
@@ -20,7 +20,8 @@ Context.clear();                                    // testes
 1. Registre no bootstrap; consuma com `get` (falha cedo se faltar).
 2. A chave é a classe pedida, não a da instância: `set(Repo.class, ...)` não
    responde a `get(JdbcRepo.class)`.
-3. `tryGet` sem supplier exige construtor público sem argumentos.
+3. `set(type)`/`tryGet(type)` sem supplier exigem classe concreta com
+   construtor público sem argumentos.
 4. Em testes, `Context.clear()` no `@BeforeEach`/`@AfterEach`.
 5. Não guarde objetos com ciclo de vida curto (request/sessão).
 
@@ -48,9 +49,11 @@ Context.clear();                                    // testes
 
 ## 5. Armadilhas
 
-- `set(type)` usa `Meta.instance`, que chama `exit(99, ...)` se a
-  instanciação falhar — encerra a JVM em vez de lançar.
-- `set` sobrescreve registro existente silenciosamente (só log DEBUG).
+- `set(type)` e `tryGet(type)` usam `Meta.instance`, que chama
+  `exit(99, ...)` se a instanciação falhar — encerra a JVM em vez de lançar.
+- `set` sobrescreve registro existente silenciosamente (só log DEBUG;
+  `tryGet` loga o registro em VERBOSE).
+- Mensagem de `get` sem registro vem de `Errors.get().noInstanceRegistered`.
 - Exceção checked dentro do lock vira `IllegalStateException`
   (comportamento de `Threads.locked`).
 

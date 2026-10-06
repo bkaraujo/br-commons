@@ -1,6 +1,6 @@
 package br.commons.http;
 
-import br.commons.i18n.Errors;
+import br.commons.locale.i18n.Errors;
 
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import java.time.Duration;
 
 /**
- * A {@code Set-Cookie}. JUDAS's session cookie (spec §4.1) is {@link #session}: {@code HttpOnly},
+ * A {@code Set-Cookie}. The application's session cookie (spec §4.1) is {@link #session}: {@code HttpOnly},
  * {@code Secure}, {@code SameSite=Strict}, {@code Path=/}, with no {@code Max-Age}.
  */
 @NullMarked

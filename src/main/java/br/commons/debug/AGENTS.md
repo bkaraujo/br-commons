@@ -10,7 +10,8 @@ List<Item> itens = Execution.millis(() -> repo.listAll());   // Supplier → ret
 Execution.nanos(() -> cache.warmUp());                        // Runnable
 ```
 
-Saída (DEBUG): `<metodo> time: 12 ms`. O rótulo vem de `Meta.method(lambda)`.
+Saída (DEBUG): `<metodo> time: 12 ms`. O rótulo vem de `Meta.method(lambda)`
+(lambda → nome do método da pilha; objeto não sintético → FQN da classe).
 
 ## 2. Caminho quente
 

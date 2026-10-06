@@ -3,10 +3,10 @@ package br.commons.web.server;
 import br.commons.Result;
 import br.commons.annotation.Lifecycle;
 import br.commons.business.BusinessError;
+import br.commons.http.HTTPStatus;
 import br.commons.http.server.HTTPFilter;
 import br.commons.http.server.HTTPServer;
 import br.commons.http.server.MultipartParser;
-import br.commons.http.HTTPStatus;
 import br.commons.web.ErrorPage;
 import br.commons.web.filter.ErrorPages;
 import br.commons.web.filter.PreflightFilter;
@@ -127,7 +127,7 @@ public final class WebServer implements Lifecycle {
             started.complete(result);
             if (result.isSuccess()) awaitStop();
         });
-        return started.join().mapFailure(BusinessError.BusinessRule::new);
+        return started.join().mapFailure(BusinessError.Infrastructure::new);
     }
 
     @Override

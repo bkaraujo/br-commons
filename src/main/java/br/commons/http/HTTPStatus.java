@@ -1,8 +1,7 @@
 package br.commons.http;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Result;
+import br.commons.locale.i18n.Errors;
 import com.google.errorprone.annotations.CheckReturnValue;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

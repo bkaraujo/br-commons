@@ -7,18 +7,20 @@ um `Storage` chave-valor em arquivo JSON.
 | Subpacote / tipo               | Papel                                              |
 |--------------------------------|----------------------------------------------------|
 | `Storage`                      | `read/write(file, jsonKey)`, `exists`, `listFiles` |
-| `inmemory/InMemoryStorage`     | `Storage` em memória (testes)                      |
+| `inmemory/InMemoryStorage`     | `Storage` em memória (testes); `clear()`           |
 | `json/LocalFileStorage`        | `Storage` em arquivos JSON (Jackson)               |
-| `json/Repository`, `EntityDiff`| Contrato de repositório JSON; diff para log        |
+| `json/Repository`, `EntityDiff`| Contrato (sem implementação na lib); diff para log |
 | `jdbc/DataSource`              | Pool + transações; implementa `Transactions`       |
 | `jdbc/Transactions`            | `inTransaction(work)`, `afterCommit(action)`       |
 | `jdbc/JDBCTransaction`         | `query`, `execute`, `commit`, `rollback`, `close`  |
 | `jdbc/JDBCRepository<T>`       | CRUD genérico por tabela (introspecção de metadados) |
-| `jdbc/TransactionInitializer`  | Hook no início da transação externa (ex.: RLS)     |
+| `jdbc/TransactionInitializer`  | Hook no início da transação externa (ex.: RLS); `NONE` |
 | `jdbc/JDBCProperties`          | url, driver, credenciais, pool, timeouts           |
+| `jdbc/Results`                 | Falhas `Result<T, String>` com texto i18n (`Errors`) |
 | `jdbc/pool/`                   | `ConnectionPool` e wrappers                        |
 | `jdbc/primitives/`             | Wrappers JDBC que devolvem `Result`                |
 | `jdbc/migration/Migrator`      | `V<n>__<desc>.sql`, forward-only, com checksum e lock |
+| `jdbc/migration/Migration`     | record `(version, description, sql, checksum)`     |
 
 ## 1. Configurar
 
@@ -62,6 +64,7 @@ repo.insert(o); repo.update(o); repo.save(o); repo.deleteById(id);
 ```
 
 Valores já convertidos: `UUID#toString`, `enum#name`, `"Y"/"N"`, `Timestamp`.
+PK composta: `findById/exists/deleteById(Object... pk)` na ordem de `primaryKeys()`.
 
 ## 4. SQL direto
 
@@ -100,26 +103,33 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 - `Map<nome, ThreadLocal<JDBCTransaction>>`: uma transação por **nome e
   thread**. Reentrância na mesma thread → `enter()` (conta nível) e devolve a
   mesma; só o `close()` do nível externo devolve a conexão.
-- Abertura: adquire conexão (timeout = `connectionTimeout`), registra em
-  `live`, roda `TransactionInitializer`; falha do initializer → rollback +
-  close + `Failure`.
+- `begin()`/`begin(name)`/`begin(timeout)`/`begin(name, timeout)` são
+  públicos; nome padrão `"default"`, timeout padrão `connectionTimeout`.
+- Abertura: adquire conexão, registra em `live`, roda `TransactionInitializer`;
+  falha do initializer → rollback + close + `Failure`
+  (`Errors.transactionInitializerFailed`).
 - `markRollbackOnly` envenena: o externo faz rollback mesmo com sucesso.
 - `commit`/`rollback` em nível aninhado são no-op.
 - `afterCommit` (de `DataSource`) anexa à transação externa mais recente
   aberta na thread, qualquer que seja o nome; sem transação → roda na hora.
 - Ações pós-commit que falham são logadas e não afetam as demais.
-- Thread que abre e não fecha → transação órfã (log de aviso identifica a
-  thread dona). Virtual threads não herdam a transação.
+- Thread que abre e não fecha → transação órfã: `DataSource.close()` faz
+  rollback e loga WARN com nome, thread dona e profundidade. Virtual threads
+  não herdam a transação.
 
 ## 8. Atalhos de `DataSource` e falhas
 
 - `query`/`execute`/`transaction` abrem (ou participam de) transação e
-  **lançam** em falha: `Failure` (abrir, SQL, commit) → `IllegalStateException`
-  com a mensagem; `RuntimeException` do trabalho → rollback e relançada
-  **intacta** (tipo e causa, ex.: `BusinessException`).
-- `inTransaction`: falha ao abrir → `IllegalStateException`; falha no commit
-  → `IllegalStateException`.
-- `readOnly`: faz rollback ao fim (só no externo); nunca marca rollback-only.
+  **lançam** em falha: `Failure` (abrir, SQL) → `IllegalStateException` com a
+  mensagem; commit → `IllegalStateException` (`Errors.commitFailed`);
+  `RuntimeException` do trabalho → rollback e relançada **intacta** (tipo e
+  causa, ex.: `BusinessException`).
+- `inTransaction`: falha ao abrir ou no commit → `IllegalStateException` com
+  a mensagem; `Failure` do trabalho → rollback e devolvida.
+- `query` (readOnly): faz rollback ao fim (só no externo); nunca marca
+  rollback-only. `execute`/`transaction` (mutating) comitam.
+- Monitoração: `getActiveConnections/getAvailableConnections/getTotalConnections`,
+  `properties()` (cópia), `isClosed/isOpened`, `close()`.
 
 ## 9. `JDBCRepository`
 
@@ -130,18 +140,22 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
   banco.
 - `save` = upsert nativo: PostgreSQL `INSERT ... ON CONFLICT (pk) DO UPDATE`
   (atômico); H2 `MERGE ... USING`, repetido até 3× em violação de PK (23505),
-  porque o MERGE do H2 não é atômico entre transações. Respeita
+  porque o MERGE do H2 não é atômico entre transações; esgotado →
+  `IllegalStateException` (`Errors.saveFailed`). Respeita
   `updateImmutableColumns`. Banco desconhecido → SELECT + INSERT/UPDATE na
   mesma transação (ainda sujeito a corrida).
-- `findAll` sem paginação.
+- `findAll` sem paginação. `insert`/`update`/`save` devolvem a entidade.
 
 ## 10. Pool (`ConnectionPool`)
 
-- Contadores atômicos; `aquire(timeout)` espera até o limite → `poolExhausted`.
+- Contadores atômicos; `aquire(timeout)` espera até o limite →
+  `Results.poolExhausted` (`Errors.poolTimeout`). Pool fechado →
+  `resourceIsClosed`; conexão inválida é descartada e a aquisição repetida.
 - Manutenção: remove ociosas além de `idleTimeout` mantendo `minPoolSize`;
   recria até o mínimo. `maxLifetime` recicla conexões antigas.
-- `Class.forName(driver)` a cada conexão aberta; `autoCommit` aplicado na
-  abertura. `validationQuery` opcional.
+- `Class.forName(driver)` a cada conexão aberta (`jdbcDriverNotFound`);
+  `autoCommit` aplicado na abertura. `validationQuery` opcional. Falha ao
+  criar o mínimo no construtor → `RuntimeException` (`poolInitFailed`).
 - `ConnectionWrapper.close()` devolve ao pool em vez de fechar.
 
 ## 11. Migrações
@@ -151,6 +165,9 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
   arquivo aplicado alterado ou removido impede o start.
 - Lock: PostgreSQL `pg_advisory_lock` (cobre várias máquinas); H2 lock por
   URL na JVM. Outro banco → `Failure` (`unsupportedDatabase`).
+- `location` = diretório do classpath (FS e jars; todas as entradas);
+  versão duplicada → `Failure`. Mensagens de falha vêm de `Errors`
+  (`migrationFailed`, `appliedMigrationMissing/Changed`…).
 - H2: DDL comita implícito — migração que falha deixa o DDL anterior à falha.
 - `pending()` para readiness check. `ConnectionFactory` usa credencial de dono
   do schema, fora do pool da aplicação.
@@ -164,6 +181,8 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
   `ATOMIC_MOVE`. Outro processo escrevendo o mesmo arquivo ainda corre.
 - `read`/`write` devolvem `Result`; nome que sai da raiz (`..`, caminho
   absoluto) → `Failure` sem tocar o disco; `exists` → `false`.
+- `listFiles(prefix, suffix)`: só a raiz (sem recursão); erro de IO →
+  `UncheckedIOException`.
 - `EntityDiff.of(mapper, antes, depois)`: diff textual para auditoria/log.
 
 ## 13. Extensão

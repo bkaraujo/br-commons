@@ -6,7 +6,7 @@ import br.commons.html.Html;
 import br.commons.html.core.Attribute;
 import br.commons.html.core.Content;
 import br.commons.html.core.Node;
-import br.commons.i18n.Text;
+import br.commons.locale.i18n.Text;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -247,7 +247,7 @@ public abstract class Html5 extends Html {
      * A custom data attribute {@code data-*}: private data for the page's scripts and CSS, with no meaning to the
      * browser. The name after {@code data-} must have no uppercase ASCII letters; scripts read it as
      * {@code element.dataset}. Global attribute.
-     * <p>{@code data-<name>}, e.g. texts that {@code judas.js} shows ({@code data-msg-*}, spec §2.5).
+     * <p>{@code data-<name>}, e.g. texts that the page script ({@code app.js}) shows ({@code data-msg-*}, spec §2.5).
      *
      * @see <a href="https://html.spec.whatwg.org/dev/dom.html#embedding-custom-non-visible-data-with-the-data-*-attributes">HTML: custom data attributes</a>
      */

@@ -10,8 +10,8 @@ import java.util.Locale;
 public class BusinessException extends RuntimeException {
 
     /** Locale for logging/development — {@link #getMessage()} is for stack trace and internal logs, not for
-     *  HTTP response (that resolves {@link BusinessError#render} in the request's locale, see
-     *  {@code DomainExceptionMapper}). Team and logs are pt-BR, fixed, regardless of who asked. */
+     *  HTTP response (whoever answers resolves {@link BusinessError#render(java.util.Locale)} in the request's locale).
+     *  Team and logs are pt-BR, fixed, regardless of who asked. */
     private static final Locale LOG_LOCALE = Locale.of("pt", "BR");
 
     private final BusinessError error;

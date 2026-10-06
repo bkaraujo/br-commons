@@ -1,8 +1,7 @@
 package br.commons.cache;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Result;
+import br.commons.locale.i18n.Errors;
 import br.commons.platform.NativeCache;
 import lombok.val;
 import org.junit.jupiter.api.AfterAll;
@@ -321,5 +320,20 @@ class CacheTest {
         assertEquals(released, failureOf(cache.list(EAST)));
         assertEquals(released, failureOf(cache.upsert(EAST, stored).join()));
         assertEquals(released, failureOf(cache.load(EAST).join()));
+    }
+
+    /** Regression: a load before initialize() registered a partition never filled; its reads waited 2 s and failed. */
+    @Test
+    void loadBeforeInitializeFailsAtOnce() {
+        val server = new CacheServer();
+        val stored = item(10);
+        val cache = server.register(new ItemRegion(Map.of(EAST, List.of(stored))));
+
+        assertEquals(Errors.get().cacheWorkerNotRunning().value(), failureOf(cache.load(EAST).join()));
+
+        val start = System.nanoTime();
+        assertEquals(Errors.get().cacheNotFound("TEST:" + stored.id()).value(), failureOf(cache.find(EAST, stored.id())));
+        assertTrue(cache.list(EAST).get().isEmpty());
+        assertTrue(System.nanoTime() - start < 1_000_000_000L, "read waited for a populate that never runs");
     }
 }

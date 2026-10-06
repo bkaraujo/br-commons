@@ -1,10 +1,9 @@
 package br.commons.http.server;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Strings;
 import br.commons.http.Multipart;
 import br.commons.http.Multipart.UploadedFile;
+import br.commons.locale.i18n.Errors;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

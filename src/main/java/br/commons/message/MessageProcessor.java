@@ -1,8 +1,7 @@
 package br.commons.message;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Meta;
+import br.commons.locale.i18n.Errors;
 import org.jspecify.annotations.NullMarked;
 
 import java.lang.invoke.MethodHandle;

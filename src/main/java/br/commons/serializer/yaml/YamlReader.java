@@ -1,8 +1,7 @@
 package br.commons.serializer.yaml;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
+import br.commons.locale.i18n.Errors;
 import br.commons.serializer.document.Document;
 import br.commons.serializer.document.DocumentCache;
 import br.commons.serializer.document.Policy;

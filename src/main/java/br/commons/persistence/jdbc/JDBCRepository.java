@@ -1,10 +1,9 @@
 package br.commons.persistence.jdbc;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
 import br.commons.Result;
 import br.commons.cdi.Context;
+import br.commons.locale.i18n.Errors;
 import br.commons.persistence.jdbc.primitives.JDBCMetaData;
 import br.commons.persistence.jdbc.primitives.JDBCParameter;
 import br.commons.persistence.jdbc.primitives.JDBCResultSet;

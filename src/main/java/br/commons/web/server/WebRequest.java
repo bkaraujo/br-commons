@@ -1,12 +1,11 @@
 package br.commons.web.server;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Result;
 import br.commons.http.MediaType;
 import br.commons.http.Multipart;
 import br.commons.http.message.HTTPMethod;
 import br.commons.http.message.HTTPRequest;
+import br.commons.locale.i18n.Errors;
 import br.commons.serializer.Json;
 import br.commons.web.router.Route;
 import br.commons.web.router.Router;

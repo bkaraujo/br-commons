@@ -1,9 +1,8 @@
 package br.commons.platform;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
 import br.commons.Platform;
+import br.commons.locale.i18n.Errors;
 import br.commons.platform.provider.linux.LNXTerminal;
 import br.commons.platform.provider.windows.WINTerminal;
 import org.jspecify.annotations.NullMarked;

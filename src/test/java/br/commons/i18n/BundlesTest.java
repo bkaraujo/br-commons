@@ -1,5 +1,7 @@
 package br.commons.i18n;
 
+import br.commons.locale.i18n.Bundles;
+import br.commons.locale.i18n.CurrencyAmount;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

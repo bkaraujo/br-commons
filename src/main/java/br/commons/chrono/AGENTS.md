@@ -5,7 +5,7 @@ Utilitários estáticos de relógio e constantes de data.
 | Tipo    | Papel                                                         |
 |---------|---------------------------------------------------------------|
 | `Time`  | Relógio: `millis`, `nanos`, `seconds`, `now`, `yyyyMMdd`      |
-| `Dates` | Constantes: `MILLIS_IN_DAY`, padrão/formatter `dd/MM/yyyy`, meses por locale |
+| `Dates` | Constantes: `MILLIS_IN_DAY`, padrão/formatter `dd/MM/yyyy`, meses (`MONTHS_PTBR`, `MONTHS_ENUS`, `LOCALIZED`) |
 
 ## 1. Relógio
 
@@ -26,6 +26,7 @@ String hoje = Time.yyyyMMdd();    // "2026-10-05"
 Matcher m = Dates.PATTERN_DDMMYYYY.matcher(texto);     // captura "05/10/2026"
 LocalDate d = LocalDate.parse(m.group(1), Dates.FORMATTER_DDMMYYYY);
 int mes = Dates.MONTHS_PTBR.get("OUTUBRO");            // 10
+int m2 = Dates.LOCALIZED.get(Locale.of("en", "US")).get("MAY");  // 5 (só pt-BR e en-US)
 long dias = intervaloMs / Dates.MILLIS_IN_DAY;
 ```
 
@@ -35,7 +36,7 @@ Chaves dos mapas de meses são **maiúsculas**; normalize antes
 
 ## 3. Regras rápidas para agentes
 
-1. Formatação para usuário final: use `br.commons.i18n.Formats`, não `Dates`.
+1. Formatação para usuário final: use `br.commons.locale.i18n.Formats`, não `Dates`.
 2. Não use `Time.now()` para persistir instante; prefira `Instant`/UTC.
 3. Não meça duração com `millis()`.
 

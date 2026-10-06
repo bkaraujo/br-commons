@@ -1,6 +1,6 @@
 package br.commons;
 
-import br.commons.i18n.Errors;
+import br.commons.locale.i18n.Errors;
 
 import br.commons.platform.FileSystem;
 import br.commons.platform.Network;

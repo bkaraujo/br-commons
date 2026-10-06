@@ -37,7 +37,7 @@ sealed interface MigrationLock permits MigrationLock.Advisory, MigrationLock.InJ
     @NullMarked
     final class Advisory implements MigrationLock {
 
-        /** Arbitrary key shared by every JUDAS instance. */
+        /** Arbitrary key shared by every instance of the application. */
         private static final long KEY = 7_318_540_223L;
 
         @Override

@@ -1,6 +1,6 @@
 package br.commons.htmx;
 
-import br.commons.i18n.Text;
+import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

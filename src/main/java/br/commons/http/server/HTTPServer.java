@@ -1,7 +1,5 @@
 package br.commons.http.server;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
 import br.commons.Meta;
 import br.commons.Result;
@@ -12,6 +10,7 @@ import br.commons.http.message.HTTPMethod;
 import br.commons.http.message.HTTPResponse;
 import br.commons.http.server.message.HTTPServerRequest;
 import br.commons.http.server.message.HTTPServerResponse;
+import br.commons.locale.i18n.Errors;
 import br.commons.logger.MDC;
 import com.google.errorprone.annotations.CheckReturnValue;
 import com.sun.net.httpserver.HttpExchange;

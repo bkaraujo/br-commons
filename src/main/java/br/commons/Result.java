@@ -1,8 +1,7 @@
 package br.commons;
 
-import br.commons.i18n.Errors;
-
 import br.commons.business.BusinessError;
+import br.commons.locale.i18n.Errors;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 

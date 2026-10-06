@@ -38,10 +38,11 @@ String page = document(Html5Dialect.INSTANCE,
 
 - Um `import static` traz a versão inteira (membros estáticos herdados).
 - Conteúdo de elemento = `Attribute`s e `Node`s em qualquer ordem.
-- `text(...)` só aceita `br.commons.i18n.Text`: interface via bundle; dado via
-  `Text.data(...)`.
+- `text(...)` só aceita `br.commons.locale.i18n.Text`: interface via bundle/`I18N`
+  (`Text.message`); dado via `Text.data(...)`.
 - Renomes: `class`→`cls`, `for`→`htmlFor`, `http-equiv`→`httpEquiv`.
-- Atributos lidos por pessoas (`title`, `alt`, `label`, `abbr`) recebem `Text`.
+- Atributos lidos por pessoas recebem `Text`: `title`, `alt`, `label`, `abbr`;
+  `placeholder`, `ariaLabel` (HTML 5); `summary`, `standby` (HTML 4).
 
 ## 2. Formulário
 
@@ -53,6 +54,7 @@ form(method(FormMethod.POST), action("/signup"),
     label(htmlFor("email"), text(msg.email())),
     input(dialect, email, current.getOrDefault("email", ""), id("email")),
     select(dialect, plan, List.of(new Option("pro", msg.pro())), Set.of(selected)),
+    choice(dialect, terms, "yes", accepted),          // checkbox/radio com valor fixo
     textarea(dialect, bio, currentBio),
     button(type(ButtonType.SUBMIT), text(msg.send())));
 ```
@@ -70,23 +72,26 @@ errors.forEach(v -> mensagens.put(v.field(), msg.rule(v.rule())));  // REQUIRED,
 fragment(a, b, c);                    // vários nós sem wrapper
 each(lista, item -> li(...));         // laço
 when(cond, () -> nodo);               // condicional (lazy)
-element("my-widget", attribute("x", "1"));   // tag sem fábrica
-raw(markup);                          // SEM escape — restrito por ArchUnit
+element("my-widget", data("x", "1"));        // tag sem fábrica (data-* é Html5)
+raw(markup);                          // SEM escape — só markup revisado
 ```
 
 ## 4. Regras rápidas para agentes
 
-1. Nunca `raw(...)` com dado externo; só classes revisadas (ArchUnit).
+1. Nunca `raw(...)` com dado externo; fora de `br.commons.html` é proibido (ArchUnit).
 2. Dado do usuário entra via `Text.data`, nunca concatenado em markup.
 3. Validação sempre com `Validation.check`, mesmo com HTML 5.
 4. `Field` só via `FieldSpec.build()` (declaração inconsistente → `Failure`).
 5. View multi-versão importa `Html` e recebe `Dialect`; senão, importe
    `Html5`/`Html4` diretamente.
-6. Nome de tag/atributo nunca vem de dado externo (não é escapado).
+6. Nome de tag/atributo nunca vem de dado externo (não é escapado; inválido
+   → `IllegalArgumentException`).
+7. Fora de `html`/`htmx`: não estender `Html` nem `new Attribute(...)`
+   (`HtmlArchitectureTest`); use as fábricas tipadas.
 
 ## 5. Checklist de revisão
 
-- [ ] Sem `raw` novo fora de classes liberadas.
+- [ ] Sem `raw` novo; `HtmlArchitectureTest` passa.
 - [ ] Todo texto visível é `Text` (bundle ou `data`).
 - [ ] Campos do form validados no POST com os mesmos `Field`s.
 
@@ -117,11 +122,15 @@ raw(markup);                          // SEM escape — restrito por ArchUnit
 
 ## 7. Formulários e dialetos
 
-- `control(...)`: `type` (via `dialect.inputType`), `name` e
-  `dialect.constraints(tag, field)` (`required`, `minlength`, `pattern`,
-  `min`, `max`, `step` no HTML 5; HTML 4 cai para `text` e não emite
-  restrições nativas).
-- `input`: não ecoa valor de `PASSWORD`/`FILE`.
+- `control(...)`: `type` (só `input`, via `dialect.inputType`), `name` e
+  `dialect.constraints(tag, field)`.
+- HTML 5: `required` em todo controle; `minlength`/`maxlength` em input
+  textual e `textarea`; `pattern` só em input; `min`/`max`/`step` em tipo
+  ordenado; `multiple` em `EMAIL`/`FILE` com `asMultiple()`.
+- HTML 4: tipos sem equivalente nativo viram `text`; só emite `maxlength` em
+  input textual.
+- `input`: não ecoa valor de `PASSWORD`/`FILE`. `choice`: checkbox/radio com
+  `value` fixo e `checked` opcional.
 - `textarea`: escreve `\n` antes do valor (o parser HTML descarta um newline
   inicial; assim o valor que começa com newline sobrevive).
 - `select`: `multiple` automático se `field.multiple()`.
@@ -131,21 +140,27 @@ raw(markup);                          // SEM escape — restrito por ArchUnit
 - Valor vazio só falha `REQUIRED` (como o navegador).
 - Ordem: tipo (`INVALID` via `InputType.read`) → texto (`TOO_SHORT`,
   `TOO_LONG`, `PATTERN`) → significado (`BELOW_MIN`, `ABOVE_MAX`, `STEP`).
-  Retorna a **primeira** regra violada por campo.
-- `step` conta a partir de `min` (ou zero); `any`/ausente desliga.
-- E-mail múltiplo chega separado por vírgula num valor só.
+  Retorna a **primeira** regra violada por campo (entre todos os valores).
+- `check(Field, List<String>)` → `Optional<Violation>` para um campo só.
+- `step` só em `NUMBER`/`RANGE`; conta a partir de `min` (ou zero);
+  `any`/ausente desliga.
+- E-mail `asMultiple()` chega separado por vírgula num valor só.
 - `Attempt` é o único ponto que captura exceção de parser do JDK
   (`LocalDate.parse`, `BigDecimal`, `Pattern.compile`) → `Result`.
-- `FieldSpec.build` valida a declaração: regex compilável, limites
-  coerentes com o tipo (`InputKind`: textual × ordenado × nenhum).
+- `FieldSpec.build` valida a declaração: nome não vazio, comprimentos ≥ 0 e
+  `min ≤ max`, regex compilável, `min`/`max` só em tipo ordenado (`InputKind`:
+  `TEXTUAL` × `ORDERED` × `OTHER`), `step` positivo. Mensagens via `Errors`.
 
 ## 9. Arquitetura
 
 - `Html` é abstrato; `Html4`/`Html5` estendem (herdam estáticos). Elemento de
   uma versão só aparece na classe dela.
-- `Raw` só é criado por `Html.raw`, restrito por ArchUnit (spec §14.1).
-- `br.commons.htmx` depende deste pacote; o contrário é proibido
-  (`HtmlArchitectureTest`).
+- `Raw` só é criado em `br.commons.html` (`Html.raw`, `scriptText`/`styleText`):
+  `HtmlArchitectureTest.RAW_ONLY_IN_HTML` barra `raw` e `new Node.Raw` fora dele (spec §14.1).
+- `HtmlArchitectureTest` (em `src/test/java/br/commons`): camadas
+  `core` ← `form` ← `html` ← `html4`/`html5` (versões independentes);
+  atributo por nome livre só em `html`/`htmx`; `br.commons.htmx` depende
+  deste pacote e de `http`, nunca o contrário, e não conhece `web`.
 
 ## 10. Extensão
 

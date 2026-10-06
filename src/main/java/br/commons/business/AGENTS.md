@@ -5,14 +5,14 @@ banco ou idioma.
 
 | Tipo                | Papel                                                          |
 |---------------------|----------------------------------------------------------------|
-| `BusinessError`     | `sealed interface`: `NotFound`, `BusinessRule`, `Validation`, `Conflict` |
+| `BusinessError`     | `sealed interface`: `NotFound`, `BusinessRule`, `Validation`, `Conflict`, `Infrastructure` |
 | `BusinessException` | `RuntimeException` que carrega um `BusinessError`              |
 | `BusinessEvent`     | Subinterface de `Message` para eventos de domínio              |
 
 ## 1. Erro de domínio
 
-`key` é **chave de tradução** (`br.commons.i18n.Messages`), não texto pronto.
-`args` alimentam `String.format` do padrão no bundle `messages`.
+`key` é **chave de tradução** (`br.commons.locale.i18n.I18N`), não texto pronto.
+`args` alimentam `String.format` do padrão no bundle `messages` (da aplicação).
 
 ```java
 return Result.failure(new BusinessError.NotFound("order.not_found", orderId));
@@ -22,7 +22,13 @@ Texto só nasce em `render(locale)`, no locale de quem pede (request HTTP):
 
 ```java
 String msg = error.render(request.locale());
+error.render();      // locale de `br.commons.locale` (I18N.locale())
+error.toConsole();   // Logger.error(render())
 ```
+
+`Lifecycle.initialize()/terminate()` devolvem `Result<Void, BusinessError>`;
+falha de infra vira `Infrastructure(texto)` (texto já localizado por `Errors`,
+`render` devolve como está) e o `br.Application` chama `toConsole()`.
 
 Escolha da variante = significado HTTP esperado pela camada web:
 
@@ -32,6 +38,7 @@ Escolha da variante = significado HTTP esperado pela camada web:
 | `Validation`   | Entrada inválida (formato, obrigatório)          |
 | `BusinessRule` | Entrada válida, mas regra proíbe                 |
 | `Conflict`     | Estado concorrente/duplicado                     |
+| `Infrastructure` | Falha fora do domínio (porta, worker); texto pronto |
 
 ## 2. Exceção de domínio
 
@@ -77,9 +84,12 @@ Listener com parâmetro `BusinessEvent` recebe todos os eventos de domínio.
 
 ## 6. Resolução de texto
 
-`BusinessError.render` delega a `Messages.of(key, locale, args)`:
+`BusinessError.render` delega a `I18N.of(key, locale, args)` (`render()` sem
+locale usa `I18N.of(key, args)` → `I18N.locale()`):
 
-- Busca `ResourceBundle` `messages` com fallback padrão do JDK.
+- Busca `ResourceBundle` `messages` (classpath da aplicação; a lib não traz
+  um) com fallback padrão do JDK.
+- Sem `args`, o padrão/chave volta sem `String.format`.
 - Chave ausente **não lança**: `String.format` roda sobre a própria chave. Isso
   permite migração incremental (call site antigo passando prosa pt-BR como
   "chave" continua funcionando). Efeito colateral: erro de digitação na chave
@@ -97,8 +107,9 @@ iguais. Ao criar nova variante, repita os três métodos.
 - `BusinessException` resolve a mensagem no construtor (custo de bundle +
   format em cada criação). Não use em laço quente como controle de fluxo.
 - `LOG_LOCALE` é `pt-BR` fixo por decisão: logs e time em pt-BR.
-- Mapeamento para status HTTP fica fora do pacote (`DomainExceptionMapper`,
-  citado no javadoc) — ao criar variante nova, atualize esse mapper.
+- Mapeamento para status HTTP fica fora do pacote. O javadoc cita
+  `DomainExceptionMapper`, mas ele **não existe** no código atual — ao criar
+  variante nova, revise os `switch`/mappers da aplicação.
 
 ## 9. Pontos de extensão
 
@@ -106,4 +117,4 @@ iguais. Ao criar nova variante, repita os três métodos.
 |------------------------------|----------------------------------------------------|
 | Nova categoria de erro       | novo `record` em `BusinessError` + mappers/switches |
 | Erro com campo (validação)   | componente extra no `record` (ex.: `field`)        |
-| Falhar em chave inexistente  | `Messages.of` — hoje silencioso por design         |
+| Falhar em chave inexistente  | `I18N.of` — hoje silencioso por design             |

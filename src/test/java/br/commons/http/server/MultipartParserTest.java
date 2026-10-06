@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Streaming multipart reading (spec §5.2): files to disk, limits, malformed bodies. */
 class MultipartParserTest {
 
-    private static final String BOUNDARY = "----judasBoundary7MA4YWxk";
+    private static final String BOUNDARY = "----formBoundary7MA4YWxk";
     private static final String TYPE = "multipart/form-data; boundary=" + BOUNDARY;
 
     @TempDir

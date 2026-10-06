@@ -1,7 +1,5 @@
 package br.commons.html;
 
-import br.commons.i18n.Errors;
-
 import br.commons.html.core.Attribute;
 import br.commons.html.core.Content;
 import br.commons.html.core.Keyword;
@@ -9,7 +7,8 @@ import br.commons.html.core.Node;
 import br.commons.html.form.Field;
 import br.commons.html.form.InputType;
 import br.commons.html.form.Option;
-import br.commons.i18n.Text;
+import br.commons.locale.i18n.Errors;
+import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
@@ -77,7 +76,7 @@ public abstract class Html {
         return condition ? node.get() : new Node.Fragment(List.of());
     }
 
-    /** Markup without escaping. Only reviewed classes may call it (ArchUnit, spec §14.1). */
+    /** Markup without escaping. Only {@code br.commons.html} may call it ({@code HtmlArchitectureTest}, spec §14.1). */
     public static Node raw(String markup) {
         return new Node.Raw(markup);
     }

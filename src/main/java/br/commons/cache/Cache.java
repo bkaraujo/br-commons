@@ -1,19 +1,17 @@
 package br.commons.cache;
 
-import br.commons.i18n.Errors;
-
 import br.commons.Logger;
 import br.commons.Meta;
 import br.commons.Result;
 import br.commons.chrono.Time;
 import br.commons.debug.Execution;
+import br.commons.locale.i18n.Errors;
 import br.commons.logger.LogLevel;
 import br.commons.platform.NativeCache;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.lang.foreign.MemorySegment;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -54,8 +52,15 @@ public final class Cache<T> {
         this.prefix = region.name() + ":";
     }
 
+    /**
+     * Fills the partition on the worker. Before {@link CacheServer#initialize()} it fails at once, registering
+     * nothing: a partition registered without a worker to fill it would hold its readers for the populate timeout.
+     */
     public CompletableFuture<Result<Void, String>> load(String partition) {
         if (closed) return CompletableFuture.completedFuture(closedFailure());
+        if (!worker.running()) {
+            return CompletableFuture.completedFuture(Result.failure(Errors.get().cacheWorkerNotRunning().value()));
+        }
         return Execution.nanos(CALLER, () -> {
             val future = new CompletableFuture<NativeCache<UUID>>();
             val previous = registry.put(partition, future);
@@ -98,13 +103,13 @@ public final class Cache<T> {
         });
     }
 
-    /** Unloads every partition; the first failure, if any, is the outcome. */
     /** Releases the region for good (called by {@link CacheServer#terminate()}): every partition is unloaded. */
     CompletableFuture<Result<Void, String>> close() {
         closed = true;
         return unloadAll();
     }
 
+    /** Unloads every partition; the first failure, if any, is the outcome. */
     public CompletableFuture<Result<Void, String>> unloadAll() {
         return firstFailure(registry.keySet().stream().map(this::unload).toList());
     }

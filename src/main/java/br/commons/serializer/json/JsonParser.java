@@ -1,6 +1,6 @@
 package br.commons.serializer.json;
 
-import br.commons.i18n.Errors;
+import br.commons.locale.i18n.Errors;
 
 import lombok.val;
 import org.jspecify.annotations.NullMarked;

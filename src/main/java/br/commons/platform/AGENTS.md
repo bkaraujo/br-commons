@@ -7,14 +7,14 @@ Acesso aos serviços pela fachada `br.commons.Platform` (pacote raiz).
 | Tipo / subpacote             | Papel                                              |
 |------------------------------|----------------------------------------------------|
 | `OS`                         | `WINDOWS`, `LINUX`, `MAC`, `UNKNOWN`               |
-| `FileSystem`                 | `jvmFS()` (diretório de início), `userFS()` (home) |
+| `FileSystem`                 | `jvmFS()` (diretório de início), `userFS()` (home); estáticos `read`, `create`, `copy`, `move` |
 | `Network`                    | `isPortInUse(port)` — só sockets em LISTEN         |
-| `Terminal`                   | Dimensão, modo raw, `render` de buffer de células  |
+| `Terminal`                   | `dimension()`, `hasTTY()`, `render` de buffer de células |
 | `NativeCache<K>`             | Arena off-heap indexada por chave; API `Result`    |
 | `terminal/TerminalColor`     | Cores ANSI; `ofRGB`, `ofHex`, `colorize`           |
 | `provider/linux/`            | `LNXFileSystem`, `LNXNetwork` (`/proc/net/tcp*`), `LNXTerminal` |
-| `provider/windows/`          | `WIN*` + bindings FFM (`Kernel32`, `User32`, `Shell32`, `Iphlpapi`) |
-| `provider/agnostic/`         | `AbstractTerminal` (render ANSI), `Network` estático |
+| `provider/windows/`          | `WIN*` + bindings FFM (`Kernel32`, `User32`, `Shell32`, `Iphlpapi`, `WinAPI`) |
+| `provider/agnostic/`         | `AbstractTerminal` (render ANSI), `Network.isPortInUse` estático (tenta `bind`) |
 
 ## 1. Serviços
 
@@ -25,6 +25,8 @@ Path home = Platform.fileSystem().userFS();
 boolean ocupada = Platform.isPortInUse(8080);
 Terminal t = Platform.terminal();
 Dimension d = t.dimension();               // (0,0) se não for TTY
+FileSystem.create(base, "logs", "data");  // nomes em minúsculas; não lança
+Result<Path, Throwable> r = FileSystem.move(origem, destino); // atômico, senão copy+delete
 ```
 
 ## 2. `NativeCache`
@@ -38,15 +40,18 @@ try (var cache = new NativeCache<UUID>()) {
     MemorySegment s = cache.segment(id);        // hot path: null em miss/fechado
     cache.get(id);                              // Result (ERROR_MISS / ERROR_CLOSED)
     cache.forEach((k, seg) -> ...);             // ordem de inserção
-    cache.remove(id); cache.keys(); cache.count();
+    cache.remove(id); cache.keys(); cache.count(); cache.size(); // keys/size: Result
+    if (cache.needsCompaction()) cache.compact(NativeCache.COMPACT_GRACE); // escritor único
 }
 ```
+
+`ERROR_CLOSED`/`ERROR_MISS` vêm de `Errors` (i18n). Sentinelas: `NULL_LONG`, `NULL_INT`.
 
 Codecs estáticos (offset em bytes, acesso `*_UNALIGNED`):
 
 | Codec                         | Bytes        | `null` vira                     |
 |-------------------------------|--------------|---------------------------------|
-| `writeUuid` / `readUuid`      | 16           | 0/0 (lido como `null`)          |
+| `writeUuid` / `readUuid` (`readUuidMsb`/`Lsb`) | 16 | 0/0 (lido como `null`) |
 | `writeString(cap)`/`readString` | 4 + até cap-4 | tamanho `-1`                  |
 | `writeBoolean`/`readBoolean`  | 1            | —                               |
 | `writeMoney`/`readMoneyCents` | 8 (centavos) | `NULL_LONG`                     |
@@ -65,7 +70,7 @@ String c = TerminalColor.ofHex("#ff8800");
 2. Código que depende de SO trata `MAC`/`UNKNOWN` (serviços lançam
    `UnsupportedOperationException`).
 3. `NativeCache` sempre fechado (`try-with-resources` ou dono explícito).
-4. Layout binário documentado junto do `sizer`/writer (ver `br.commons.cache`).
+4. Layout binário documentado junto de `size`/`write`/`read` da `CacheRegion` (ver `br.commons.cache`).
 5. Bindings Windows: adicione função em `Kernel32`/`User32`/... seguindo o
    padrão `MethodHandle` + `FunctionDescriptor`; nunca JNI.
 6. `jvmFS()` depende do diretório de trabalho — não assuma raiz do projeto.
@@ -88,10 +93,11 @@ String c = TerminalColor.ofHex("#ff8800");
   `mac` → MAC). `fileSystem()`/`terminal()`/`network()` usam holder idiom
   (uma instância, criada pela inicialização de classe da JVM); em
   `MAC`/`UNKNOWN` lançam `UnsupportedOperationException` com o `os.name`.
-- `Terminal` tem fábrica própria que lança `RuntimeException("unreachable")`
-  fora de Linux/Windows.
+- `Terminal.create()` (fábrica própria) loga FATAL e lança `RuntimeException`
+  (`unsupportedPlatform`) fora de Linux/Windows.
 - `LNXFileSystem.jvmFS()` = `Path.of("").toAbsolutePath()`;
-  `WINFileSystem.userFS()` usa `Shell32` (FFM).
+  `WINFileSystem.userFS()` usa `Shell32.SHGetFolderPathW` (FFM).
+- `UnsupportedOperationException` traz mensagem `platformUnsupported` (i18n).
 
 ## 7. Rede
 
@@ -133,14 +139,14 @@ String c = TerminalColor.ofHex("#ff8800");
 
 - `AbstractTerminal.render(buffer, dim, indices, count)`: escreve só células
   alteradas (`indices`), posicionando cursor com CSI `ESC[y;xH` e code points.
-- Linux: `ioctl(1, TIOCGWINSZ=0x5413)` via FFM (raw mode/termios não implementado); Windows: `kernel32`
-  (`GetConsoleScreenBufferInfo`, modo de console). Sem TTY → `(0,0)`.
+- Linux: `ioctl(1, TIOCGWINSZ=0x5413)` via FFM (raw mode/termios não implementado); Windows: `Kernel32`
+  (`GetConsoleScreenBufferInfo`). Sem TTY → `(0,0)`.
 
 ## 11. Extensão
 
 | Necessidade               | Onde mexer                                          |
 |---------------------------|-----------------------------------------------------|
 | Suporte macOS             | `provider/mac/` + `case MAC` em `Platform`          |
-| Liberar memória no remove | arena por registro ou compactação periódica         |
+| Liberar memória no remove | `compact` já existe; dono decide quando (`needsCompaction`) |
 | Nova função Win32         | binding na classe da DLL (`Kernel32`, ...)          |
 | Novo codec                | método estático em `NativeCache` + teste de ida e volta |

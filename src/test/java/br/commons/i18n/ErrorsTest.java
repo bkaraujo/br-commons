@@ -1,6 +1,10 @@
 package br.commons.i18n;
 
 import br.commons.http.HTTPStatus;
+import br.commons.locale.i18n.Bundles;
+import br.commons.locale.i18n.ErrorMessages;
+import br.commons.locale.i18n.Errors;
+import br.commons.locale.i18n.I18N;
 import lombok.val;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

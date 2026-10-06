@@ -8,7 +8,7 @@ leitura direta na memória. API nunca lança.
 | Tipo             | Papel                                                              |
 |------------------|--------------------------------------------------------------------|
 | `CacheServer`    | `Lifecycle`; registra regiões; dono da thread `cache-worker`       |
-| `CacheRegion<T>` | Definição da região: nome, loader, chave, layout binário           |
+| `CacheRegion<T>` | Definição da região: `name`, `load`, `key`, `size`/`write`/`read`  |
 | `Cache<T>`       | Proxy devolvido pelo `register`: lê direto, escreve via worker      |
 | `CacheWorker`    | Interno (package-private): a fila única de escrita                 |
 
@@ -44,10 +44,11 @@ cache.upsert(partition, model);         // async
 cache.evict(partition, id);             // async
 cache.evictEverywhere(id);              // todas as partições
 cache.unload(partition);                // fecha memória nativa
+cache.unloadAll();                      // todas as partições da região
 ```
 
-Mutações devolvem `CompletableFuture<Result<Void,String>>`: ignore se só
-enfileira; `join()` em teste/diagnóstico.
+`load`, `unload` e mutações devolvem `CompletableFuture<Result<Void,String>>`:
+ignore se só enfileira; `join()` em teste/diagnóstico.
 
 ## 3. Leitura
 
@@ -61,8 +62,8 @@ enfileira; `join()` em teste/diagnóstico.
 processo, como o `WebServer`). `terminate()` drena as escritas, **libera** toda
 região (descarrega as partições) e encerra a thread. Região liberada: leitura e
 escrita → `Failure` `cacheRegionClosed` ("Região de cache ITEM foi liberada...");
-registre de novo após um novo `initialize()`. Antes do `initialize()`, escrita →
-`Failure` `cacheWorkerNotRunning`; leitura e `register` funcionam.
+registre de novo após um novo `initialize()`. Antes do `initialize()`, escrita
+(inclusive `load`) → `Failure` `cacheWorkerNotRunning`; leitura e `register` funcionam.
 
 ```java
 cacheServer.initialize();
@@ -82,8 +83,8 @@ cacheServer.terminate();
 7. Exemplo completo (cache por sessão de usuário): `src/main/examples/br/commons/examples/cache/session`.
 8. Teste de referência: `src/test/java/br/commons/cache/CacheTest.java` — `ItemRegion`
    mínimo (uuid + long, 24 bytes) e partições `east`/`west`; cobre hit/miss, partição
-   não carregada, ordem do `list`, upsert/evict, `evictEverywhere`, `unload` e
-   isolamento entre partições. Mudou a API? Ajuste e rode:
+   não carregada, ordem do `list`, upsert/evict, `evictEverywhere`, `unload`, isolamento,
+   corridas leitura×unload/compactação, reload e `terminate`. Mudou a API? Ajuste e rode:
    `mvn test -Dtest=CacheTest`.
 
 ## 6. Checklist de revisão
@@ -111,8 +112,11 @@ cacheServer.terminate();
   `Failure` com `cachePopulateIncomplete`, mas o cache fica utilizável.
 - `live()` = caminho quente: `getNow(null)` + `isClosed()`.
 - `awaited()` = caminho raro: `get(2s)`, trata timeout/interrupt.
-- Mutações (`onCache`) rodam na worker; se o cache ainda não está pronto ou
-  fechou, a mutação é **descartada com sucesso** (o populate vai ler a fonte).
+- Mutações (`onCache`) rodam na worker; se a partição não foi carregada, o cache
+  ainda não está pronto ou fechou, a mutação é **descartada com sucesso** (o
+  populate vai ler a fonte). Região liberada (`closed`) → `cacheRegionClosed`.
+- Leitor que pega arena fechada no meio (`IllegalStateException`) relê uma vez
+  do registro (`tolerantList`/`tolerantFind`); 2ª falha = ausência.
 
 ## 8. Armadilhas
 
@@ -125,9 +129,11 @@ cacheServer.terminate();
 - Upsert enviado durante o populate pode ser descartado (cache ainda não
   pronto) e o loader pode ter lido estado antigo → janela de inconsistência
   logo após `load`.
-- Escrita antes de `CacheServer.initialize()` ou após `terminate()` vira `Failure`
-  (`cacheWorkerNotRunning`). A thread é não-daemon: segura o processo até o
-  `terminate()` (shutdown hook do `Application`).
+- Escrita sem worker rodando vira `Failure` `cacheWorkerNotRunning`; em região já
+  liberada pelo `terminate()`, `cacheRegionClosed`. A thread é não-daemon: segura
+  o processo até o `terminate()` (shutdown hook do `br.Application`).
+- `load` antes do `initialize()` falha na hora (`cacheWorkerNotRunning`) sem
+  registrar a partição: leitura dela = não carregada, sem esperar.
 - Leituras rodam em qualquer thread, concorrentes com mutações na worker;
   a segurança disso depende de `NativeCache` (ver AGENTS de `platform`).
 - Instrumentação: `list`/`find` só medem tempo com DEBUG ligado para
@@ -137,7 +143,7 @@ cacheServer.terminate();
 ## 9. Por que `Result` dentro de `CompletableFuture`
 
 Exceção da tarefa só existe depois, na worker. `Result` síncrono seria falso
-sucesso. `verdict` desembrulha `CompletionException`, loga em ERROR e devolve
+sucesso. `CacheWorker.verdict` desembrulha `CompletionException`, loga em ERROR e devolve
 `Failure(causa.toString())`. Publicador de evento (dentro de transação) nunca
 é derrubado por falha de cache.
 
@@ -145,6 +151,6 @@ sucesso. `verdict` desembrulha `CompletionException`, loga em ERROR e devolve
 
 | Necessidade                 | Onde mexer                                        |
 |-----------------------------|---------------------------------------------------|
-| Chave não-UUID              | generalizar `NativeCache<UUID>`/`keyer`           |
-| Registro de tamanho variável| `sizer` por modelo já permite; cuide do layout    |
-| Paralelizar caches          | um worker por cache (hoje global, ordem FIFO)     |
+| Chave não-UUID              | generalizar `NativeCache<UUID>`/`CacheRegion.key` |
+| Registro de tamanho variável| `CacheRegion.size` por modelo já permite; cuide do layout |
+| Paralelizar regiões         | um worker por região (hoje um por `CacheServer`, FIFO) |

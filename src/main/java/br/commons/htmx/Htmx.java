@@ -5,7 +5,7 @@ import br.commons.html.core.Attribute;
 import br.commons.html.core.Content;
 import br.commons.html.core.Keyword;
 import br.commons.html.core.Node;
-import br.commons.i18n.Text;
+import br.commons.locale.i18n.Text;
 import br.commons.serializer.Json;
 import org.jspecify.annotations.NullMarked;
 
