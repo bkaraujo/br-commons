@@ -1,5 +1,7 @@
 package br.commons;
 
+import br.commons.i18n.Errors;
+
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -46,17 +48,17 @@ public abstract class Meta {
                 .filter(constructor -> accepts(constructor.getParameterTypes(), args))
                 .toList();
         if (candidates.isEmpty()) {
-            return Result.failure("no public constructor of " + type.getName() + " accepts " + Arrays.toString(args));
+            return Result.failure(Errors.get().noPublicConstructor(type.getName(), Arrays.toString(args)).value());
         }
         if (candidates.size() > 1) {
-            return Result.failure("ambiguous constructors of " + type.getName() + " for " + Arrays.toString(args));
+            return Result.failure(Errors.get().ambiguousConstructors(type.getName(), Arrays.toString(args)).value());
         }
         try {
             return Result.success(type.cast(candidates.getFirst().newInstance(args)));
         } catch (InvocationTargetException e) {
-            return Result.failure("constructor of " + type.getName() + " failed: " + e.getCause());
+            return Result.failure(Errors.get().constructorFailed(type.getName(), String.valueOf(e.getCause())).value());
         } catch (ReflectiveOperationException e) {
-            return Result.failure("cannot create " + type.getName() + ": " + e);
+            return Result.failure(Errors.get().cannotCreate(type.getName(), e).value());
         }
     }
 

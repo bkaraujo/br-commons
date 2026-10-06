@@ -1,5 +1,7 @@
 package br.commons;
 
+import br.commons.i18n.Errors;
+
 import br.commons.logger.LogChannel;
 import br.commons.logger.LogFilter;
 import br.commons.logger.LogForwarder;
@@ -326,7 +328,7 @@ public abstract class Logger {
 
         val sink = SINKS.get(level);
         if (sink == null) {
-            throw new IllegalStateException("Unexpected value: " + level);
+            throw new IllegalStateException(Errors.get().unexpectedLogLevel(level).value());
         }
         val rendered = message.toString();
         sink.accept(() -> rendered);

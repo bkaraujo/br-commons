@@ -1,5 +1,7 @@
 package br.commons;
 
+import br.commons.i18n.Errors;
+
 import br.commons.platform.FileSystem;
 import br.commons.platform.Network;
 import br.commons.platform.OS;
@@ -85,7 +87,7 @@ public abstract class Platform {
 
     private static UnsupportedOperationException unsupported(String service) {
         return new UnsupportedOperationException(
-                service + " not supported on " + CURRENT + " (os.name=" + System.getProperty("os.name") + ")");
+                Errors.get().platformUnsupported(service, CURRENT, String.valueOf(System.getProperty("os.name"))).value());
     }
 
     /** Verifica se a porta TCP já está em uso no host local. Ver {@link Network#isPortInUse(int)}. */

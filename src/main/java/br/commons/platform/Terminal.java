@@ -1,5 +1,7 @@
 package br.commons.platform;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Platform;
 import br.commons.platform.provider.linux.LNXTerminal;
@@ -23,7 +25,7 @@ public interface Terminal {
         if (Platform.CURRENT == OS.WINDOWS) return new WINTerminal();
 
         Logger.fatal("Unsupported Platform");
-        throw new RuntimeException("unreachable");
+        throw new RuntimeException(Errors.get().unsupportedPlatform().value());
     }
 
     // ========================================================================

@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc.migration;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import br.commons.Strings;
 import lombok.val;
@@ -45,7 +47,7 @@ final class MigrationScanner {
             }
             return build(names);
         } catch (IOException | URISyntaxException e) {
-            return Result.failure("Cannot list migrations in " + location + ": " + e.getMessage());
+            return Result.failure(Errors.get().listMigrationsFailed(location, String.valueOf(e.getMessage())).value());
         }
     }
 
@@ -77,7 +79,7 @@ final class MigrationScanner {
             }
             val version = Integer.parseInt(match.group(1));
             if (!versions.add(version)) {
-                return Result.failure("Duplicate migration version " + version);
+                return Result.failure(Errors.get().duplicateMigrationVersion(String.valueOf(version)).value());
             }
             val sql = read(location + "/" + name);
             migrations.add(new Migration(version, match.group(2).replace('_', ' '), sql, Strings.sha256(sql)));
@@ -89,7 +91,7 @@ final class MigrationScanner {
     private String read(String resource) throws IOException {
         try (InputStream input = loader.getResourceAsStream(resource)) {
             if (input == null) {
-                throw new IOException("Migration not readable: " + resource);
+                throw new IOException(Errors.get().migrationNotReadable(resource).value());
             }
             return Strings.read(input);
         }

@@ -1,5 +1,7 @@
 package br.commons.platform.terminal;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Meta;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -77,7 +79,7 @@ public enum TerminalColor {
         private static String fromHEX(String hex, boolean isBg) {
             if (!hex.startsWith("#")) {
                 Meta.exit("Hexadecimal String must start with #");
-                throw new RuntimeException("Unreachable");
+                throw new RuntimeException(Errors.get().hexColorWithoutHash().value());
             }
 
             val code = hex.substring(1);

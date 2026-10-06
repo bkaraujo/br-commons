@@ -1,5 +1,7 @@
 package br.commons.cache;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Meta;
 import br.commons.Result;
@@ -81,7 +83,7 @@ public abstract class AbstractCache<T> {
                 }
                 return errors.isEmpty()
                         ? Result.success()
-                        : Result.failure("cache populate incomplete for " + partition + ": " + errors);
+                        : Result.failure(Errors.get().cachePopulateIncomplete(partition, errors).value());
             });
         });
     }
@@ -226,7 +228,7 @@ public abstract class AbstractCache<T> {
     /** Only on miss: the message costs a {@code UUID.toString} and a concatenation, and this is where the
      *  {@code prefix} survives — in the key it was redundant, each cache has only its own type. */
     private Result<T, String> notFound(UUID id) {
-        return Result.failure("not found: " + prefix + id);
+        return Result.failure(Errors.get().cacheNotFound(prefix + id).value());
     }
 
     /** Cache ready for immediate reading, or {@code null} if absent, still populating or closed. */
@@ -252,10 +254,10 @@ public abstract class AbstractCache<T> {
             return cache.isClosed() ? Result.success(null) : Result.success(cache);
         } catch (TimeoutException e) {
             Logger.debug("Cache populate timeout for %s", partition);
-            return Result.failure("cache populate timeout for " + partition);
+            return Result.failure(Errors.get().cachePopulateTimeout(partition).value());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return Result.failure("interrupted reading cache for " + partition);
+            return Result.failure(Errors.get().cacheReadInterrupted(partition).value());
         } catch (Exception e) {
             Logger.warn("Cache read failed for %s: %s", partition, e.toString());
             return Result.failure(e.toString());

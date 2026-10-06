@@ -1,5 +1,7 @@
 package br.commons.cache;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import br.commons.platform.NativeCache;
 import lombok.val;
@@ -73,7 +75,7 @@ class AbstractCacheTest {
         val cache = loaded(EAST, List.of(stored));
         val absent = UUID.randomUUID();
 
-        assertEquals("not found: TEST:" + absent, failureOf(cache.find(EAST, absent)));
+        assertEquals(Errors.get().cacheNotFound("TEST:" + absent).value(), failureOf(cache.find(EAST, absent)));
 
         cache.unload(EAST).join();
     }
@@ -83,7 +85,7 @@ class AbstractCacheTest {
         val cache = new ItemCache(Map.of());
         val id = UUID.randomUUID();
 
-        assertEquals("not found: TEST:" + id, failureOf(cache.find(EAST, id)));
+        assertEquals(Errors.get().cacheNotFound("TEST:" + id).value(), failureOf(cache.find(EAST, id)));
     }
 
     @Test

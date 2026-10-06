@@ -1,5 +1,7 @@
 package br.commons.html.form;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -77,13 +79,13 @@ public record FieldSpec(String name, InputType type, boolean required, @Nullable
 
     private Result<Void, String> lengths() {
         if (name.isBlank()) {
-            return Result.failure("Field without a name");
+            return Result.failure(Errors.get().fieldWithoutName().value());
         }
         if (negative(minLength) || negative(maxLength)) {
-            return Result.failure("Negative length in " + name);
+            return Result.failure(Errors.get().negativeLength(name).value());
         }
         if (minLength != null && maxLength != null && minLength > maxLength) {
-            return Result.failure("minLength " + minLength + " > maxLength " + maxLength + " in " + name);
+            return Result.failure(Errors.get().minLengthAboveMax(String.valueOf(minLength), String.valueOf(maxLength), name).value());
         }
         return Result.success();
     }
@@ -101,7 +103,7 @@ public record FieldSpec(String name, InputType type, boolean required, @Nullable
             return Result.success(null);
         }
         if (!type.ordered()) {
-            return Result.failure("Bound " + value + " on unordered " + type.token() + " " + name);
+            return Result.failure(Errors.get().boundOnUnordered(value, type.token(), name).value());
         }
         return type.read(value);
     }
@@ -112,7 +114,7 @@ public record FieldSpec(String name, InputType type, boolean required, @Nullable
             return Result.success(null);
         }
         if (!STEPPED.contains(type)) {
-            return Result.failure("Step applies only to number and range, not " + type.token() + " " + name);
+            return Result.failure(Errors.get().stepNotApplicable(type.token(), name).value());
         }
         if ("any".equals(step)) {
             return Result.success(null);
@@ -120,6 +122,6 @@ public record FieldSpec(String name, InputType type, boolean required, @Nullable
         return Attempt.parse(step, BigDecimal::new)
                 .flatMap(size -> size.signum() > 0
                         ? Result.success(size)
-                        : Result.failure("Step must be positive: " + step));
+                        : Result.failure(Errors.get().stepNotPositive(step).value()));
     }
 }

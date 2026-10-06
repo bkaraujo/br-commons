@@ -9,6 +9,7 @@ interface, e `Messages` (chave → texto) para erros de domínio.
 | `Text`           | Texto visível: `message` (do bundle) ou `data` (dado do usuário) |
 | `Formats`        | Formatação por locale: BRL, número, %, datas (CLDR)            |
 | `Messages`       | `of(key, locale, args)` — bundle `messages`, `String.format`   |
+| `Errors`         | Mensagens de erro da lib (`ErrorMessages`) no `br.commons.locale` |
 | `CurrencyAmount` | Interface do tipo dinheiro do domínio (`amount()`)             |
 | `DayMonth`       | Wrapper de `LocalDate` formatado como "12 de set."             |
 
@@ -65,6 +66,17 @@ Messages.of("order.not_found", locale, id);   // bundle "messages", String.forma
 
 Chave ausente não lança: formata a própria chave (ver `br.commons.business`).
 
+## 4.1 Erros da própria lib (`Errors`)
+
+```java
+Result.failure(Errors.get().routerFrozen(method, template).value());
+```
+
+Todo `Result.failure`/exceção/`ProblemDetail` do `br.commons` usa
+`ErrorMessages` (`br/commons/i18n/errors_{pt_BR,en_US}.properties`).
+Locale: system property `br.commons.locale` (padrão `pt-BR`; outro idioma →
+en-US). Descrição de `HTTPStatus` vem de `http_status_*.properties`.
+
 ## 5. Regras rápidas para agentes
 
 1. Texto de interface novo → método na interface + chave em **todos** os
@@ -74,6 +86,8 @@ Chave ausente não lança: formata a própria chave (ver `br.commons.business`).
 4. Data em view: `LocalDate`/`DayMonth`/`YearMonth` como argumento, não string
    pré-formatada.
 5. Dado do usuário entra como `Text.data`, nunca como chave.
+6. Erro novo na lib → método em `ErrorMessages` + chave nos dois locales;
+   nunca literal. Número sem milhar (porta, ano) → parâmetro `String`.
 
 ## 6. Checklist de revisão
 

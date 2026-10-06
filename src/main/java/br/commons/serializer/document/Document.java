@@ -1,5 +1,7 @@
 package br.commons.serializer.document;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.serializer.Serializer;
 import br.commons.serializer.document.builder.DocumentBuilder;
@@ -66,7 +68,7 @@ public final class Document implements Serializer {
         return switch (serializer) {
             case Document document -> document;
             case Overlay overlay -> unwrap(overlay.base());
-            default -> throw new IllegalArgumentException("Unsupported serializer: " + serializer.getClass());
+            default -> throw new IllegalArgumentException(Errors.get().unsupportedSerializer(serializer.getClass()).value());
         };
     }
 
@@ -259,7 +261,7 @@ public final class Document implements Serializer {
         val copy = new LinkedHashMap<String, Object>(map.size() * 2);
         for (val entry : map.entrySet()) {
             if (!(entry.getKey() instanceof String key)) {
-                throw new IllegalArgumentException("Key must be text: " + entry.getKey());
+                throw new IllegalArgumentException(Errors.get().keyMustBeText(String.valueOf(entry.getKey())).value());
             }
             copy.put(key, normalize(entry.getValue()));
         }

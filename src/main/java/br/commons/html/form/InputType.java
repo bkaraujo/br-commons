@@ -1,5 +1,8 @@
 package br.commons.html.form;
 
+import br.commons.i18n.Errors;
+import br.commons.i18n.Text;
+
 import br.commons.Result;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -101,18 +104,18 @@ public enum InputType {
     }
 
     private static Result<String, String> email(String value) {
-        return matching(EMAIL_ADDRESS, value, "e-mail");
+        return matching(EMAIL_ADDRESS, value, Errors.get().notAnEmail(value));
     }
 
     private static Result<String, String> url(String value) {
         return Attempt.parse(value, URI::create)
-                .flatMap(uri -> uri.isAbsolute() ? any(value) : Result.failure("Not an absolute URL: " + value));
+                .flatMap(uri -> uri.isAbsolute() ? any(value) : Result.failure(Errors.get().notAbsoluteUrl(value).value()));
     }
 
     /** A valid floating-point number of the HTML spec: {@link BigDecimal} syntax without a leading {@code +}. */
     private static Result<BigDecimal, String> number(String value) {
         return value.startsWith("+")
-                ? Result.failure("Leading + in " + value)
+                ? Result.failure(Errors.get().leadingPlus(value).value())
                 : Attempt.parse(value, BigDecimal::new);
     }
 
@@ -120,19 +123,19 @@ public enum InputType {
     private static Result<String, String> week(String value) {
         val matcher = WEEK_VALUE.matcher(value);
         if (!matcher.matches()) {
-            return Result.failure("Not a week: " + value);
+            return Result.failure(Errors.get().notAWeek(value).value());
         }
         val year = Integer.parseInt(matcher.group(1));
         val week = Integer.parseInt(matcher.group(2));
         val weeks = LocalDate.of(year, 12, 28).get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
-        return week < 1 || week > weeks ? Result.failure("Week out of " + year + ": " + value) : any(value);
+        return week < 1 || week > weeks ? Result.failure(Errors.get().weekOutOfYear(String.valueOf(year), value).value()) : any(value);
     }
 
     private static Result<String, String> color(String value) {
-        return matching(COLOR_VALUE, value, "color");
+        return matching(COLOR_VALUE, value, Errors.get().notAColor(value));
     }
 
-    private static Result<String, String> matching(Pattern pattern, String value, String what) {
-        return pattern.matcher(value).matches() ? any(value) : Result.failure("Not a " + what + ": " + value);
+    private static Result<String, String> matching(Pattern pattern, String value, Text error) {
+        return pattern.matcher(value).matches() ? any(value) : Result.failure(error.value());
     }
 }

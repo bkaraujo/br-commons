@@ -1,5 +1,7 @@
 package br.commons.web.filter;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Strings;
 import br.commons.http.HTTPStatus;
 import br.commons.http.message.HTTPMethod;
@@ -140,7 +142,7 @@ public final class StaticFiles implements HTTPFilter {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes), 0, 16);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is mandatory in every JDK", e);
+            throw new IllegalStateException(Errors.get().sha256Unavailable().value(), e);
         }
     }
 

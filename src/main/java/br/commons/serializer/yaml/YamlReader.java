@@ -1,5 +1,7 @@
 package br.commons.serializer.yaml;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.serializer.document.Document;
 import br.commons.serializer.document.DocumentCache;
@@ -68,8 +70,8 @@ public final class YamlReader {
     private static Document validated(@Nullable Object tree, @Nullable Path source) {
         if (tree == null) return Document.empty(source, Policy.CONFIG);
         if (!(tree instanceof Map<?, ?>)) {
-            val shown = source != null ? source.toString() : "resource";
-            throw new IllegalArgumentException("YAML root must be a map in " + shown + ", got " + tree.getClass().getSimpleName());
+            val shown = source != null ? source.toString() : Errors.get().yamlResource().value();
+            throw new IllegalArgumentException(Errors.get().yamlRootNotMap(shown, tree.getClass().getSimpleName()).value());
         }
         return Document.of(tree, source, Policy.CONFIG);
     }

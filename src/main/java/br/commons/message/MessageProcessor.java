@@ -1,5 +1,7 @@
 package br.commons.message;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Meta;
 import org.jspecify.annotations.NullMarked;
 
@@ -17,7 +19,7 @@ public record MessageProcessor (
         } catch (RuntimeException | Error e) {
             throw e;
         } catch (Throwable throwable) {
-            throw new RuntimeException("Failed to process " + Meta.fqn(message) + ": " + throwable, throwable);
+            throw new RuntimeException(Errors.get().messageProcessingFailed(Meta.fqn(message), throwable).value(), throwable);
         }
     }
 

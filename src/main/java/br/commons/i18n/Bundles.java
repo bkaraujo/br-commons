@@ -31,6 +31,7 @@ public final class Bundles {
         val bundle = load(baseName, locale);
         val problems = check(type, bundle);
         if (!problems.isEmpty()) {
+            // Literal on purpose: Errors itself is a Bundle — translating this would recurse when its bundle is broken.
             throw new IllegalStateException("Bundle " + baseName + " for " + locale + " is incomplete: " + problems);
         }
         val handler = new Handler(bundle, new Formats(locale));

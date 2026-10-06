@@ -1,5 +1,7 @@
 package br.commons.http.server.message;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import br.commons.Strings;
 import br.commons.http.Cookie;
@@ -63,7 +65,7 @@ public final class HTTPServerResponse implements HTTPResponse {
     @Override
     public HTTPServerResponse header(String name, String value) {
         if (hasLineBreak(name) || hasLineBreak(value)) {
-            throw new IllegalArgumentException("header " + name.strip() + ": CR or LF not allowed");
+            throw new IllegalArgumentException(Errors.get().invalidHeader(name.strip()).value());
         }
         headers.put(Strings.lower(name), value);
         return this;
@@ -92,7 +94,7 @@ public final class HTTPServerResponse implements HTTPResponse {
     @Override
     @CheckReturnValue
     public Result<Consumer<OutputStream>, String> streamWriter() {
-        if (writer == null) return Result.failure("Not a streaming response");
+        if (writer == null) return Result.failure(Errors.get().notStreaming().value());
         return Result.success(writer);
     }
 

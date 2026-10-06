@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Result;
 import br.commons.persistence.jdbc.pool.ConnectionPool;
@@ -118,7 +120,7 @@ public class DataSource implements Transactions {
             case Result.Failure<Void, String>(var error) -> {
                 transaction.rollback();
                 transaction.close();
-                yield Result.failure("Transaction initializer failed: " + error);
+                yield Result.failure(Errors.get().transactionInitializerFailed(error).value());
             }
         };
     }
@@ -194,7 +196,7 @@ public class DataSource implements Transactions {
         return switch (begin()) {
             case Result.Failure<JDBCTransaction, String>(var error) -> throw new IllegalStateException(error);
             case Result.Success<JDBCTransaction, String>(var transaction) -> {
-                if (transaction == null) throw new IllegalStateException("DataSource '" + name + "' opened a null transaction");
+                if (transaction == null) throw new IllegalStateException(Errors.get().nullTransaction(name).value());
                 yield transaction;
             }
         };
@@ -231,7 +233,7 @@ public class DataSource implements Transactions {
             result = work.apply(transaction);
             if (result.isSuccess()) {
                 if (transaction.commit() instanceof Result.Failure<Boolean, String>(var error)) {
-                    throw new IllegalStateException("commit failed: " + error);
+                    throw new IllegalStateException(Errors.get().commitFailed(error).value());
                 }
             } else {
                 // Nested: commit()/rollback() are no-op, but the mark poisons the outer level,

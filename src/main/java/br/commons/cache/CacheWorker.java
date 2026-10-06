@@ -1,5 +1,7 @@
 package br.commons.cache;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Result;
 import lombok.val;
@@ -57,7 +59,7 @@ public final class CacheWorker {
         try {
             if (!WORKER.awaitTermination(AWAIT_SECONDS, TimeUnit.SECONDS)) {
                 WORKER.shutdownNow();
-                return Result.failure("cache worker did not terminate in " + AWAIT_SECONDS + "s");
+                return Result.failure(Errors.get().cacheWorkerNotTerminated(String.valueOf(AWAIT_SECONDS)).value());
             }
             return Result.success();
         } catch (InterruptedException e) {
@@ -78,7 +80,7 @@ public final class CacheWorker {
             Thread.currentThread().interrupt();
             return Result.failure(e.toString());
         } catch (ExecutionException | TimeoutException e) {
-            return Result.failure("cache worker still busy: " + e);
+            return Result.failure(Errors.get().cacheWorkerBusy(e).value());
         }
     }
 

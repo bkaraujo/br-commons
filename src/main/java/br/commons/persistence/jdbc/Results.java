@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import org.jspecify.annotations.NullMarked;
 
@@ -9,25 +11,25 @@ public abstract class Results {
 
     public static <T> Result<T, String> dataSourceNotFound(String name)  {
         return Result.failure(
-                "DataSource '%s' not found".formatted(name)
+                Errors.get().dataSourceNotFound(name).value()
         );
     }
 
     public static <T> Result<T, String> resourceIsClosed(String name)  {
         return Result.failure(
-                "Resource '%s' is closed".formatted(name)
+                Errors.get().resourceClosed(name).value()
         );
     }
 
     public static <T> Result<T, String> noDefaultDatasource()  {
         return Result.failure(
-                "No default DataSource configured"
+                Errors.get().noDefaultDataSource().value()
         );
     }
 
     public static <T> Result<T, String> poolExhausted(String datasource, long timeout)  {
         return Result.failure(
-                "Connection timeout: no connection available within %dms for pool '%s'".formatted(timeout, datasource)
+                Errors.get().poolTimeout(String.valueOf(timeout), datasource).value()
         );
     }
 

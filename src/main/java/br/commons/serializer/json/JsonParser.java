@@ -1,5 +1,7 @@
 package br.commons.serializer.json;
 
+import br.commons.i18n.Errors;
+
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -25,7 +27,7 @@ final class JsonParser {
     @Nullable Object parseDocument() {
         val value = parseValue();
         skipWhitespace();
-        if (pos < source.length()) throw new IllegalArgumentException("Unexpected content at " + pos);
+        if (pos < source.length()) throw new IllegalArgumentException(Errors.get().jsonUnexpectedContent(String.valueOf(pos)).value());
         return value;
     }
 
@@ -59,7 +61,7 @@ final class JsonParser {
             skipWhitespace();
             val next = source.charAt(pos++);
             if (next == '}') break;
-            if (next != ',') throw new IllegalArgumentException("Expected ',' or '}' at " + pos);
+            if (next != ',') throw new IllegalArgumentException(Errors.get().jsonExpectedCommaOrBrace(String.valueOf(pos)).value());
         }
         return map;
     }
@@ -74,7 +76,7 @@ final class JsonParser {
             skipWhitespace();
             val next = source.charAt(pos++);
             if (next == ']') break;
-            if (next != ',') throw new IllegalArgumentException("Expected ',' or ']' at " + pos);
+            if (next != ',') throw new IllegalArgumentException(Errors.get().jsonExpectedCommaOrBracket(String.valueOf(pos)).value());
         }
         return list;
     }
@@ -102,7 +104,7 @@ final class JsonParser {
                         pos += 4;
                         yield unicode;
                     }
-                    default -> throw new IllegalArgumentException("Invalid escape: \\" + esc);
+                    default -> throw new IllegalArgumentException(Errors.get().jsonInvalidEscape(esc).value());
                 });
             } else {
                 sb.append(c);
@@ -114,12 +116,12 @@ final class JsonParser {
     private Boolean parseBoolean() {
         if (source.startsWith("true", pos)) { pos += 4; return Boolean.TRUE; }
         if (source.startsWith("false", pos)) { pos += 5; return Boolean.FALSE; }
-        throw new IllegalArgumentException("Invalid literal at " + pos);
+        throw new IllegalArgumentException(Errors.get().jsonInvalidLiteral(String.valueOf(pos)).value());
     }
 
     private @Nullable Object parseNull() {
         if (source.startsWith("null", pos)) { pos += 4; return null; }
-        throw new IllegalArgumentException("Invalid literal at " + pos);
+        throw new IllegalArgumentException(Errors.get().jsonInvalidLiteral(String.valueOf(pos)).value());
     }
 
     private Double parseNumber() {
@@ -139,6 +141,6 @@ final class JsonParser {
     private void expect(char expected) {
         skipWhitespace();
         val actual = source.charAt(pos++);
-        if (actual != expected) throw new IllegalArgumentException("Expected '" + expected + "' at " + pos);
+        if (actual != expected) throw new IllegalArgumentException(Errors.get().jsonExpectedChar(expected, String.valueOf(pos)).value());
     }
 }

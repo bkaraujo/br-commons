@@ -1,5 +1,7 @@
 package br.commons.web.server;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import br.commons.http.MediaType;
 import br.commons.http.Multipart;
@@ -40,7 +42,7 @@ public final class WebRequest implements HTTPRequest {
     @CheckReturnValue
     public Result<String, String> pathParam(String name) {
         val value = pathParams.get(name);
-        if (value == null) return Result.failure("No path param '" + name + "'");
+        if (value == null) return Result.failure(Errors.get().noPathParam(name).value());
         return Result.success(value);
     }
 
@@ -49,7 +51,7 @@ public final class WebRequest implements HTTPRequest {
     public <T> Result<T, String> body(Class<T> type) {
         val consumes = route.consumes();
         if (consumes == null) {
-            return Result.failure("Route " + route.method() + " " + route.template() + " declares no request body");
+            return Result.failure(Errors.get().noRequestBody(route.method(), route.template()).value());
         }
         return switch (consumes) {
             case APPLICATION_JSON -> json(type);
@@ -57,8 +59,8 @@ public final class WebRequest implements HTTPRequest {
             case URL_ENCODED -> form(type);
             case MULTIPART_FORM_DATA -> type == Multipart.class
                     ? Result.success(type.cast(request.multipart()))
-                    : Result.failure("MULTIPART_FORM_DATA body reads only as Multipart, not " + type.getSimpleName());
-            default -> Result.failure("No reader for " + consumes + " body on " + route.method() + " " + route.template());
+                    : Result.failure(Errors.get().multipartOnlyAsMultipart(type.getSimpleName()).value());
+            default -> Result.failure(Errors.get().noBodyReader(consumes, route.method(), route.template()).value());
         };
     }
 
@@ -66,24 +68,24 @@ public final class WebRequest implements HTTPRequest {
         try {
             return Result.success(Json.from(new String(body(), StandardCharsets.UTF_8)).as(type));
         } catch (RuntimeException e) {
-            return Result.failure("Invalid " + type.getSimpleName() + " body: " + e.getMessage());
+            return Result.failure(Errors.get().invalidBody(type.getSimpleName(), String.valueOf(e.getMessage())).value());
         }
     }
 
     private <T> Result<T, String> form(Class<T> type) {
         if (type != Form.class) {
-            return Result.failure("URL_ENCODED body reads only as Form, not " + type.getSimpleName());
+            return Result.failure(Errors.get().urlEncodedOnlyAsForm(type.getSimpleName()).value());
         }
         try {
             return Result.success(type.cast(Form.parse(new String(body(), StandardCharsets.UTF_8))));
         } catch (IllegalArgumentException e) {
-            return Result.failure("Malformed form body: " + e.getMessage());
+            return Result.failure(Errors.get().malformedForm(String.valueOf(e.getMessage())).value());
         }
     }
 
     private <T> Result<T, String> text(Class<T> type) {
         if (type != String.class) {
-            return Result.failure("TEXT_PLAIN body reads only as String, not " + type.getSimpleName());
+            return Result.failure(Errors.get().textPlainOnlyAsString(type.getSimpleName()).value());
         }
         return Result.success(type.cast(new String(body(), StandardCharsets.UTF_8)));
     }

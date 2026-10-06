@@ -1,5 +1,7 @@
 package br.commons.serializer.document.binding;
 
+import br.commons.i18n.Errors;
+
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -25,7 +27,7 @@ public abstract class TreeBinder {
     public static <T> T bind(@Nullable Object tree, Class<T> type) {
         val bound = bindValue(tree, type, type);
         if (bound == null) {
-            throw new IllegalArgumentException("Cannot bind null to " + type);
+            throw new IllegalArgumentException(Errors.get().cannotBindNull(type).value());
         }
         return (T) bound;
     }
@@ -38,7 +40,7 @@ public abstract class TreeBinder {
 
         val scalar = Scalars.coerce(tree, type);
         if (scalar == null) {
-            throw new IllegalArgumentException("Unsupported target type: " + type);
+            throw new IllegalArgumentException(Errors.get().unsupportedTargetType(type).value());
         }
         return scalar;
     }
@@ -70,7 +72,7 @@ public abstract class TreeBinder {
             constructor.setAccessible(true);
             return constructor.newInstance(args);
         } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Failed to build " + type, e);
+            throw new IllegalStateException(Errors.get().buildFailed(type).value(), e);
         }
     }
 }

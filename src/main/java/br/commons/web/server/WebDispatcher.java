@@ -1,5 +1,7 @@
 package br.commons.web.server;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.http.HTTPStatus;
 import br.commons.http.message.HTTPRequest;
@@ -55,6 +57,6 @@ public final class WebDispatcher {
     }
 
     public static HTTPResponse notFound() {
-        return WebResponse.problem(ProblemDetail.of(HTTPStatus.NOT_FOUND, "Rota não encontrada"));
+        return WebResponse.problem(ProblemDetail.of(HTTPStatus.NOT_FOUND, Errors.get().routeNotFound().value()));
     }
 }

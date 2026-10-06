@@ -1,5 +1,7 @@
 package br.commons.http.server;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Meta;
 import br.commons.Result;
@@ -104,7 +106,7 @@ public final class HTTPServer {
             Logger.info("HTTP server listening on port %d", port);
             return Result.success();
         } catch (IOException e) {
-            return Result.failure("Failed to start HTTP server on port " + port + ": " + e);
+            return Result.failure(Errors.get().httpServerStartFailed(String.valueOf(port), e).value());
         }
     }
 
@@ -286,7 +288,7 @@ public final class HTTPServer {
         try {
             return Result.success(URLDecoder.decode(text, StandardCharsets.UTF_8));
         } catch (IllegalArgumentException e) {
-            return Result.failure("Malformed query: " + e.getMessage());
+            return Result.failure(Errors.get().malformedQuery(String.valueOf(e.getMessage())).value());
         }
     }
 

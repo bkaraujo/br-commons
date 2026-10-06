@@ -1,5 +1,7 @@
 package br.commons.http;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import br.commons.http.message.HTTPRequest;
 import br.commons.logger.MDC;
@@ -41,10 +43,10 @@ public final class HTTPSession implements AutoCloseable {
     @CheckReturnValue
     public static Result<HTTPSession, String> current() {
         val requestId = MDC.get(HTTPRequest.REQUEST_ID);
-        if (requestId == null) return Result.failure("No HTTP request in progress");
+        if (requestId == null) return Result.failure(Errors.get().noHttpRequest().value());
 
         val session = SESSIONS.get(requestId);
-        if (session == null) return Result.failure("No HTTP session for request " + requestId);
+        if (session == null) return Result.failure(Errors.get().noHttpSession(requestId).value());
         return Result.success(session);
     }
 
@@ -55,9 +57,9 @@ public final class HTTPSession implements AutoCloseable {
     @CheckReturnValue
     public <T> Result<T, String> attribute(String key, Class<T> type) {
         val value = attributes.get(key);
-        if (value == null) return Result.failure("No session attribute '" + key + "'");
+        if (value == null) return Result.failure(Errors.get().noSessionAttribute(key).value());
         if (!type.isInstance(value)) {
-            return Result.failure("Session attribute '" + key + "' is " + value.getClass().getSimpleName() + ", not " + type.getSimpleName());
+            return Result.failure(Errors.get().sessionAttributeType(key, value.getClass().getSimpleName(), type.getSimpleName()).value());
         }
         return Result.success(type.cast(value));
     }

@@ -1,5 +1,7 @@
 package br.commons.web.server;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import br.commons.http.HTTPStatus;
 import br.commons.http.MediaType;
@@ -42,9 +44,9 @@ class WebFormTest {
     @Test
     void formBodyReadsOnlyAsFormAndMustBeWellEncoded() {
         assertTrue(post("a=1").body(String.class) instanceof Result.Failure<String, String>(var error)
-                && error.contains("only as Form"));
+                && error.equals(Errors.get().urlEncodedOnlyAsForm("String").value()));
         assertTrue(post("a=%zz").body(Form.class) instanceof Result.Failure<Form, String>(var error)
-                && error.startsWith("Malformed form body"));
+                && error.startsWith(Errors.get().malformedForm("").value()));
     }
 
     @Test

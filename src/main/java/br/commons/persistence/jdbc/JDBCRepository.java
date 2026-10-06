@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Result;
 import br.commons.cdi.Context;
@@ -159,7 +161,7 @@ public abstract class JDBCRepository<T> {
             Result<Boolean, String> outcome = dataSource.transaction(tx -> Result.success(tx.execute(sql, parameters)));
             if (outcome instanceof Result.Failure<Boolean, String>(String error)) {
                 if (attempt < UPSERT_ATTEMPTS && isDuplicateKey(error)) continue;
-                throw new IllegalStateException("save into " + qualifiedTable() + " failed: " + error);
+                throw new IllegalStateException(Errors.get().saveFailed(qualifiedTable(), error).value());
             }
             return;
         }

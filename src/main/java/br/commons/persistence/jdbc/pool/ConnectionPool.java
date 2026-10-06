@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc.pool;
 
+import br.commons.i18n.Errors;
+
 import br.commons.*;
 import br.commons.persistence.jdbc.JDBCProperties;
 import br.commons.persistence.jdbc.Results;
@@ -43,7 +45,7 @@ public final class ConnectionPool {
             }
         } catch (SQLException ex ){
             Logger.error("Failed to initialize connection pool '%s': %s", properties.name(), ex.toString());
-            throw new RuntimeException("Failed to initialize connection pool: " + ex.toString());
+            throw new RuntimeException(Errors.get().poolInitFailed(ex).value());
         }
 
         Threads.virtual(() -> {
@@ -71,14 +73,14 @@ public final class ConnectionPool {
     /** Opens a raw connection without touching the counter (the caller has already reserved the slot). */
     private PooledConnection openConnection() throws SQLException {
         if (closed) {
-            throw new SQLException("Connection pool is closed");
+            throw new SQLException(Errors.get().poolClosed().value());
         }
 
         try {
             // Load JDBC driver
             Class.forName(properties.driver());
         } catch (ClassNotFoundException e) {
-            throw new SQLException("JDBC driver not found: " + properties.driver(), e);
+            throw new SQLException(Errors.get().jdbcDriverNotFound(properties.driver()).value(), e);
         }
 
         val rawConnection = DriverManager.getConnection(

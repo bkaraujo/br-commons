@@ -4,6 +4,9 @@ import br.commons.Result;
 import br.commons.http.server.HTTPFilter;
 import br.commons.http.server.HTTPServer;
 import br.commons.http.server.MultipartParser;
+import br.commons.http.HTTPStatus;
+import br.commons.web.ErrorPage;
+import br.commons.web.filter.ErrorPages;
 import br.commons.web.filter.PreflightFilter;
 import br.commons.web.router.Router;
 import com.google.errorprone.annotations.CheckReturnValue;
@@ -25,6 +28,7 @@ public final class WebServer {
 
     private final Router router;
     private final WebDispatcher dispatcher;
+    private final ErrorPages pages = new ErrorPages();
     private final HTTPServer server;
 
     public WebServer(int port) {
@@ -57,7 +61,8 @@ public final class WebServer {
                      MultipartParser.@Nullable Limits multipartLimits) {
         this.router = router;
         dispatcher = new WebDispatcher(router);
-        val chain = new ArrayList<HTTPFilter>(filters.size() + 1);
+        val chain = new ArrayList<HTTPFilter>(filters.size() + 2);
+        chain.add(pages);
         chain.add(new PreflightFilter(router));
         chain.addAll(filters);
         server = new HTTPServer(port, chain, dispatcher::handle, failure -> WebResponse.internalServerError(), maxBodySize, multipartLimits);
@@ -67,10 +72,32 @@ public final class WebServer {
         dispatcher.register(resource);
     }
 
+    /**
+     * HTML page for {@code status} (any status), served instead of the error body when the client accepts
+     * {@code text/html}; API clients keep the {@code ProblemDetail}. Covers filters (e.g. {@code StaticFiles}) too.
+     */
+    @CheckReturnValue
+    public Result<Void, String> errorPage(HTTPStatus status, ErrorPage page) {
+        return pages.register(status, page);
+    }
+
+    /** {@link #errorPage(HTTPStatus, ErrorPage)} with a static HTML read from the classpath. */
+    @CheckReturnValue
+    public Result<Void, String> errorPage(HTTPStatus status, String classpathResource) {
+        return pages.register(status, classpathResource);
+    }
+
+    /** Built-in pages for 404 and 500; register yours afterwards to replace one of them. */
+    @CheckReturnValue
+    public Result<Void, String> defaultErrorPages() {
+        return pages.defaults();
+    }
+
     /** Freezes the {@link Router} first: a registration after the start returns {@code Failure}. */
     @CheckReturnValue
     public Result<Void, String> start() {
         router.freeze();
+        pages.freeze();
         return server.start();
     }
 

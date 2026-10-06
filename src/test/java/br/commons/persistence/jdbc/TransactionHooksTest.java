@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import lombok.val;
 import org.junit.jupiter.api.Test;
@@ -70,7 +72,7 @@ class TransactionHooksTest {
         val dataSource = new DataSource(props("hooks_fail"), transaction -> Result.failure("no household"));
         try {
             val error = assertThrows(IllegalStateException.class, () -> dataSource.inTransaction(() -> Result.success(1)));
-            assertEquals("Transaction initializer failed: no household", error.getMessage());
+            assertEquals(Errors.get().transactionInitializerFailed("no household").value(), error.getMessage());
             assertEquals(0, dataSource.getActiveConnections());
         } finally {
             dataSource.close();

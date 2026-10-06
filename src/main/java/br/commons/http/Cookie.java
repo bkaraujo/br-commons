@@ -1,5 +1,7 @@
 package br.commons.http;
 
+import br.commons.i18n.Errors;
+
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -18,7 +20,7 @@ public record Cookie(String name, String value, String path, @Nullable Duration 
     public Cookie {
         for (val part : new String[] {name, value, path, sameSite}) {
             if (part.indexOf('\r') >= 0 || part.indexOf('\n') >= 0 || part.indexOf(';') >= 0) {
-                throw new IllegalArgumentException("cookie " + name.strip() + ": CR, LF or ';' not allowed");
+                throw new IllegalArgumentException(Errors.get().invalidCookie(name.strip()).value());
             }
         }
     }

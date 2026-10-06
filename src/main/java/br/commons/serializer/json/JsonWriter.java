@@ -1,5 +1,7 @@
 package br.commons.serializer.json;
 
+import br.commons.i18n.Errors;
+
 import br.commons.serializer.Serializer;
 import br.commons.serializer.document.Document;
 import lombok.val;
@@ -63,7 +65,7 @@ public final class JsonWriter {
                 accessor.setAccessible(true);
                 writeValue(sb, accessor.invoke(value));
             } catch (ReflectiveOperationException e) {
-                throw new IllegalStateException("Failed to serialize " + klass, e);
+                throw new IllegalStateException(Errors.get().serializeFailed(klass).value(), e);
             }
         }
         sb.append('}');

@@ -1,5 +1,7 @@
 package br.commons.http.server;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Strings;
 import br.commons.http.Multipart;
 import br.commons.http.Multipart.UploadedFile;
@@ -100,7 +102,7 @@ public final class MultipartParser {
 
     static String boundary(@Nullable String contentType) throws IOException {
         val matcher = contentType == null ? null : BOUNDARY.matcher(contentType);
-        if (matcher == null || !matcher.find()) throw new IOException("multipart body without boundary");
+        if (matcher == null || !matcher.find()) throw new IOException(Errors.get().multipartNoBoundary().value());
         val quoted = matcher.group(2);
         return quoted != null ? quoted : matcher.group(1);
     }
@@ -138,7 +140,7 @@ public final class MultipartParser {
         val b = input.read();
         if (a == '-' && b == '-') return true;
         if (a == '\r' && b == '\n') return false;
-        throw new IOException("malformed multipart delimiter");
+        throw new IOException(Errors.get().multipartMalformedDelimiter().value());
     }
 
     /**
@@ -149,7 +151,7 @@ public final class MultipartParser {
         val matcher = new DelimiterMatcher(delimiter, out);
         while (true) {
             val read = input.read();
-            if (read < 0) throw new IOException("multipart body ended before its delimiter");
+            if (read < 0) throw new IOException(Errors.get().multipartTruncated().value());
             if (matcher.accept((byte) read)) return matcher.copied;
         }
     }
@@ -232,7 +234,7 @@ public final class MultipartParser {
 
         @Override
         public void write(int b) {
-            if (count >= cap) throw new IllegalStateException("multipart field or header exceeds " + cap + " bytes");
+            if (count >= cap) throw new IllegalStateException(Errors.get().multipartPartTooLarge(String.valueOf(cap)).value());
             super.write(b);
         }
 

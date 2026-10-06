@@ -1,5 +1,7 @@
 package br.commons.persistence.json;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Platform;
 import br.commons.Result;
@@ -53,7 +55,7 @@ public final class LocalFileStorage implements Storage {
                 if (field == null || field.isNull()) return Result.success(Optional.empty());
                 return Result.success(Optional.of(mapper.writeValueAsBytes(field)));
             } catch (JacksonException e) {
-                return Result.failure("Erro ao ler campo " + jsonKey + " em " + file + ": " + e.getMessage());
+                return Result.failure(Errors.get().fieldReadFailed(jsonKey, file, String.valueOf(e.getMessage())).value());
             }
         });
     }
@@ -83,7 +85,7 @@ public final class LocalFileStorage implements Storage {
             Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             return Result.success();
         } catch (IOException | JacksonException e) {
-            return Result.failure("Erro ao gravar campo " + jsonKey + " em " + file + ": " + e.getMessage());
+            return Result.failure(Errors.get().fieldWriteFailed(jsonKey, file, String.valueOf(e.getMessage())).value());
         }
     }
 
@@ -102,7 +104,7 @@ public final class LocalFileStorage implements Storage {
                     .filter(n -> n.startsWith(prefix) && n.endsWith(suffix))
                     .toList();
         } catch (IOException e) {
-            throw new UncheckedIOException("Erro ao listar arquivos em " + root, e);
+            throw new UncheckedIOException(Errors.get().listFilesFailed(root).value(), e);
         }
     }
 
@@ -113,10 +115,10 @@ public final class LocalFileStorage implements Storage {
     private Result<Path, String> resolve(String file) {
         try {
             val path = root.resolve(file).normalize();
-            if (!path.startsWith(root)) return Result.failure("file outside the storage root: " + file);
+            if (!path.startsWith(root)) return Result.failure(Errors.get().fileOutsideStorage(file).value());
             return Result.success(path);
         } catch (InvalidPathException e) {
-            return Result.failure("invalid file name: " + file);
+            return Result.failure(Errors.get().invalidFileName(file).value());
         }
     }
 }

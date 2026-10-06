@@ -1,5 +1,7 @@
 package br.commons.html.core;
 
+import br.commons.i18n.Errors;
+
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -13,7 +15,7 @@ public record Attribute(String name, @Nullable String value) implements Content 
      * {@code hx-on::after-request}). Space, {@code =}, quotes, {@code <}, {@code >} and {@code /} would inject markup.
      */
     public Attribute {
-        if (!Names.isAttribute(name)) throw new IllegalArgumentException("invalid attribute name: " + name);
+        if (!Names.isAttribute(name)) throw new IllegalArgumentException(Errors.get().invalidAttributeName(name).value());
     }
 
     void render(StringBuilder out) {

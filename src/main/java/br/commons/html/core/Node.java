@@ -1,5 +1,7 @@
 package br.commons.html.core;
 
+import br.commons.i18n.Errors;
+
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
@@ -30,7 +32,7 @@ public sealed interface Node extends Content permits Node.Element, Node.Text, No
 
         /** Tag names are written raw: {@code [A-Za-z][A-Za-z0-9-]*} (custom elements included), checked once here. */
         public Element {
-            if (!Names.isTag(tag)) throw new IllegalArgumentException("invalid tag name: " + tag);
+            if (!Names.isTag(tag)) throw new IllegalArgumentException(Errors.get().invalidTagName(tag).value());
         }
 
         @Override

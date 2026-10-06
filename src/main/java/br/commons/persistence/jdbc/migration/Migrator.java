@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc.migration;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Result;
 import lombok.val;
@@ -62,7 +64,7 @@ public final class Migrator {
         return withConnection(connection -> {
             val lock = MigrationLock.of(connection);
             if (lock.isEmpty()) {
-                return Result.failure("Unsupported database: " + connection.getMetaData().getDatabaseProductName());
+                return Result.failure(Errors.get().unsupportedDatabase(connection.getMetaData().getDatabaseProductName()).value());
             }
             lock.get().acquire(connection);
             try {
@@ -93,7 +95,7 @@ public final class Migrator {
                 Logger.info("Applied migration V%d (%s)", migration.version(), migration.description());
             } catch (SQLException e) {
                 connection.rollback();
-                return Result.failure("Migration V" + migration.version() + " failed: " + e.getMessage());
+                return Result.failure(Errors.get().migrationFailed(String.valueOf(migration.version()), String.valueOf(e.getMessage())).value());
             }
         }
         return Result.success(applied);
@@ -106,10 +108,10 @@ public final class Migrator {
         for (val entry : applied.entrySet()) {
             val file = byVersion.get(entry.getKey());
             if (file == null) {
-                return Result.failure("Applied migration V" + entry.getKey() + " is missing");
+                return Result.failure(Errors.get().appliedMigrationMissing(String.valueOf(entry.getKey())).value());
             }
             if (!file.checksum().equals(entry.getValue())) {
-                return Result.failure("Applied migration V" + entry.getKey() + " was changed after being applied");
+                return Result.failure(Errors.get().appliedMigrationChanged(String.valueOf(entry.getKey())).value());
             }
         }
         return Result.success(found.stream().filter(migration -> !applied.containsKey(migration.version())).toList());
@@ -139,7 +141,7 @@ public final class Migrator {
             connection.setAutoCommit(false);
             return work.run(connection);
         } catch (SQLException e) {
-            return Result.failure("Migration failed: " + e.getMessage());
+            return Result.failure(Errors.get().migrationRunFailed(String.valueOf(e.getMessage())).value());
         }
     }
 

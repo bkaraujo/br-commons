@@ -1,5 +1,7 @@
 package br.commons.web.router;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import br.commons.http.MediaType;
 import br.commons.http.message.HTTPMethod;
@@ -84,10 +86,10 @@ public final class Router {
                                           Class<?> requestType, Class<?> responseType,
                                           boolean requiresAuthentication, RouteHandler handler) {
         if (frozen) {
-            return Result.failure("router is frozen (server already started): cannot register " + method + " " + template);
+            return Result.failure(Errors.get().routerFrozen(method, template).value());
         }
         if (method == HTTPMethod.OPTIONS) {
-            return Result.failure("OPTIONS is not registered (" + template + ") — the server responds based on the routes");
+            return Result.failure(Errors.get().optionsNotRegistrable(template).value());
         }
         for (val rule : rules) {
             if (rule.check(method, template) instanceof Result.Failure<Void, String>(String error)) {
@@ -144,11 +146,10 @@ public final class Router {
             if (segment.startsWith("{") && segment.endsWith("}")) {
                 val name = segment.substring(1, segment.length() - 1);
                 if (!PARAM_NAME.matcher(name).matches()) {
-                    return Result.failure("invalid path parameter {" + name + "} in " + template
-                            + " — use letters and digits, starting with a letter (e.g. {orderId})");
+                    return Result.failure(Errors.get().invalidPathParameter(name, template).value());
                 }
                 if (paramNames.contains(name)) {
-                    return Result.failure("repeated path parameter {" + name + "} in " + template);
+                    return Result.failure(Errors.get().repeatedPathParameter(name, template).value());
                 }
                 paramNames.add(name);
                 regex.append("(?<").append(name).append(">[^/]+)");

@@ -1,5 +1,7 @@
 package br.commons.html;
 
+import br.commons.i18n.Errors;
+
 import br.commons.html.core.Attribute;
 import br.commons.html.core.Content;
 import br.commons.html.core.Keyword;
@@ -96,7 +98,7 @@ public abstract class Html {
 
     private static Node rawText(String tag, String content) {
         if (content.toLowerCase(Locale.ROOT).contains("</" + tag)) {
-            throw new IllegalArgumentException("<" + tag + "> content cannot contain </" + tag);
+            throw new IllegalArgumentException(Errors.get().rawContentClosingTag(tag).value());
         }
         return new Node.Raw(content);
     }

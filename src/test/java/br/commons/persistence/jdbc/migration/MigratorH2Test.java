@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc.migration;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import lombok.val;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,6 @@ class MigratorH2Test extends MigratorContract {
         val connection = mock(Connection.class);
         when(connection.getMetaData()).thenReturn(metadata);
         val migrator = new Migrator(() -> connection, "db/migration", MigratorH2Test.class.getClassLoader());
-        assertEquals(Result.failure("Unsupported database: Oracle"), migrator.migrate());
+        assertEquals(Result.failure(Errors.get().unsupportedDatabase("Oracle").value()), migrator.migrate());
     }
 }

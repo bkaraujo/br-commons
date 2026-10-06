@@ -1,5 +1,7 @@
 package br.commons.cdi;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Meta;
 import br.commons.Threads;
@@ -34,7 +36,7 @@ public abstract class Context {
     public static <T> T get(Class<T> type) {
         val instance = registry.get(type);
         if (instance == null) {
-            throw new IllegalStateException("No instance of %s registered".formatted(type));
+            throw new IllegalStateException(Errors.get().noInstanceRegistered(type).value());
         }
 
         return type.cast(instance);

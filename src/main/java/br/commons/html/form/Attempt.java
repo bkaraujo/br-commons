@@ -1,5 +1,7 @@
 package br.commons.html.form;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import org.jspecify.annotations.NullMarked;
 
@@ -19,7 +21,7 @@ final class Attempt {
         try {
             return Result.success(parser.apply(text));
         } catch (IllegalArgumentException | DateTimeException invalid) {
-            return Result.failure("Invalid value " + text + ": " + invalid.getMessage());
+            return Result.failure(Errors.get().invalidValue(text, String.valueOf(invalid.getMessage())).value());
         }
     }
 }

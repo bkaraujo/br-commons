@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc.migration;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Result;
 import lombok.val;
 import org.junit.jupiter.api.Test;
@@ -84,7 +86,7 @@ abstract class MigratorContract {
                 "V2__broken.sql", "insert into item values (2); create tabel oops;",
                 "V3__never.sql", "insert into item values (3);")));
         val result = migrator.migrate();
-        assertTrue(result instanceof Result.Failure<List<Migration>, String>(var error) && error.startsWith("Migration V2 failed"), result::toString);
+        assertTrue(result instanceof Result.Failure<List<Migration>, String>(var error) && error.startsWith(Errors.get().migrationFailed("2", "").value().split(":")[0]), result::toString);
         assertEquals(0, count("select count(*) from item"));
         assertEquals(1, count("select count(*) from schema_migration"));
     }
@@ -95,7 +97,7 @@ abstract class MigratorContract {
         migrator(dir).migrate().getOrThrow();
         Files.writeString(dir.resolve("db/migration/V2__first_item.sql"), "insert into item values (2);");
         val result = migrator(dir).migrate();
-        assertEquals(Result.failure("Applied migration V2 was changed after being applied"), result);
+        assertEquals(Result.failure(Errors.get().appliedMigrationChanged("2").value()), result);
     }
 
     @Test
@@ -103,13 +105,13 @@ abstract class MigratorContract {
         val dir = write(OK);
         migrator(dir).migrate().getOrThrow();
         Files.delete(dir.resolve("db/migration/V10__tenth_item.sql"));
-        assertEquals(Result.failure("Applied migration V10 is missing"), migrator(dir).pending());
+        assertEquals(Result.failure(Errors.get().appliedMigrationMissing("10").value()), migrator(dir).pending());
     }
 
     @Test
     void duplicateVersionsAreRejected() throws Exception {
         val migrator = migrator(write(Map.of("V1__a.sql", "select 1;", "V1__b.sql", "select 2;")));
-        assertEquals(Result.failure("Duplicate migration version 1"), migrator.migrate());
+        assertEquals(Result.failure(Errors.get().duplicateMigrationVersion("1").value()), migrator.migrate());
     }
 
     @Test
@@ -143,6 +145,6 @@ abstract class MigratorContract {
     void connectionFailureIsAFailure() throws Exception {
         val loader = new URLClassLoader(new URL[] {write(OK).toUri().toURL()}, null);
         val migrator = new Migrator(() -> { throw new SQLException("refused"); }, "db/migration", loader);
-        assertEquals(Result.failure("Migration failed: refused"), migrator.migrate());
+        assertEquals(Result.failure(Errors.get().migrationRunFailed("refused").value()), migrator.migrate());
     }
 }

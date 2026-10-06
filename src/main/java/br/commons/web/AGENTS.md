@@ -8,6 +8,7 @@ filtros prontos.
 |------------------------------|-------------------------------------------------------|
 | `RouteHandler`               | `HTTPResponse handle(WebRequest)`                     |
 | `ProblemDetail`              | Corpo de erro uniforme (RFC 7807 simplificado)        |
+| `ErrorPage`                  | HTML de erro por status: `html(request, status)`      |
 | `router/Router`              | Registro `método + template → handler`; `match`, `Allow` |
 | `router/Route`               | Rota registrada (fonte do OpenAPI)                    |
 | `router/RouteRule`           | Política de registro injetada no `Router`             |
@@ -19,6 +20,7 @@ filtros prontos.
 | `filter/PreflightFilter`     | Responde `OPTIONS` com `Allow` (sempre primeiro)      |
 | `filter/StaticFiles`         | Serve arquivos de classpath/diretório                 |
 | `filter/RequestLoggingFilter`| Loga `método path -> status`                          |
+| `filter/ErrorPages`          | Registro status → `ErrorPage` (inserido pelo `WebServer`) |
 
 ## 1. Recurso e rotas
 
@@ -58,6 +60,17 @@ server.register(new OrderResource()); server.start().ifFailure(Logger::error);
 ```
 
 `PreflightFilter` é inserido automaticamente antes dos seus filtros.
+
+Páginas de erro (qualquer status; registre antes do `start()`):
+
+```java
+server.defaultErrorPages().getOrThrow();                              // 404 e 500 embutidas
+server.errorPage(HTTPStatus.NOT_FOUND, "/errors/404.html").getOrThrow(); // classpath, substitui
+server.errorPage(HTTPStatus.FORBIDDEN, (req, st) -> pagina(req)).getOrThrow();
+```
+
+Só vale se `Accept` contém `text/html` (navegação); API/`fetch`/HTMX seguem
+com `ProblemDetail`. Resposta já HTML ou streaming passa intacta.
 
 ## 3. Corpo da requisição (`WebRequest.body`)
 
@@ -155,13 +168,21 @@ Pula log quando o path **começa** com um prefixo ignorado (padrão
 Responde `OPTIONS` antes dos filtros do cliente (preflight não carrega
 `Bearer`), usando o `Allow` pré-calculado; nenhum handler roda.
 
-## 13. Observações
+## 13. `ErrorPages`
+
+Primeiro filtro da cadeia (antes do `PreflightFilter`): cobre 404/405 do
+dispatcher e respostas de filtros (`StaticFiles`). Troca só o corpo:
+status, headers (ex.: `Allow`) e cookies originais ficam. Exceção na cadeia
+com página 500 registrada → loga e devolve a página; sem página → relança
+(`onFailure` do `HTTPServer`). Vazio por padrão; `freeze()` no `start()`.
+
+## 14. Observações
 
 - `Form.parse` lança `IllegalArgumentException` em percent-encoding inválido;
   `WebRequest.body(Form.class)` converte em `Failure`.
 - JSON usa `br.commons.serializer.Json` (`Json.from(...).as(type)`).
 
-## 14. Extensão
+## 15. Extensão
 
 | Necessidade              | Onde mexer                                          |
 |--------------------------|-----------------------------------------------------|

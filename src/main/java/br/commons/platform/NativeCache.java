@@ -1,5 +1,7 @@
 package br.commons.platform;
 
+import br.commons.i18n.Errors;
+
 import br.commons.Logger;
 import br.commons.Result;
 import lombok.val;
@@ -38,10 +40,10 @@ public class NativeCache<K> implements AutoCloseable {
     private static final LocalDateTime EPOCH_UTC = LocalDateTime.of(1970, 1, 1, 0, 0);
 
     /** Error returned by any operation after {@link #close()}. */
-    public static final String ERROR_CLOSED = "NativeCache is closed";
+    public static final String ERROR_CLOSED = Errors.get().nativeCacheClosed().value();
 
     /** Error for absent key. Constant: miss is routine, doesn't pay concatenation per call. */
-    public static final String ERROR_MISS = "NativeCache miss";
+    public static final String ERROR_MISS = Errors.get().nativeCacheMiss().value();
 
     public static final long NULL_LONG = Long.MIN_VALUE;
     public static final int  NULL_INT  = Integer.MIN_VALUE;

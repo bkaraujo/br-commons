@@ -1,5 +1,7 @@
 package br.commons;
 
+import br.commons.i18n.Errors;
+
 import br.commons.business.BusinessError;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -44,7 +46,7 @@ public sealed interface Result<T, E> permits Result.Success, Result.Failure {
             case Success<T, E>(T v) -> v;
             case Failure<T, E>(E e) -> {
                 Logger.fatal(() -> e.toString());
-                throw new RuntimeException("Result is a failure: " + e);
+                throw new RuntimeException(Errors.get().resultIsFailure(e).value());
             }
         };
     }
@@ -52,7 +54,7 @@ public sealed interface Result<T, E> permits Result.Success, Result.Failure {
     default T getOrThrow() {
         return switch (this) {
             case Success<T, E>(T v) -> v;
-            case Failure<T, E>(E e) -> throw new RuntimeException("Result is a failure: " + e);
+            case Failure<T, E>(E e) -> throw new RuntimeException(Errors.get().resultIsFailure(e).value());
         };
     }
 

@@ -1,5 +1,7 @@
 package br.commons.persistence.jdbc.pool;
 
+import br.commons.i18n.Errors;
+
 import org.jspecify.annotations.NullMarked;
 
 import java.sql.Connection;
@@ -35,7 +37,7 @@ public final class ConnectionWrapper implements Connection {
      */
     private void assertOpen() throws SQLException {
         if (closed) {
-            throw new SQLException("Connection already returned to pool");
+            throw new SQLException(Errors.get().connectionAlreadyReturned().value());
         }
     }
 
