@@ -97,6 +97,8 @@ public interface ErrorMessages {
     Text cacheReadInterrupted(Object partition);
     Text cacheWorkerNotTerminated(String seconds);
     Text cacheWorkerBusy(Object cause);
+    Text cacheWorkerNotRunning();
+    Text cacheRegionClosed(Object region);
     Text nativeCacheClosed();
     Text nativeCacheMiss();
 

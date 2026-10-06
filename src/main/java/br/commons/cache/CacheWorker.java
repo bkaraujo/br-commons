@@ -12,70 +12,45 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 /**
- * Single thread that serializes all off-heap cache maintenance. The public API returns
- * {@link Result} instead of throwing: whoever publishes the event is inside its own transaction and cannot
+ * The {@link CacheServer}'s single platform thread ({@code cache-worker}, not daemon), which serializes every write.
+ * Returns {@link Result} instead of throwing: whoever publishes the event is inside its own transaction and cannot
  * be crashed by a cache failure.
  *
  * <p>The verdict comes <b>inside</b> a {@link CompletableFuture} because the task's exception only
  * exists later, in the worker thread: returning a synchronous {@code Result} would be false success.
- * Those who only enqueue ignore the future; those who need to know (tests, diagnostics) wait for it.
+ * Outside {@link #start()}..{@link #stop()} a task is refused with {@code Failure}.
  */
 @NullMarked
-public final class CacheWorker {
+final class CacheWorker {
     private static final long AWAIT_SECONDS = 10;
 
-    private static final ExecutorService WORKER = Executors.newSingleThreadExecutor(
-            r -> { val t = new Thread(r, "cache-worker"); t.setDaemon(true); return t; });
+    private volatile @Nullable ExecutorService executor;
 
-    private CacheWorker() {}
+    synchronized void start() {
+        if (executor == null) {
+            executor = Executors.newSingleThreadExecutor(
+                    r -> Thread.ofPlatform().name("cache-worker").daemon(false).unstarted(r));
+        }
+    }
 
-    /** Never lets an exception escape: the event publisher is inside its own transaction. */
-    public static CompletableFuture<Result<Void, String>> submit(Runnable task) {
+    /** Runs the task's {@code Result} on the worker; an exception becomes {@code Failure}. */
+    CompletableFuture<Result<Void, String>> submit(Supplier<Result<Void, String>> task) {
+        val running = executor;
+        if (running == null) {
+            return CompletableFuture.completedFuture(Result.failure(Errors.get().cacheWorkerNotRunning().value()));
+        }
         try {
-            return CompletableFuture.runAsync(task, WORKER).handle(CacheWorker::verdict);
+            return CompletableFuture.supplyAsync(task, running).handle(CacheWorker::verdict);
         } catch (RejectedExecutionException e) {
-            return CompletableFuture.completedFuture(rejected(e));
+            Logger.error("Cache worker rejected task: %s", e.toString());
+            return CompletableFuture.completedFuture(Result.failure(e.toString()));
         }
     }
 
-    /**
-     * Like {@link #submit}, for tasks that already know how to report success: its {@code Result}
-     * passes through intact, without throwing an exception just so {@link #verdict} can reconstruct the message.
-     */
-    public static CompletableFuture<Result<Void, String>> submitResult(Supplier<Result<Void, String>> task) {
-        return supply(task).thenApply(outcome -> outcome.flatMap(inner -> inner));
-    }
-
-    public static <T> CompletableFuture<Result<T, String>> supply(Supplier<T> task) {
+    /** Waits for the pending tasks without stopping: the marker task is FIFO, the previous ones already ran. */
+    Result<Void, String> waitForPending() {
         try {
-            return CompletableFuture.supplyAsync(task, WORKER).handle(CacheWorker::verdict);
-        } catch (RejectedExecutionException e) {
-            return CompletableFuture.completedFuture(rejected(e));
-        }
-    }
-
-    public static Result<Void, String> awaitIdle() {
-        WORKER.shutdown();
-        try {
-            if (!WORKER.awaitTermination(AWAIT_SECONDS, TimeUnit.SECONDS)) {
-                WORKER.shutdownNow();
-                return Result.failure(Errors.get().cacheWorkerNotTerminated(String.valueOf(AWAIT_SECONDS)).value());
-            }
-            return Result.success();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            WORKER.shutdownNow();
-            return Result.failure(e.toString());
-        }
-    }
-
-    /**
-     * Waits for all pending tasks to complete WITHOUT shutting down the worker (for tests). The marker
-     * task is FIFO: when it runs, all previous tasks have already run.
-     */
-    public static Result<Void, String> waitForPending() {
-        try {
-            return submit(() -> {}).get(AWAIT_SECONDS, TimeUnit.SECONDS);
+            return submit(Result::success).get(AWAIT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return Result.failure(e.toString());
@@ -84,19 +59,33 @@ public final class CacheWorker {
         }
     }
 
+    /** Runs what is queued and ends the thread; a new {@link #start()} creates another. */
+    synchronized Result<Void, String> stop() {
+        val running = executor;
+        if (running == null) return Result.success();
+        executor = null;
+        running.shutdown();
+        try {
+            if (!running.awaitTermination(AWAIT_SECONDS, TimeUnit.SECONDS)) {
+                running.shutdownNow();
+                return Result.failure(Errors.get().cacheWorkerNotTerminated(String.valueOf(AWAIT_SECONDS)).value());
+            }
+            return Result.success();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            running.shutdownNow();
+            return Result.failure(e.toString());
+        }
+    }
+
     /** Converts the pair (value, exception) from {@code handle} into the task's verdict. */
-    private static <T> Result<T, String> verdict(@Nullable T value, @Nullable Throwable thrown) {
-        if (thrown == null) return Result.success(value);
+    private static Result<Void, String> verdict(@Nullable Result<Void, String> value, @Nullable Throwable thrown) {
+        if (thrown == null) return value == null ? Result.success() : value;
 
         val cause = thrown instanceof CompletionException && thrown.getCause() != null
                 ? thrown.getCause()
                 : thrown;
         Logger.error("Cache worker task failed: %s", cause.toString());
         return Result.failure(cause.toString());
-    }
-
-    private static <T> Result<T, String> rejected(RejectedExecutionException e) {
-        Logger.error("Cache worker rejected task: %s", e.toString());
-        return Result.failure(e.toString());
     }
 }

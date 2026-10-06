@@ -140,7 +140,7 @@ public class NativeCache<K> implements AutoCloseable {
      * Copies the live segments to a new arena and indexes the copies, then closes the old arena after
      * {@code grace}: memory becomes proportional to the live records again. A reader that still holds an old
      * segment keeps working during the grace; after it, the access throws {@link IllegalStateException} and the
-     * reader must look the key up again ({@code AbstractCache} does). Must not run concurrently with
+     * reader must look the key up again ({@code Cache} does). Must not run concurrently with
      * {@link #put}/{@link #remove} (single writer, e.g. the cache worker).
      */
     public Result<Void, String> compact(Duration grace) {

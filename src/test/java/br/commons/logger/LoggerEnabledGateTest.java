@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class LoggerEnabledGateTest {
 
-    private static final String CACHE_CLASS = "br.commons.cache.AbstractCache";
+    private static final String CACHE_CLASS = "br.commons.cache.Cache";
     private static final String CACHE_PKG = "br.commons.cache";
 
     @BeforeEach

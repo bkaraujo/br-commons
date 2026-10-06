@@ -1,6 +1,8 @@
 package br.commons.examples.htmx.tracker;
 
+import br.Application;
 import br.commons.Logger;
+import br.commons.annotation.Lifecycle;
 import br.commons.examples.htmx.tracker.entry.EntryInput;
 import br.commons.examples.htmx.tracker.entry.EntryStore;
 import br.commons.examples.htmx.tracker.person.Person;
@@ -47,31 +49,37 @@ import java.util.List;
  * The packages and how they depend on each other are in {@code package-info.java} of this package.
  */
 @NullMarked
-public final class TrackerApp {
+public final class TrackerApp extends Application {
 
     /** Read from disk while developing, so the CSS reloads without a rebuild; from the classpath otherwise. */
     private static final Path STATIC_DIR = Path.of("src/main/examples/static");
 
-    private TrackerApp() {}
+    private final int port;
 
-    static void main(String[] args) throws InterruptedException {
+    private TrackerApp(int port) {
+        this.port = port;
+    }
+
+    static void main(String[] args) {
+        val app = new TrackerApp(args.length > 0 ? Integer.parseInt(args[0]) : 5001);
+        app.run();
+        Logger.info("Horas em http://localhost:%d", app.port);
+    }
+
+    @Override
+    protected List<Lifecycle> modules() {
         val entries = new EntryStore();
         val projects = new Registry<Project>();
         val people = new Registry<Person>();
         val clock = Clock.systemDefaultZone();
         seed(entries, projects, people, Week.of(LocalDate.now(clock)));
 
-        val port = args.length > 0 ? Integer.parseInt(args[0]) : 5001;
         val assets = new StaticFiles("/static/", "static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO);
         val server = new WebServer(port, List.of(new RequestLoggingFilter(), assets));
         server.register(new WeekRoutes(new WeekState(entries, projects, people, clock)));
         server.register(new ProjectRoutes(projects, entries));
         server.register(new PersonRoutes(people, entries));
-        server.start().getOrThrow();
-
-        Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
-        Logger.info("Horas em http://localhost:%d", port);
-        Thread.currentThread().join();
+        return List.of(server);
     }
 
     /** Projects, people and some entries in the current week, to start with totals. */

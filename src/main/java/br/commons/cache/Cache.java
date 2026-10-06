@@ -21,49 +21,41 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.function.ToLongFunction;
 
 /**
- * Off-heap cache split into independent partitions. The partition is an opaque {@code String} chosen by the
- * caller (tenant, account, region...): {@link #load} fills one from the loader, {@link #unload} frees its native
- * memory, and every read or mutation targets one partition. Queries ({@link #find}, {@link #list}) are hot path: straight code,
- * no lambda, no key building and no instrumentation — the timer only exists if DEBUG is
- * on for this class. Mutations continue serialized in {@link CacheWorker} and timed
+ * Proxy of one {@link CacheRegion} inside the {@link CacheServer}: reads straight from the off-heap memory, writes
+ * on the server's worker thread. The region is split into independent partitions, an opaque {@code String} chosen by
+ * the caller (tenant, account, user...): {@link #load} fills one from {@link CacheRegion#load}, {@link #unload} frees
+ * its native memory, and every read or mutation targets one partition. Queries ({@link #find}, {@link #list}) are hot
+ * path: straight code, no lambda, no key building and no instrumentation — the timer only exists if DEBUG is
+ * on for this class. Mutations are serialized in the {@link CacheWorker} and timed
  * by {@link Execution}, which is cheap when the level doesn't pass.
  */
 @NullMarked
-public abstract class AbstractCache<T> {
+public final class Cache<T> {
     private static final long POPULATE_TIMEOUT_SECONDS = 2;
 
     /** Class for the log gate: constant, so {@link Logger#enabled(LogLevel, String)} doesn't have
      *  to scan the stack looking for the caller at each query. */
-    private static final String CALLER = Meta.fqn(AbstractCache.class);
+    private static final String CALLER = Meta.fqn(Cache.class);
 
+    private final CacheWorker worker;
+    private final CacheRegion<T> region;
     private final String prefix;
-    private final Function<String, List<T>> loader;
-    private final Function<T, UUID> keyer;
-    private final ToLongFunction<T> sizer;
-    private final BiConsumer<MemorySegment, T> writer;
+    /** Set by {@link #close()} when the {@link CacheServer} terminates: reads and writes fail from then on. */
+    private volatile boolean closed;
 
     private final ConcurrentHashMap<String, CompletableFuture<NativeCache<UUID>>> registry = new ConcurrentHashMap<>();
 
-    protected AbstractCache(String prefix,
-                            Function<String, List<T>> loader,
-                            Function<T, UUID> keyer,
-                            ToLongFunction<T> sizer,
-                            BiConsumer<MemorySegment, T> writer) {
-        this.prefix = prefix;
-        this.loader = loader;
-        this.keyer = keyer;
-        this.sizer = sizer;
-        this.writer = writer;
+    Cache(CacheWorker worker, CacheRegion<T> region) {
+        this.worker = worker;
+        this.region = region;
+        this.prefix = region.name() + ":";
     }
 
-    protected abstract T mapToDomain(MemorySegment segment);
-
     public CompletableFuture<Result<Void, String>> load(String partition) {
+        if (closed) return CompletableFuture.completedFuture(closedFailure());
         return Execution.nanos(CALLER, () -> {
             val future = new CompletableFuture<NativeCache<UUID>>();
             val previous = registry.put(partition, future);
@@ -71,11 +63,11 @@ public abstract class AbstractCache<T> {
             // native memory would leak. Readers still holding it re-read from the registry (see tolerantFind).
             if (previous != null) previous.thenAccept(NativeCache::close);
 
-            return CacheWorker.submitResult(() -> {
+            return worker.submit(() -> {
                 val cache = new NativeCache<UUID>();
                 val errors = new ArrayList<String>();
                 try {
-                    for (val model : loader.apply(partition)) {
+                    for (val model : region.load(partition)) {
                         store(cache, model).ifFailure(errors::add);
                     }
                 } finally {
@@ -106,6 +98,17 @@ public abstract class AbstractCache<T> {
         });
     }
 
+    /** Unloads every partition; the first failure, if any, is the outcome. */
+    /** Releases the region for good (called by {@link CacheServer#terminate()}): every partition is unloaded. */
+    CompletableFuture<Result<Void, String>> close() {
+        closed = true;
+        return unloadAll();
+    }
+
+    public CompletableFuture<Result<Void, String>> unloadAll() {
+        return firstFailure(registry.keySet().stream().map(this::unload).toList());
+    }
+
     public CompletableFuture<Result<Void, String>> upsert(String partition, T model) {
         return Execution.nanos(CALLER, () -> onCache(partition, cache -> compacting(cache, store(cache, model))));
     }
@@ -128,17 +131,21 @@ public abstract class AbstractCache<T> {
             val pending = registry.keySet().stream()
                     .map(partition -> onCache(partition, cache -> compacting(cache, cache.remove(id))))
                     .toList();
-
-            return CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new))
-                    .thenApply(ignored -> pending.stream()
-                            .map(CompletableFuture::join)
-                            .filter(Result::isFailure)
-                            .findFirst()
-                            .orElse(Result.success()));
+            return firstFailure(pending);
         });
     }
 
+    private static CompletableFuture<Result<Void, String>> firstFailure(List<CompletableFuture<Result<Void, String>>> pending) {
+        return CompletableFuture.allOf(pending.toArray(CompletableFuture[]::new))
+                .thenApply(ignored -> pending.stream()
+                        .map(CompletableFuture::join)
+                        .filter(Result::isFailure)
+                        .findFirst()
+                        .orElse(Result.success()));
+    }
+
     public Result<List<T>, String> list(String partition) {
+        if (closed) return closedFailure();
         if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return tolerantList(partition);
 
         val start = Time.nanos();
@@ -150,6 +157,7 @@ public abstract class AbstractCache<T> {
     }
 
     public Result<T, String> find(String partition, UUID id) {
+        if (closed) return closedFailure();
         if (!Logger.enabled(LogLevel.DEBUG, CALLER)) return tolerantFind(partition, id);
 
         val start = Time.nanos();
@@ -172,7 +180,7 @@ public abstract class AbstractCache<T> {
             try {
                 return doList(partition);
             } catch (IllegalStateException again) {
-                return Result.success(List.of());
+                return this.closed ? closedFailure() : Result.success(List.of());
             }
         }
     }
@@ -184,7 +192,7 @@ public abstract class AbstractCache<T> {
             try {
                 return doFind(partition, id);
             } catch (IllegalStateException again) {
-                return notFound(id);
+                return this.closed ? closedFailure() : notFound(id);
             }
         }
     }
@@ -215,18 +223,22 @@ public abstract class AbstractCache<T> {
 
     private Result<T, String> lookup(NativeCache<UUID> cache, UUID id) {
         val segment = cache.segment(id);
-        return segment == null ? notFound(id) : Result.success(mapToDomain(segment));
+        return segment == null ? notFound(id) : Result.success(region.read(segment));
     }
 
     private Result<List<T>, String> collect(NativeCache<UUID> cache) {
         val models = new ArrayList<T>(cache.count());
-        val traversal = cache.forEach((_, segment) -> models.add(mapToDomain(segment)));
+        val traversal = cache.forEach((_, segment) -> models.add(region.read(segment)));
         if (traversal instanceof Result.Failure<Void, String>(String error)) return Result.failure(error);
         return Result.success(models);
     }
 
     /** Only on miss: the message costs a {@code UUID.toString} and a concatenation, and this is where the
      *  {@code prefix} survives — in the key it was redundant, each cache has only its own type. */
+    private <R> Result<R, String> closedFailure() {
+        return Result.failure(Errors.get().cacheRegionClosed(region.name()).value());
+    }
+
     private Result<T, String> notFound(UUID id) {
         return Result.failure(Errors.get().cacheNotFound(prefix + id).value());
     }
@@ -265,10 +277,11 @@ public abstract class AbstractCache<T> {
     }
 
     private CompletableFuture<Result<Void, String>> onCache(String partition, Function<NativeCache<UUID>, Result<Void, String>> action) {
+        if (closed) return CompletableFuture.completedFuture(closedFailure());
         val future = registry.get(partition);
         if (future == null) return CompletableFuture.completedFuture(Result.success());
 
-        return CacheWorker.submitResult(() -> {
+        return worker.submit(() -> {
             val cache = future.getNow(null);
             if (cache == null || cache.isClosed()) return Result.success();
             return action.apply(cache);
@@ -276,9 +289,9 @@ public abstract class AbstractCache<T> {
     }
 
     private Result<Void, String> store(NativeCache<UUID> cache, T model) {
-        return cache.put(keyer.apply(model), sizer.applyAsLong(model))
+        return cache.put(region.key(model), region.size(model))
                 .flatMap(segment -> {
-                    writer.accept(segment, model);
+                    region.write(segment, model);
                     return Result.success();
                 });
     }

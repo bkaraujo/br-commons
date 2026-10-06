@@ -1,37 +1,37 @@
 # br.commons.cache — cache off-heap particionado
 
-Cache genérico de modelos de domínio, dividido em **partições** independentes
-(chave `String` opaca escolhida pelo chamador: tenant, conta, região...), guardado fora do heap
-(`br.commons.platform.NativeCache`), com manutenção serializada numa única
-thread e API que nunca lança.
+Servidor de cache off-heap (`br.commons.platform.NativeCache`), módulo da aplicação
+como o `WebServer`. Cada **região** guarda um tipo de modelo, dividida em **partições**
+(chave `String` opaca: tenant, conta, usuário...). Escrita serializada numa única thread;
+leitura direta na memória. API nunca lança.
 
-| Tipo               | Papel                                                         |
-|--------------------|---------------------------------------------------------------|
-| `AbstractCache<T>` | Base: populate por partição, leitura rápida, upsert/evict     |
-| `CacheWorker`      | Thread única `cache-worker`; tarefas devolvem `Result`        |
+| Tipo             | Papel                                                              |
+|------------------|--------------------------------------------------------------------|
+| `CacheServer`    | `Lifecycle`; registra regiões; dono da thread `cache-worker`       |
+| `CacheRegion<T>` | Definição da região: nome, loader, chave, layout binário           |
+| `Cache<T>`       | Proxy devolvido pelo `register`: lê direto, escreve via worker      |
+| `CacheWorker`    | Interno (package-private): a fila única de escrita                 |
 
-## 1. Definir um cache
-
-Subclasse informa: prefixo (mensagens), loader, chave, tamanho do registro,
-escritor e leitor binários.
+## 1. Registrar uma região
 
 ```java
-final class ItemCache extends AbstractCache<Item> {
-    ItemCache(ItemRepo repo) {
-        super("ITEM:",
-              repo::listByPartition,       // Function<String, List<Item>>
-              Item::id,                    // chave UUID
-              _ -> 24,                     // bytes do registro
-              (seg, it) -> {               // escrita
-                  NativeCache.writeUuid(seg, 0, it.id());
-                  seg.set(ValueLayout.JAVA_LONG_UNALIGNED, 16, it.amount());
-              });
+record ItemRegion(ItemRepo repo) implements CacheRegion<Item> {
+    public String name() { return "ITEM"; }                       // mensagens: "ITEM:<id>"
+    public List<Item> load(String partition) { return repo.listByPartition(partition); }
+    public UUID key(Item it) { return it.id(); }
+    public long size(Item it) { return 24; }                      // bytes do registro
+    public void write(MemorySegment seg, Item it) {
+        NativeCache.writeUuid(seg, 0, it.id());
+        seg.set(ValueLayout.JAVA_LONG_UNALIGNED, 16, it.amount());
     }
-    @Override protected Item mapToDomain(MemorySegment seg) {      // leitura
-        return new Item(NativeCache.readUuid(seg, 0),
-                        seg.get(ValueLayout.JAVA_LONG_UNALIGNED, 16));
+    public Item read(MemorySegment seg) {
+        return new Item(NativeCache.readUuid(seg, 0), seg.get(ValueLayout.JAVA_LONG_UNALIGNED, 16));
     }
 }
+
+val cacheServer = new CacheServer();
+Cache<Item> items = cacheServer.register(new ItemRegion(repo));
+// Application.modules(): List.of(cacheServer, ...) — antes de quem usa o cache
 ```
 
 ## 2. Ciclo de vida
@@ -55,39 +55,44 @@ enfileira; `join()` em teste/diagnóstico.
 - Populate em andamento → espera até **2 s**; timeout vira `Failure`.
 - Partição não carregada → `list` = lista vazia; `find` = falha `cacheNotFound`.
 
-## 4. `CacheWorker`
+## 4. `CacheServer` (ciclo de vida)
+
+`initialize()` cria a thread de plataforma não-daemon `cache-worker` (segura o
+processo, como o `WebServer`). `terminate()` drena as escritas, **libera** toda
+região (descarrega as partições) e encerra a thread. Região liberada: leitura e
+escrita → `Failure` `cacheRegionClosed` ("Região de cache ITEM foi liberada...");
+registre de novo após um novo `initialize()`. Antes do `initialize()`, escrita →
+`Failure` `cacheWorkerNotRunning`; leitura e `register` funcionam.
 
 ```java
-CacheWorker.submit(() -> ...);          // Runnable → Result
-CacheWorker.submitResult(() -> Result.success());
-CacheWorker.supply(() -> valor);        // Result<T,String>
-CacheWorker.waitForPending();           // testes: espera fila (FIFO) sem desligar
-CacheWorker.awaitIdle();                // shutdown definitivo (fim da app)
+cacheServer.initialize();
+cacheServer.waitForPending();          // testes: espera escritas enviadas (FIFO)
+cacheServer.terminate();
 ```
 
 ## 5. Regras rápidas para agentes
 
 1. Nunca deixe exceção sair de evento que mexe em cache: use a API `Result`.
-2. Layout binário: `sizer` e `writer`/`mapToDomain` precisam concordar em
+2. Layout binário: `size`, `write` e `read` da região precisam concordar em
    offsets e tamanho — mude os três juntos.
 3. Use `*_UNALIGNED` nos acessos (`ValueLayout.JAVA_LONG_UNALIGNED`).
-4. Em testes, `CacheWorker.waitForPending()` antes de asserts pós-mutação.
-5. Nunca chame `awaitIdle()` em teste: desliga o worker para sempre.
+4. Em testes, `cacheServer.waitForPending()` (ou `join()` do future) antes de asserts pós-mutação.
+5. Em teste, servidor próprio: `initialize()` em `@BeforeAll`, `terminate()` em `@AfterAll`.
 6. Sempre `unload` quando a partição não for mais usada (memória nativa não é coletada).
 7. Exemplo completo (cache por sessão de usuário): `src/main/examples/br/commons/examples/cache/session`.
-8. Teste de referência: `src/test/java/br/commons/cache/AbstractCacheTest.java` — `ItemCache`
+8. Teste de referência: `src/test/java/br/commons/cache/CacheTest.java` — `ItemRegion`
    mínimo (uuid + long, 24 bytes) e partições `east`/`west`; cobre hit/miss, partição
    não carregada, ordem do `list`, upsert/evict, `evictEverywhere`, `unload` e
    isolamento entre partições. Mudou a API? Ajuste e rode:
-   `mvn test -Dtest=AbstractCacheTest`.
+   `mvn test -Dtest=CacheTest`.
 
 ## 6. Checklist de revisão
 
-- [ ] Tamanho do `sizer` cobre todos os campos escritos.
-- [ ] `mapToDomain` lê os mesmos offsets que o `writer` escreve.
+- [ ] `size` cobre todos os campos escritos.
+- [ ] `read` lê os mesmos offsets que o `write` escreve.
 - [ ] Toda partição carregada tem `unload` correspondente.
 - [ ] Testes esperam o worker antes de verificar.
-- [ ] `AbstractCacheTest` cobre o comportamento novo e passa.
+- [ ] `CacheTest` cobre o comportamento novo e passa.
 
 ---
 
@@ -120,12 +125,13 @@ CacheWorker.awaitIdle();                // shutdown definitivo (fim da app)
 - Upsert enviado durante o populate pode ser descartado (cache ainda não
   pronto) e o loader pode ter lido estado antigo → janela de inconsistência
   logo após `load`.
-- `CacheWorker.WORKER` é estático e único: `awaitIdle()` é irreversível; toda
-  submissão posterior vira `Failure` (`RejectedExecutionException`).
+- Escrita antes de `CacheServer.initialize()` ou após `terminate()` vira `Failure`
+  (`cacheWorkerNotRunning`). A thread é não-daemon: segura o processo até o
+  `terminate()` (shutdown hook do `Application`).
 - Leituras rodam em qualquer thread, concorrentes com mutações na worker;
   a segurança disso depende de `NativeCache` (ver AGENTS de `platform`).
 - Instrumentação: `list`/`find` só medem tempo com DEBUG ligado para
-  `AbstractCache` (gate com `CALLER` constante); mutações via
+  `Cache` (gate com `CALLER` constante); mutações via
   `Execution.nanos(CALLER, ...)`.
 
 ## 9. Por que `Result` dentro de `CompletableFuture`

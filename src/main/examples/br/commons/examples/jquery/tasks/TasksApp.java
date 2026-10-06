@@ -1,6 +1,8 @@
 package br.commons.examples.jquery.tasks;
 
+import br.Application;
 import br.commons.Logger;
+import br.commons.annotation.Lifecycle;
 import br.commons.examples.jquery.tasks.api.TasksApi;
 import br.commons.examples.jquery.tasks.page.TasksPage;
 import br.commons.examples.jquery.tasks.task.TaskStore;
@@ -25,15 +27,25 @@ import java.util.List;
  * and {@code app.css}.
  */
 @NullMarked
-public final class TasksApp {
+public final class TasksApp extends Application {
 
     /** Read from disk while developing, so CSS and JavaScript reload without a rebuild; from the classpath otherwise. */
     private static final Path STATIC_DIR = Path.of("src/main/examples/static");
 
-    private TasksApp() {}
+    private final int port;
 
-    public static void main(String[] args) throws InterruptedException {
-        val port = args.length > 0 ? Integer.parseInt(args[0]) : 5000;
+    private TasksApp(int port) {
+        this.port = port;
+    }
+
+    public static void main(String[] args) {
+        val app = new TasksApp(args.length > 0 ? Integer.parseInt(args[0]) : 5000);
+        app.run();
+        Logger.info("Tarefas em http://localhost:%d", app.port);
+    }
+
+    @Override
+    protected List<Lifecycle> modules() {
         val store = new TaskStore();
         store.add("Ler a documentação do jQuery");
         store.add("Consumir a API JSON");
@@ -43,9 +55,6 @@ public final class TasksApp {
         val server = new WebServer(port, List.of(new RequestLoggingFilter(), assets));
         server.register(new TasksPage());
         server.register(new TasksApi(store));
-        server.start().getOrThrow();
-        Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
-        Logger.info("Tarefas em http://localhost:%d", port);
-        Thread.currentThread().join();
+        return List.of(server);
     }
 }

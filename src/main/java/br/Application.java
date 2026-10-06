@@ -10,6 +10,11 @@ import lombok.val;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Initializes the {@link #modules()} in order and terminates the ones that started, in reverse order, when the
+ * process ends: right after {@link #run()} when nothing keeps it alive, or on a signal (Ctrl+C) when a module runs a
+ * thread of its own (e.g. {@code WebServer}).
+ */
 public abstract class Application {
 
     private final List<Lifecycle> lifecycles = new ArrayList<>();
@@ -19,16 +24,18 @@ public abstract class Application {
     public void run() {
         val start = Time.millis();
         for (val lifecycle : modules()) {
-            Logger.debug("Initializing {}", Meta.fqn(lifecycle));
+            Logger.debug("Initializing %s", Meta.fqn(lifecycle));
             val result = lifecycle.initialize();
             result.ifFailure(BusinessError::toConsole);
             if (result.isSuccess()) lifecycles.add(lifecycle);
         }
+        Runtime.getRuntime().addShutdownHook(new Thread(this::terminate, "application-shutdown"));
+        Logger.info("Application started in %d ms", Time.millis() - start);
+    }
 
-        Logger.info("Application started in {} ms", Time.millis() - start);
-
+    private void terminate() {
         for (val lifecycle : lifecycles.reversed()) {
-            Logger.debug("Terminating {}", Meta.fqn(lifecycle));
+            Logger.debug("Terminating %s", Meta.fqn(lifecycle));
             lifecycle.terminate().ifFailure(BusinessError::toConsole);
         }
     }

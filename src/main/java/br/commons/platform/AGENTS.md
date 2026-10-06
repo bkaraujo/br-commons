@@ -113,7 +113,7 @@ String c = TerminalColor.ofHex("#ff8800");
   `IllegalStateException` (reler a chave).
 - `put` só aloca: `Arena.allocate` já devolve o segmento zerado.
 - `close()` com leitor concorrente: fechar arena compartilhada em uso pode
-  falhar/abortar acesso (`IllegalStateException`) no leitor. `AbstractCache`
+  falhar/abortar acesso (`IllegalStateException`) no leitor. `Cache`
   captura e relê uma vez via registro (ver `cache/AGENTS.md`).
 - Re-`put` de chave mantém a posição original na ordem.
 - `remove` em `ConcurrentLinkedQueue` é O(n).

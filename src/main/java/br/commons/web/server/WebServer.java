@@ -1,6 +1,8 @@
 package br.commons.web.server;
 
 import br.commons.Result;
+import br.commons.annotation.Lifecycle;
+import br.commons.business.BusinessError;
 import br.commons.http.server.HTTPFilter;
 import br.commons.http.server.HTTPServer;
 import br.commons.http.server.MultipartParser;
@@ -17,19 +19,25 @@ import org.jspecify.annotations.Nullable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Custody of the {@link HTTPServer} and unique registration point: whoever sets up the process
  * registers each {@link WebResource} with {@link #register(WebResource)}. Matching routes, applying
  * {@code produces} and responding 404/405/OPTIONS is the responsibility of the internal {@link WebDispatcher}.
+ *
+ * <p>As a {@link Lifecycle}, {@link #initialize()} runs the {@link HTTPServer} on a platform thread of its own
+ * (not daemon), which keeps the process alive until {@link #terminate()}.
  */
 @NullMarked
-public final class WebServer {
+public final class WebServer implements Lifecycle {
 
     private final Router router;
     private final WebDispatcher dispatcher;
     private final ErrorPages pages = new ErrorPages();
     private final HTTPServer server;
+    private final CountDownLatch stopped = new CountDownLatch(1);
 
     public WebServer(int port) {
         this(port, List.of());
@@ -108,6 +116,33 @@ public final class WebServer {
     /** Stops accepting connections and waits up to {@code grace} for the requests in progress. */
     public void stop(Duration grace) {
         server.stop(grace);
+    }
+
+    /** Starts on a new platform thread and waits for the outcome; the thread lives until {@link #terminate()}. */
+    @Override
+    public Result<Void, BusinessError> initialize() {
+        val started = new CompletableFuture<Result<Void, String>>();
+        Thread.ofPlatform().name("web-server").daemon(false).start(() -> {
+            val result = start();
+            started.complete(result);
+            if (result.isSuccess()) awaitStop();
+        });
+        return started.join().mapFailure(BusinessError.BusinessRule::new);
+    }
+
+    @Override
+    public Result<Void, BusinessError> terminate() {
+        stop();
+        stopped.countDown();
+        return Result.success();
+    }
+
+    private void awaitStop() {
+        try {
+            stopped.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     public int port() {

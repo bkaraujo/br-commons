@@ -5,6 +5,8 @@ import br.commons.i18n.Errors;
 import br.commons.Result;
 import br.commons.platform.NativeCache;
 import lombok.val;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.lang.foreign.MemorySegment;
@@ -17,7 +19,9 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class AbstractCacheTest {
+class CacheTest {
+
+    private static final CacheServer SERVER = new CacheServer();
 
     private static final String EAST = "east";
     private static final String WEST = "west";
@@ -27,28 +31,42 @@ class AbstractCacheTest {
     /** Layout mínimo: uuid (16) + amount (8). */
     private static final long SIZE = 24;
 
-    private static final class ItemCache extends AbstractCache<Item> {
-        ItemCache(Map<String, List<Item>> source) {
-            super("TEST:",
-                    partition -> source.getOrDefault(partition, List.of()),
-                    Item::id,
-                    _ -> SIZE,
-                    (segment, item) -> {
-                        NativeCache.writeUuid(segment, 0, item.id());
-                        segment.set(ValueLayout.JAVA_LONG_UNALIGNED, 16, item.amount());
-                    });
+    private record ItemRegion(Map<String, List<Item>> source) implements CacheRegion<Item> {
+        @Override public String name() { return "TEST"; }
+        @Override public List<Item> load(String partition) { return source.getOrDefault(partition, List.of()); }
+        @Override public UUID key(Item item) { return item.id(); }
+        @Override public long size(Item item) { return SIZE; }
+
+        @Override
+        public void write(MemorySegment segment, Item item) {
+            NativeCache.writeUuid(segment, 0, item.id());
+            segment.set(ValueLayout.JAVA_LONG_UNALIGNED, 16, item.amount());
         }
 
         @Override
-        protected Item mapToDomain(MemorySegment segment) {
+        public Item read(MemorySegment segment) {
             return new Item(
                     Objects.requireNonNull(NativeCache.readUuid(segment, 0)),
                     segment.get(ValueLayout.JAVA_LONG_UNALIGNED, 16));
         }
     }
 
-    private static ItemCache loaded(String partition, List<Item> items) {
-        val cache = new ItemCache(Map.of(partition, items));
+    private static Cache<Item> cache(Map<String, List<Item>> source) {
+        return SERVER.register(new ItemRegion(source));
+    }
+
+    @BeforeAll
+    static void startServer() {
+        assertTrue(SERVER.initialize().isSuccess());
+    }
+
+    @AfterAll
+    static void stopServer() {
+        assertTrue(SERVER.terminate().isSuccess());
+    }
+
+    private static Cache<Item> loaded(String partition, List<Item> items) {
+        val cache = cache(Map.of(partition, items));
         assertTrue(cache.load(partition).join().isSuccess());
         return cache;
     }
@@ -82,7 +100,7 @@ class AbstractCacheTest {
 
     @Test
     void testFindOnUnloadedPartitionIsMiss() {
-        val cache = new ItemCache(Map.of());
+        val cache = cache(Map.of());
         val id = UUID.randomUUID();
 
         assertEquals(Errors.get().cacheNotFound("TEST:" + id).value(), failureOf(cache.find(EAST, id)));
@@ -107,7 +125,7 @@ class AbstractCacheTest {
 
     @Test
     void testListOnUnloadedPartitionIsEmpty() {
-        val cache = new ItemCache(Map.of());
+        val cache = cache(Map.of());
 
         val listed = cache.list(EAST);
         assertTrue(listed.isSuccess());
@@ -139,7 +157,7 @@ class AbstractCacheTest {
     @Test
     void testEvictEverywhereHitsEveryPartition() {
         val shared = item(10);
-        val cache = new ItemCache(Map.of(EAST, List.of(shared), WEST, List.of(shared)));
+        val cache = cache(Map.of(EAST, List.of(shared), WEST, List.of(shared)));
         assertTrue(cache.load(EAST).join().isSuccess());
         assertTrue(cache.load(WEST).join().isSuccess());
 
@@ -170,7 +188,7 @@ class AbstractCacheTest {
     void testPartitionsDoNotSeeEachOther() {
         val mine = item(10);
         val yours = item(20);
-        val cache = new ItemCache(Map.of(EAST, List.of(mine), WEST, List.of(yours)));
+        val cache = cache(Map.of(EAST, List.of(mine), WEST, List.of(yours)));
         assertTrue(cache.load(EAST).join().isSuccess());
         assertTrue(cache.load(WEST).join().isSuccess());
 
@@ -193,7 +211,7 @@ class AbstractCacheTest {
         val items = new java.util.ArrayList<Item>();
         for (int i = 0; i < 200; i++) items.add(item(i));
         val probe = items.get(100);
-        val cache = new ItemCache(Map.of(EAST, items));
+        val cache = cache(Map.of(EAST, items));
         val stop = new java.util.concurrent.atomic.AtomicBoolean();
         val errors = new java.util.concurrent.CopyOnWriteArrayList<Throwable>();
 
@@ -222,8 +240,8 @@ class AbstractCacheTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static NativeCache<UUID> nativeOf(ItemCache cache, String partition) throws Exception {
-        val field = AbstractCache.class.getDeclaredField("registry");
+    private static NativeCache<UUID> nativeOf(Cache<Item> cache, String partition) throws Exception {
+        val field = Cache.class.getDeclaredField("registry");
         field.setAccessible(true);
         val registry = (Map<String, java.util.concurrent.CompletableFuture<NativeCache<UUID>>>) field.get(cache);
         return registry.get(partition).join();
@@ -286,5 +304,22 @@ class AbstractCacheTest {
         assertEquals(List.of(), errors);
         assertEquals(0, misses.get());
         cache.unload(EAST).join();
+    }
+
+    @Test
+    void terminateReleasesRegionsAndReadsFail() {
+        val server = new CacheServer();
+        assertTrue(server.initialize().isSuccess());
+        val stored = item(10);
+        val cache = server.register(new ItemRegion(Map.of(EAST, List.of(stored))));
+        assertTrue(cache.load(EAST).join().isSuccess());
+
+        assertTrue(server.terminate().isSuccess());
+
+        val released = Errors.get().cacheRegionClosed("TEST").value();
+        assertEquals(released, failureOf(cache.find(EAST, stored.id())));
+        assertEquals(released, failureOf(cache.list(EAST)));
+        assertEquals(released, failureOf(cache.upsert(EAST, stored).join()));
+        assertEquals(released, failureOf(cache.load(EAST).join()));
     }
 }

@@ -1,5 +1,6 @@
 package br.commons.examples.cache.session;
 
+import br.commons.cache.Cache;
 import br.commons.Result;
 import org.jspecify.annotations.NullMarked;
 
@@ -11,9 +12,9 @@ import java.util.concurrent.CompletableFuture;
  */
 @NullMarked
 public final class UserSessions {
-    private final CartCache carts;
+    private final Cache<CartItem> carts;
 
-    public UserSessions(CartCache carts) {
+    public UserSessions(Cache<CartItem> carts) {
         this.carts = carts;
     }
 

@@ -1,6 +1,11 @@
 package br.commons.examples.cache.session;
 
+import br.Application;
 import br.commons.Logger;
+import br.commons.Result;
+import br.commons.annotation.Lifecycle;
+import br.commons.business.BusinessError;
+import br.commons.cache.CacheServer;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
@@ -15,17 +20,32 @@ import java.util.UUID;
  * <p>Run with {@code mvn -Pexamples compile exec:java -Dexamples.main=br.commons.examples.cache.session.SessionCacheApp}.
  */
 @NullMarked
-public final class SessionCacheApp {
+public final class SessionCacheApp extends Application implements Lifecycle {
+
+    private final CacheServer cacheServer = new CacheServer();
 
     private SessionCacheApp() {}
 
+    /** The cache server thread keeps the process alive: once the scenario ran, exit, which terminates the modules. */
     public static void main(String[] args) {
+        new SessionCacheApp().run();
+        System.exit(0);
+    }
+
+    @Override
+    protected List<Lifecycle> modules() {
+        return List.of(cacheServer, this);
+    }
+
+    /** The whole scenario runs on start, after the cache server. */
+    @Override
+    public Result<Void, BusinessError> initialize() {
         val discontinued = new CartItem(UUID.randomUUID(), 1, 4_990);
         val database = Map.of(
                 "ana", List.of(discontinued, new CartItem(UUID.randomUUID(), 2, 1_500)),
                 "caio", List.of(discontinued));
 
-        val carts = new CartCache(userId -> database.getOrDefault(userId, List.of()));
+        val carts = cacheServer.register(new CartRegion(userId -> database.getOrDefault(userId, List.of())));
         val sessions = new UserSessions(carts);
 
         sessions.login("ana").join();
@@ -45,5 +65,6 @@ public final class SessionCacheApp {
         sessions.logout("ana").join();
         sessions.logout("caio").join();
         Logger.info("ana after logout: %s", carts.list("ana").get());
+        return Result.success();
     }
 }
