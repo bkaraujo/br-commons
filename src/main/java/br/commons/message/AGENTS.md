@@ -209,7 +209,7 @@ record MessageProcessor(Object container, MethodHandle handle)
 - Retorno é cast para `MessageResult`. Hoje o bus descarta o valor.
 - `Throwable` checked → `RuntimeException` cuja mensagem vem de
   `Errors.get().messageProcessingFailed(Meta.fqn(message), cause)` (bundle
-  `br/commons/i18n/errors*.properties`, chave `messageProcessingFailed`);
+  `br/commons/locale/l10n/errors*.properties`, chave `messageProcessingFailed`);
   `RuntimeException`/`Error` relançadas sem embrulho.
 
 ## 13. Pontos de extensão sugeridos

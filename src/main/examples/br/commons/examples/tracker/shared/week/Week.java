@@ -7,7 +7,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.IsoFields;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
@@ -17,8 +16,6 @@ import java.util.stream.Stream;
 @NullMarked
 public record Week(LocalDate monday) {
 
-    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd/MM");
-    private static final DateTimeFormatter DAY_YEAR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public static Week of(LocalDate date) {
         return new Week(date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)));
@@ -59,8 +56,8 @@ public record Week(LocalDate monday) {
         return !date.isBefore(monday) && !date.isAfter(sunday());
     }
 
-    /** {@code 28/09 a 04/10/2026}. */
+    /** {@code 28/09 – 04/10/2026}, in the locale of the process. */
     public String label() {
-        return DAY.format(monday) + " a " + DAY_YEAR.format(sunday());
+        return Hours.range(monday, sunday());
     }
 }

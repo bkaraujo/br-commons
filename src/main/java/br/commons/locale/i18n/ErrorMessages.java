@@ -3,7 +3,7 @@ package br.commons.locale.i18n;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * Every error message of the library: one method per key of {@code br/commons/i18n/errors_<locale>.properties}
+ * Every error message of the library: one method per key of {@code br/commons/locale/l10n/errors_<locale>.properties}
  * (pt-BR and en-US). Obtain it with {@link Errors#get()}; placeholders are the parameter names.
  * Numbers that must not get thousands separators (port, year, position) are taken as {@code String}.
  */

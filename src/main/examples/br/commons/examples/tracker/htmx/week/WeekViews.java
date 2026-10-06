@@ -4,10 +4,7 @@ import br.commons.examples.tracker.htmx.ui.Ui;
 import br.commons.examples.tracker.shared.entry.Entry;
 import br.commons.examples.tracker.shared.registry.Registered;
 import br.commons.examples.tracker.shared.registry.Registry;
-import br.commons.examples.tracker.shared.week.EntryFields;
-import br.commons.examples.tracker.shared.week.Week;
-import br.commons.examples.tracker.shared.week.WeekState;
-import br.commons.examples.tracker.shared.week.WeekTotals;
+import br.commons.examples.tracker.shared.week.*;
 import br.commons.html.ButtonType;
 import br.commons.html.FormMethod;
 import br.commons.html.core.Content;
@@ -23,8 +20,10 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static br.commons.examples.tracker.htmx.ui.Ui.hours;
 import static br.commons.examples.tracker.htmx.ui.Ui.message;
@@ -38,7 +37,6 @@ import static br.commons.htmx.Htmx.*;
 @NullMarked
 final class WeekViews {
 
-    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("EEE dd/MM", Locale.forLanguageTag("pt-BR"));
 
     /** The hidden field with the person of the filter, which saving and deleting send to keep the view. */
     static final String VIEW_PERSON = "view-person";
@@ -172,7 +170,7 @@ final class WeekViews {
         val path = "/entries/" + entry.id();
         return tr(
                 id("entry-" + entry.id()),
-                td(time(datetime(entry.date().toString()), text(Text.data(DAY.format(entry.date()))))),
+                td(time(datetime(entry.date().toString()), text(Text.data(Hours.day(entry.date()))))),
                 td(text(Text.data(state.people().nameOf(entry.personId())))),
                 td(text(Text.data(state.projects().nameOf(entry.projectId())))),
                 td(cls("description"), text(Text.data(entry.description()))),
@@ -234,7 +232,7 @@ final class WeekViews {
                         strong(time(datetime(totals.total().toString()), text(Text.data(hours(totals.total())))))),
                 h3(text(message("Por dia"))),
                 ul(cls("days"), each(totals.byDay().entrySet(), day -> li(
-                        span(cls("day"), text(Text.data(DAY.format(day.getKey())))),
+                        span(cls("day"), text(Text.data(Hours.day(day.getKey())))),
                         meter(min("0"), max("10"), low("4"), high("9"), optimum("8"),
                                 value(Ui.decimal(day.getValue())), title(Text.data(hours(day.getValue())))),
                         span(cls("num"), text(Text.data(hours(day.getValue()))))))),

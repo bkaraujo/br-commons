@@ -1,24 +1,25 @@
 package br.commons.locale.i18n;
 
+import br.commons.locale.l10n.Locales;
 import lombok.val;
+import org.jspecify.annotations.NullMarked;
 
 import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
+/**
+ * The locale of the process and the texts of the application's {@code messages} bundle. The locale comes from the
+ * system property {@value #LOCALE_PROPERTY} (language tag, default {@code pt-BR}), reduced to a supported one by
+ * {@link Locales#supported}.
+ */
+@NullMarked
 public abstract class I18N {
 
     public static final String LOCALE_PROPERTY = "br.commons.locale";
-    public static final Locale PT_BR = Locale.of("pt", "BR");
-    public static final Locale EN_US = Locale.of("en", "US");
-
 
     public static Locale locale() {
-        return supported(Locale.forLanguageTag(System.getProperty(LOCALE_PROPERTY, "pt-BR").strip()));
-    }
-
-    public static Locale supported(Locale locale) {
-        return "pt".equals(locale.getLanguage()) ? PT_BR : EN_US;
+        return Locales.supported(Locale.forLanguageTag(System.getProperty(LOCALE_PROPERTY, "pt-BR").strip()));
     }
 
     public static String of(String key, Object... args) {

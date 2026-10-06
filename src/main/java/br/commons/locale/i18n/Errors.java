@@ -1,5 +1,6 @@
 package br.commons.locale.i18n;
 
+import br.commons.locale.l10n.Locales;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
@@ -12,14 +13,14 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Error messages of the whole library, in the locale of {@value #LOCALE_PROPERTY} (system property, language tag,
  * default {@code pt-BR}). Supported: pt-BR and en-US; any other language falls back to en-US. Messages come from
- * {@code br/commons/i18n/errors_<locale>.properties} through the typed {@link ErrorMessages}; HTTP status
- * descriptions from {@code br/commons/i18n/http_status_<locale>.properties}.
+ * {@code br/commons/locale/l10n/errors_<locale>.properties} through the typed {@link ErrorMessages}; HTTP status
+ * descriptions from {@code br/commons/locale/l10n/http_status_<locale>.properties}.
  */
 @NullMarked
 public final class Errors {
 
-    private static final String ERRORS = "br/commons/i18n/errors";
-    private static final String HTTP_STATUS = "br/commons/i18n/http_status";
+    private static final String ERRORS = "br/commons/locale/l10n/errors";
+    private static final String HTTP_STATUS = "br/commons/locale/l10n/http_status";
     private static final Map<Locale, ErrorMessages> MESSAGES = new ConcurrentHashMap<>();
 
     private Errors() {}
@@ -30,7 +31,7 @@ public final class Errors {
     }
 
     public static ErrorMessages get(Locale locale) {
-        return MESSAGES.computeIfAbsent(I18N.supported(locale), l -> Bundles.of(ErrorMessages.class, ERRORS, l));
+        return MESSAGES.computeIfAbsent(Locales.supported(locale), l -> Bundles.of(ErrorMessages.class, ERRORS, l));
     }
 
 

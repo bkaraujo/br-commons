@@ -17,13 +17,12 @@ import java.util.Locale;
 
 /**
  * Formatting in a locale, never with a fixed pattern in code: patterns come from CLDR skeletons
- * ({@link DateTimeFormatter#ofLocalizedPattern}). The currency is always BRL (intent §5.7).
+ * ({@link DateTimeFormatter#ofLocalizedPattern}). Money is written in its own currency ({@link CurrencyAmount#currency()},
+ * BRL by default) with the symbols and grouping of the locale.
  * In {@code pt-BR}: {@code R$ 1.234,56}, {@code 30/09/2026}, {@code setembro de 2026}, {@code 82%}.
  */
 @NullMarked
 public final class Formats {
-
-    private static final Currency BRL = Currency.getInstance("BRL");
 
     private final Locale locale;
     private final DateTimeFormatter dayMonthYear;
@@ -46,10 +45,16 @@ public final class Formats {
         return locale;
     }
 
-    public String brl(BigDecimal amount) {
+    /** {@code amount} in {@code currency}, written the way the locale writes money ({@code R$ 1.234,56}). */
+    public String money(BigDecimal amount, Currency currency) {
         val format = NumberFormat.getCurrencyInstance(locale);
-        format.setCurrency(BRL);
+        format.setCurrency(currency);
         return format.format(amount);
+    }
+
+    /** {@link #money} in {@link CurrencyAmount#BRL}. */
+    public String brl(BigDecimal amount) {
+        return money(amount, CurrencyAmount.BRL);
     }
 
     public String number(Number value) {
@@ -90,7 +95,7 @@ public final class Formats {
     public String argument(Object value) {
         return switch (value) {
             case Text text -> text.value();
-            case CurrencyAmount money -> brl(money.amount());
+            case CurrencyAmount money -> money(money.amount(), money.currency());
             case LocalDate date -> dayMonthYear(date);
             case DayMonth date -> dayMonth(date.date());
             case YearMonth month -> monthLong(month);

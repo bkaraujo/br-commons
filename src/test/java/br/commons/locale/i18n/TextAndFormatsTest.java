@@ -1,7 +1,5 @@
-package br.commons.i18n;
+package br.commons.locale.i18n;
 
-import br.commons.locale.i18n.Formats;
-import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 
@@ -39,6 +37,20 @@ class TextAndFormatsTest {
         assertEquals("set. de 2026", fmt.monthShort(YearMonth.of(2026, 9)));
         assertEquals("1.234,5", fmt.number(new BigDecimal("1234.5")));
         assertEquals(Locale.of("pt", "BR"), fmt.locale());
+    }
+
+    /** The currency comes from the value: dollars in pt-BR are still dollars, written the pt-BR way. */
+    @Test
+    void formatsMoneyInItsOwnCurrency() {
+        val usd = java.util.Currency.getInstance("USD");
+        CurrencyAmount dollars = new CurrencyAmount() {
+            @Override public BigDecimal amount() { return new BigDecimal("1234.5"); }
+            @Override public java.util.Currency currency() { return usd; }
+        };
+        val written = fmt.argument(dollars);
+        assertEquals(fmt.money(new BigDecimal("1234.5"), usd), written);
+        assertTrue(written.startsWith("US$") && written.endsWith("1.234,50"), written);
+        assertEquals(fmt.brl(BigDecimal.TEN), fmt.argument((CurrencyAmount) () -> BigDecimal.TEN));
     }
 
     @Test

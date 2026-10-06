@@ -1,10 +1,7 @@
-package br.commons.i18n;
+package br.commons.locale.i18n;
 
 import br.commons.http.HTTPStatus;
-import br.commons.locale.i18n.Bundles;
-import br.commons.locale.i18n.ErrorMessages;
-import br.commons.locale.i18n.Errors;
-import br.commons.locale.i18n.I18N;
+import br.commons.locale.l10n.Locales;
 import lombok.val;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -26,15 +23,15 @@ class ErrorsTest {
 
     @Test
     void errorBundleIsCompleteInEverySupportedLocale() {
-        for (val locale : new Locale[] {I18N.PT_BR, I18N.EN_US}) {
-            assertEquals(java.util.List.of(), Bundles.check(ErrorMessages.class, "br/commons/i18n/errors", locale), locale.toString());
+        for (val locale : new Locale[] {Locales.PT_BR, Locales.EN_US}) {
+            assertEquals(java.util.List.of(), Bundles.check(ErrorMessages.class, "br/commons/locale/l10n/errors", locale), locale.toString());
         }
     }
 
     @Test
     void everyRegisteredHttpStatusHasADescriptionInEverySupportedLocale() throws IllegalAccessException {
-        for (val locale : new Locale[] {I18N.PT_BR, I18N.EN_US}) {
-            val bundle = ResourceBundle.getBundle("br/commons/i18n/http_status", locale,
+        for (val locale : new Locale[] {Locales.PT_BR, Locales.EN_US}) {
+            val bundle = ResourceBundle.getBundle("br/commons/locale/l10n/http_status", locale,
                     ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES));
             for (val field : HTTPStatus.class.getFields()) {
                 if (!Modifier.isStatic(field.getModifiers()) || field.getType() != HTTPStatus.class) continue;
@@ -61,7 +58,7 @@ class ErrorsTest {
     @Test
     void unsupportedLanguageFallsBackToEnglish() {
         System.setProperty(I18N.LOCALE_PROPERTY, "fr-FR");
-        assertEquals(I18N.EN_US, I18N.locale());
+        assertEquals(Locales.EN_US, I18N.locale());
     }
 
     @Test

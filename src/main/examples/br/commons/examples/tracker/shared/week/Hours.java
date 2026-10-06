@@ -1,5 +1,6 @@
 package br.commons.examples.tracker.shared.week;
 
+import br.commons.locale.i18n.I18N;
 import org.jspecify.annotations.NullMarked;
 
 import java.time.Duration;
@@ -7,11 +8,16 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-/** How hours and days are written on both screens: {@code 7h30}, {@code 7.50} (for a meter), {@code seg 28/09}. */
+/**
+ * How hours and days are written on both screens: {@code 7h30}, {@code 7.50} (for a meter), and dates in the locale of
+ * the process ({@link I18N#locale()}), from CLDR skeletons: {@code ter., 06/10} in pt-BR, {@code Tue, 10/6} in en-US.
+ */
 @NullMarked
 public final class Hours {
 
-    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("EEE dd/MM", Locale.forLanguageTag("pt-BR"));
+    private static final DateTimeFormatter DAY = DateTimeFormatter.ofLocalizedPattern("MEd").withLocale(I18N.locale());
+    private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofLocalizedPattern("Md").withLocale(I18N.locale());
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofLocalizedPattern("yMd").withLocale(I18N.locale());
 
     private Hours() {}
 
@@ -25,8 +31,13 @@ public final class Hours {
         return String.format(Locale.ROOT, "%.2f", duration.toMinutes() / 60.0);
     }
 
-    /** {@code seg 28/09}. */
+    /** {@code seg., 28/09}. */
     public static String day(LocalDate date) {
         return DAY.format(date);
+    }
+
+    /** {@code 28/09 – 04/10/2026}. */
+    public static String range(LocalDate first, LocalDate last) {
+        return DAY_MONTH.format(first) + " – " + DATE.format(last);
     }
 }
