@@ -61,27 +61,15 @@ server.register(new OrderResource()); server.start().ifFailure(Logger::error);
 
 `PreflightFilter` é inserido automaticamente antes dos seus filtros.
 
-Páginas de erro (qualquer status; registre antes do `start()`):
-
-```java
-server.defaultErrorPages().getOrThrow();                              // 404 e 500 embutidas
-server.errorPage(HTTPStatus.NOT_FOUND, "/errors/404.html").getOrThrow(); // classpath, substitui
-server.errorPage(HTTPStatus.FORBIDDEN, (req, st) -> pagina(req)).getOrThrow();
-```
-
-Só vale se `Accept` contém `text/html` (navegação); API/`fetch`/HTMX seguem
-com `ProblemDetail`. Resposta já HTML ou streaming passa intacta.
+Páginas de erro, qualquer status, antes do `start()` (ver §13):
+`server.defaultErrorPages()` (404/500 embutidas),
+`server.errorPage(HTTPStatus.NOT_FOUND, "/errors/404.html")` ou `errorPage(status, (req, st) -> html)`.
 
 ## 3. Corpo da requisição (`WebRequest.body`)
 
-| `consumes` da rota     | Tipo aceito em `body(type)`  |
-|------------------------|------------------------------|
-| `APPLICATION_JSON`     | qualquer (via `Json`)        |
-| `TEXT_PLAIN`           | `String`                     |
-| `URL_ENCODED`          | `Form`                       |
-| `MULTIPART_FORM_DATA`  | `Multipart`                  |
-
-Lido pelo `consumes` da **rota**, nunca pelo `Content-Type` do cliente.
+Tipo aceito por `consumes` da **rota** (nunca pelo `Content-Type` do cliente):
+`APPLICATION_JSON` → qualquer (via `Json`); `TEXT_PLAIN` → `String`;
+`URL_ENCODED` → `Form`; `MULTIPART_FORM_DATA` → `Multipart`.
 
 ## 4. Respostas
 
@@ -122,7 +110,7 @@ WebResponse.eventStream(out -> ...);            // SSE
    com corpo/stream, força `Content-Type` = `route.produces()`. Não-2xx passa
    intacta.
 3. Não casou: `allowHeader(path)` — se algum template casa com outro método →
-   405 `ProblemDetail` + `Allow`; senão 404 "Rota não encontrada".
+   405 `ProblemDetail` + `Allow`; senão 404 (`routeNotFound`, i18n).
 4. Exceção do handler → `HTTPServer.onFailure` = `WebResponse.internalServerError()`
    (500 com `ProblemDetail`).
 
@@ -169,6 +157,10 @@ Responde `OPTIONS` antes dos filtros do cliente (preflight não carrega
 `Bearer`), usando o `Allow` pré-calculado; nenhum handler roda.
 
 ## 13. `ErrorPages`
+
+Só vale se `Accept` contém `text/html` (navegação); API/`fetch`/HTMX seguem
+com `ProblemDetail`. Resposta já HTML ou streaming passa intacta. Páginas
+embutidas usam `Errors` (texto e `lang` no `br.commons.locale`).
 
 Primeiro filtro da cadeia (antes do `PreflightFilter`): cobre 404/405 do
 dispatcher e respostas de filtros (`StaticFiles`). Troca só o corpo:

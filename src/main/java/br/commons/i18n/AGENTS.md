@@ -68,9 +68,7 @@ Chave ausente não lança: formata a própria chave (ver `br.commons.business`).
 
 ## 4.1 Erros da própria lib (`Errors`)
 
-```java
-Result.failure(Errors.get().routerFrozen(method, template).value());
-```
+`Result.failure(Errors.get().routerFrozen(method, template).value());`
 
 Todo `Result.failure`/exceção/`ProblemDetail` do `br.commons` usa
 `ErrorMessages` (`br/commons/i18n/errors_{pt_BR,en_US}.properties`).

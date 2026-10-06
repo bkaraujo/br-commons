@@ -150,7 +150,7 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 - Cada arquivo na sua transação; checksum SHA-256 verificado em todo start —
   arquivo aplicado alterado ou removido impede o start.
 - Lock: PostgreSQL `pg_advisory_lock` (cobre várias máquinas); H2 lock por
-  URL na JVM. Outro banco → `Failure("Unsupported database")`.
+  URL na JVM. Outro banco → `Failure` (`unsupportedDatabase`).
 - H2: DDL comita implícito — migração que falha deixa o DDL anterior à falha.
 - `pending()` para readiness check. `ConnectionFactory` usa credencial de dono
   do schema, fora do pool da aplicação.

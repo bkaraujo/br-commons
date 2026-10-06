@@ -39,7 +39,7 @@ final class ItemCache extends AbstractCache<Item> {
 ```java
 cache.load(partition);                  // popula async (loader na cache-worker)
 cache.list(partition);                  // Result<List<T>, String>
-cache.find(partition, id);              // Result<T, String>; miss = failure "not found: ITEM:<id>"
+cache.find(partition, id);              // Result<T, String>; miss = failure `cacheNotFound` ("Não encontrado: ITEM:<id>")
 cache.upsert(partition, model);         // async
 cache.evict(partition, id);             // async
 cache.evictEverywhere(id);              // todas as partições
@@ -53,7 +53,7 @@ enfileira; `join()` em teste/diagnóstico.
 
 - Cache pronto → leitura direta, sem lock, sem alocação extra.
 - Populate em andamento → espera até **2 s**; timeout vira `Failure`.
-- Partição não carregada → `list` = lista vazia; `find` = `not found`.
+- Partição não carregada → `list` = lista vazia; `find` = falha `cacheNotFound`.
 
 ## 4. `CacheWorker`
 
@@ -103,7 +103,7 @@ CacheWorker.awaitIdle();                // shutdown definitivo (fim da app)
   completado no `finally` mesmo se o loader lançar → leitores não ficam
   presos; o erro vira `Failure` do populate.
 - Falhas de `store` por item são acumuladas: populate parcial devolve
-  `Failure("cache populate incomplete ...")`, mas o cache fica utilizável.
+  `Failure` com `cachePopulateIncomplete`, mas o cache fica utilizável.
 - `live()` = caminho quente: `getNow(null)` + `isClosed()`.
 - `awaited()` = caminho raro: `get(2s)`, trata timeout/interrupt.
 - Mutações (`onCache`) rodam na worker; se o cache ainda não está pronto ou

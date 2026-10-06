@@ -11,7 +11,7 @@ Referência: https://developer.mozilla.org/en-US/docs/Web/HTTP
 | `message/HTTPMessage`              | Headers (nomes minúsculos) + body em bytes; `X-REQUEST-ID` |
 | `message/HTTPRequest`/`HTTPResponse` | Contratos de requisição e resposta              |
 | `message/HTTPMethod`               | `GET, POST, PUT, PATCH, DELETE, OPTIONS`           |
-| `HTTPStatus`                       | Constantes 1xx–5xx; `custom(code, ...)` validado   |
+| `HTTPStatus`                       | Constantes 1xx–5xx; `custom(code, ...)` validado; `description()` via i18n |
 | `MediaType`                        | Enum de MIME; `contentType()` com charset          |
 | `Cookie`                           | `Set-Cookie`; `session(...)`, `expired(...)`       |
 | `HTTPSession`                      | Atributos por requisição, chave = request id       |
