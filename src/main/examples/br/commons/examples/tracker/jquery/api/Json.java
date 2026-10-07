@@ -2,12 +2,12 @@ package br.commons.examples.tracker.jquery.api;
 
 import br.commons.Result;
 import br.commons.examples.tracker.shared.Ids;
-import br.commons.html.form.Violation;
-import br.commons.http.HTTPStatus;
-import br.commons.http.message.HTTPResponse;
+import br.commons.lang.html.form.Violation;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.ProblemDetail;
 import br.commons.web.server.WebRequest;
-import br.commons.web.server.WebResponse;
+import br.commons.web.WebResponse;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

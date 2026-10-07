@@ -1,6 +1,6 @@
 package br.commons.examples.tracker.shared.week;
 
-import br.commons.html.form.InputType;
+import br.commons.lang.html.form.InputType;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

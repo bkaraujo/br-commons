@@ -1,6 +1,6 @@
 package br.commons.web;
 
-import br.commons.http.HTTPStatus;
+import br.commons.protocol.http.HTTPStatus;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 

@@ -1,10 +1,11 @@
 package br.commons.web.server;
 
-import br.commons.http.HTTPStatus;
-import br.commons.http.MediaType;
-import br.commons.http.server.HTTPFilter;
-import br.commons.http.server.Ports;
-import br.commons.http.server.message.HTTPServerResponse;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.protocol.http.MediaType;
+import br.commons.protocol.http.server.HTTPFilter;
+import br.commons.protocol.http.server.Ports;
+import br.commons.protocol.http.server.message.HTTPServerResponse;
+import br.commons.web.WebResponse;
 import br.commons.web.router.Router;
 import lombok.val;
 import org.junit.jupiter.api.Test;

@@ -1,6 +1,6 @@
 package br.commons.locale.i18n;
 
-import br.commons.locale.l10n.Locales;
+import br.commons.locale.l10n.L10N;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
@@ -11,7 +11,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Error messages of the whole library, in the locale of {@value #LOCALE_PROPERTY} (system property, language tag,
+ * Error messages of the whole library, in the locale of {@value L10N#LOCALE_PROPERTY} (system property, language tag,
  * default {@code pt-BR}). Supported: pt-BR and en-US; any other language falls back to en-US. Messages come from
  * {@code br/commons/locale/l10n/errors_<locale>.properties} through the typed {@link ErrorMessages}; HTTP status
  * descriptions from {@code br/commons/locale/l10n/http_status_<locale>.properties}.
@@ -27,17 +27,17 @@ public final class Errors {
 
     /** Messages in the configured locale; one validated proxy per locale, created on first use. */
     public static ErrorMessages get() {
-        return get(I18N.locale());
+        return get(L10N.locale());
     }
 
     public static ErrorMessages get(Locale locale) {
-        return MESSAGES.computeIfAbsent(Locales.supported(locale), l -> Bundles.of(ErrorMessages.class, ERRORS, l));
+        return MESSAGES.computeIfAbsent(L10N.supported(locale), l -> Bundles.of(ErrorMessages.class, ERRORS, l));
     }
 
 
     /** Description of a registered HTTP status code in the configured locale. */
     public static String httpStatus(int code) {
-        val bundle = ResourceBundle.getBundle(HTTP_STATUS, I18N.locale(), Errors.class.getClassLoader(),
+        val bundle = ResourceBundle.getBundle(HTTP_STATUS, L10N.locale(), Errors.class.getClassLoader(),
                 ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES));
         try {
             return bundle.getString(Integer.toString(code));

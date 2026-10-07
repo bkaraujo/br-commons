@@ -1,7 +1,7 @@
 package br.commons.serializer.document.builder;
 
 import br.commons.serializer.Serializer;
-import br.commons.serializer.Yaml;
+import br.commons.lang.Yaml;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

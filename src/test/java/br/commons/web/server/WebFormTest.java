@@ -1,11 +1,12 @@
 package br.commons.web.server;
 
 import br.commons.Result;
-import br.commons.http.HTTPStatus;
-import br.commons.http.MediaType;
-import br.commons.http.message.HTTPMethod;
-import br.commons.http.server.message.HTTPServerRequest;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.protocol.http.MediaType;
+import br.commons.protocol.http.message.HTTPMethod;
+import br.commons.protocol.http.server.message.HTTPServerRequest;
 import br.commons.locale.i18n.Errors;
+import br.commons.web.WebResponse;
 import br.commons.web.router.Router;
 import lombok.val;
 import org.junit.jupiter.api.Test;

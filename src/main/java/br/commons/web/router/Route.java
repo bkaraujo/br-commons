@@ -1,7 +1,7 @@
 package br.commons.web.router;
 
-import br.commons.http.MediaType;
-import br.commons.http.message.HTTPMethod;
+import br.commons.protocol.http.MediaType;
+import br.commons.protocol.http.message.HTTPMethod;
 import br.commons.web.RouteHandler;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

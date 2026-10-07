@@ -10,12 +10,12 @@ traduções e a lista do que existe. Um pacote para cada:
 | `i18n.Bundles`          | Proxy de interface sobre `ResourceBundle`; valida no `of`    |
 | `i18n.Text`             | Texto visível: `message` (bundle) ou `data` (dado do usuário) |
 | `i18n.Formats`          | Formata por locale (CLDR): dinheiro, número, %, datas        |
-| `i18n.I18N`             | `locale()` do processo; `of(key, [locale,] args)` (bundle `messages`) |
+| `i18n.I18N`             | `of(key, [locale,] args)` (bundle `messages` da aplicação)  |
 | `i18n.Errors`           | `get()`/`get(locale)` → `ErrorMessages`; `httpStatus(code)`  |
 | `i18n.ErrorMessages`    | Interface tipada: um método por erro da lib                  |
 | `i18n.CurrencyAmount`   | Dinheiro do domínio: `amount()` + `currency()` (padrão BRL)  |
 | `i18n.DayMonth`         | `LocalDate` formatado como "12 de set."                      |
-| `l10n.Locales`          | `PT_BR`, `EN_US`, `SUPPORTED`, `supported(locale)`           |
+| `l10n.L10N`             | `PT_BR`, `EN_US`, `SUPPORTED`, `supported(locale)`, `locale()` do processo |
 | `l10n/*.properties`     | `errors_<locale>`, `http_status_<locale>` (classpath)        |
 
 Regra de dependência: `l10n` não conhece `i18n`; `i18n` lê `l10n`.
@@ -28,7 +28,7 @@ public interface UiText {
     Text total(CurrencyAmount amount, YearMonth month);
     Text color(Color c);                            // color_RED=Vermelho, color_BLUE=Azul
 }
-UiText ui = Bundles.of(UiText.class, "messages/ui", Locales.PT_BR);
+UiText ui = Bundles.of(UiText.class, "messages/ui", L10N.PT_BR);
 ui.greeting("Maria", LocalDate.now()).value();     // "Olá, Maria! Hoje é 05/10/2026."
 ```
 
@@ -54,7 +54,7 @@ Direto: `new Formats(locale).money(valor, Currency.getInstance("USD"))` → `US$
 Text.message("Salvar");                   // interface (normalmente via bundle)
 Text.data(categoria.nome());              // dado do usuário/banco, como está
 I18N.of("order.not_found", locale, id);   // bundle "messages" da aplicação
-I18N.locale();                            // br.commons.locale → Locales.supported
+L10N.locale();                            // propriedade br.commons.locale → L10N.supported
 Errors.get().routerFrozen(method, template).value();   // erro da lib, locale do processo
 ```
 
@@ -77,7 +77,7 @@ Chave ausente em `I18N.of` não lança: formata a própria chave. Todo erro da l
 2. Erro novo na lib → método em `ErrorMessages` + chave em todo
    `l10n/errors_<locale>.properties`; nunca literal. Número sem milhar
    (porta, ano) → parâmetro `String`.
-3. Locale novo → `.properties` de todo bundle de `l10n` + `Locales.SUPPORTED`
+3. Locale novo → `.properties` de todo bundle de `l10n` + `L10N.SUPPORTED`
    e `supported()`; rode `ErrorsTest`.
 4. Nunca monte texto visível com concatenação; use placeholder.
 5. Data/dinheiro em view: passe `LocalDate`/`YearMonth`/`CurrencyAmount`, nunca string pronta.
@@ -86,7 +86,7 @@ Chave ausente em `I18N.of` não lança: formata a própria chave. Todo erro da l
 
 ## 6. Checklist de revisão
 
-- [ ] `Bundles.check(type, base, locale)` vazio para cada `Locales.SUPPORTED`.
+- [ ] `Bundles.check(type, base, locale)` vazio para cada `L10N.SUPPORTED`.
 - [ ] Nenhuma chave órfã nos `.properties`; build com `-parameters`.
 - [ ] `Text.data` só para conteúdo vindo de dados.
 

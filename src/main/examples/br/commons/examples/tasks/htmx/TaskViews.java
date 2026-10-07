@@ -2,20 +2,20 @@ package br.commons.examples.tasks.htmx;
 
 import br.commons.examples.tasks.shared.Task;
 import br.commons.examples.tasks.shared.TaskFields;
-import br.commons.html.ButtonType;
-import br.commons.html.FormMethod;
-import br.commons.html.core.Node;
-import br.commons.html.form.Violation;
-import br.commons.html.html5.CrossOrigin;
-import br.commons.htmx.HxSwap;
+import br.commons.lang.html.ButtonType;
+import br.commons.lang.html.FormMethod;
+import br.commons.lang.html.core.Node;
+import br.commons.lang.html.form.Violation;
+import br.commons.lang.html.html5.CrossOrigin;
+import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
 import java.util.List;
 
-import static br.commons.html.html5.Html5.*;
-import static br.commons.htmx.Htmx.*;
+import static br.commons.lang.Html5.*;
+import static br.commons.lang.Htmx.*;
 
 /**
  * The page and its fragments, rendered on the server. What changes with the tab, the search or a task is inside

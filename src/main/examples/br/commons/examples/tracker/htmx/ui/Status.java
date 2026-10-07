@@ -1,10 +1,10 @@
 package br.commons.examples.tracker.htmx.ui;
 
-import br.commons.html.core.Node;
+import br.commons.lang.html.core.Node;
 import org.jspecify.annotations.NullMarked;
 
 import static br.commons.examples.tracker.htmx.ui.Ui.message;
-import static br.commons.html.html5.Html5.*;
+import static br.commons.lang.Html5.*;
 
 /** The badge of an active or inactive register item. */
 @NullMarked

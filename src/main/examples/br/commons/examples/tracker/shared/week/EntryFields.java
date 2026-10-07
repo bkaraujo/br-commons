@@ -7,7 +7,7 @@ import br.commons.examples.tracker.shared.entry.Entry;
 import br.commons.examples.tracker.shared.entry.EntryInput;
 import br.commons.examples.tracker.shared.registry.Registered;
 import br.commons.examples.tracker.shared.registry.Registry;
-import br.commons.html.form.*;
+import br.commons.lang.html.form.*;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

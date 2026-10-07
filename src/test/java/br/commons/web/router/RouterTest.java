@@ -1,9 +1,9 @@
 package br.commons.web.router;
 
 import br.commons.Result;
-import br.commons.http.MediaType;
-import br.commons.http.message.HTTPMethod;
-import br.commons.web.server.WebResponse;
+import br.commons.protocol.http.MediaType;
+import br.commons.protocol.http.message.HTTPMethod;
+import br.commons.web.WebResponse;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

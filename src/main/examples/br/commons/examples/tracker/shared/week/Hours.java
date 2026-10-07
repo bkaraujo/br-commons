@@ -1,6 +1,6 @@
 package br.commons.examples.tracker.shared.week;
 
-import br.commons.locale.i18n.I18N;
+import br.commons.locale.l10n.L10N;
 import org.jspecify.annotations.NullMarked;
 
 import java.time.Duration;
@@ -10,14 +10,14 @@ import java.util.Locale;
 
 /**
  * How hours and days are written on both screens: {@code 7h30}, {@code 7.50} (for a meter), and dates in the locale of
- * the process ({@link I18N#locale()}), from CLDR skeletons: {@code ter., 06/10} in pt-BR, {@code Tue, 10/6} in en-US.
+ * the process ({@link L10N#locale()}), from CLDR skeletons: {@code ter., 06/10} in pt-BR, {@code Tue, 10/6} in en-US.
  */
 @NullMarked
 public final class Hours {
 
-    private static final DateTimeFormatter DAY = DateTimeFormatter.ofLocalizedPattern("MEd").withLocale(I18N.locale());
-    private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofLocalizedPattern("Md").withLocale(I18N.locale());
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofLocalizedPattern("yMd").withLocale(I18N.locale());
+    private static final DateTimeFormatter DAY = DateTimeFormatter.ofLocalizedPattern("MEd").withLocale(L10N.locale());
+    private static final DateTimeFormatter DAY_MONTH = DateTimeFormatter.ofLocalizedPattern("Md").withLocale(L10N.locale());
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofLocalizedPattern("yMd").withLocale(L10N.locale());
 
     private Hours() {}
 

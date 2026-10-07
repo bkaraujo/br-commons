@@ -1,18 +1,18 @@
 package br.commons.examples.tasks.jquery.page;
 
 import br.commons.examples.tasks.shared.TaskFields;
-import br.commons.html.ButtonType;
-import br.commons.html.core.Node;
-import br.commons.html.html5.CrossOrigin;
-import br.commons.http.HTTPStatus;
-import br.commons.http.MediaType;
+import br.commons.lang.html.ButtonType;
+import br.commons.lang.html.core.Node;
+import br.commons.lang.html.html5.CrossOrigin;
 import br.commons.locale.i18n.Text;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.protocol.http.MediaType;
 import br.commons.web.router.Router;
 import br.commons.web.server.WebResource;
-import br.commons.web.server.WebResponse;
+import br.commons.web.WebResponse;
 import org.jspecify.annotations.NullMarked;
 
-import static br.commons.html.html5.Html5.*;
+import static br.commons.lang.Html5.*;
 
 /**
  * {@code GET /}: the skeleton of the page, written with the library's HTML 5 DSL and holding no data. jQuery

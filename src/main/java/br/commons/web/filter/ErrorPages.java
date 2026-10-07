@@ -2,17 +2,17 @@ package br.commons.web.filter;
 
 import br.commons.Logger;
 import br.commons.Result;
-import br.commons.http.HTTPStatus;
-import br.commons.http.MediaType;
-import br.commons.http.message.HTTPMessage;
-import br.commons.http.message.HTTPRequest;
-import br.commons.http.message.HTTPResponse;
-import br.commons.http.server.HTTPFilter;
-import br.commons.http.server.HTTPHandler;
 import br.commons.locale.i18n.Errors;
-import br.commons.locale.i18n.I18N;
+import br.commons.locale.l10n.L10N;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.protocol.http.MediaType;
+import br.commons.protocol.http.message.HTTPMessage;
+import br.commons.protocol.http.message.HTTPRequest;
+import br.commons.protocol.http.message.HTTPResponse;
+import br.commons.protocol.http.server.HTTPFilter;
+import br.commons.protocol.http.server.HTTPHandler;
 import br.commons.web.ErrorPage;
-import br.commons.web.server.WebResponse;
+import br.commons.web.WebResponse;
 import com.google.errorprone.annotations.CheckReturnValue;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -128,7 +128,7 @@ public final class ErrorPages implements HTTPFilter {
                 <body><main><h1>%1$d</h1><p>%3$s</p><p><a href="/">%5$s</a></p></main></body>
                 </html>
                 """.formatted(status.code(), escape(status.name()), escape(status.description()),
-                I18N.locale().toLanguageTag(), escape(Errors.get().errorPageBackHome().value()));
+                L10N.locale().toLanguageTag(), escape(Errors.get().errorPageBackHome().value()));
     }
 
     private static String escape(String text) {

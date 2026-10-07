@@ -1,6 +1,6 @@
 package br.commons.examples.tasks.shared;
 
-import br.commons.html.form.*;
+import br.commons.lang.html.form.*;
 import org.jspecify.annotations.NullMarked;
 
 import java.util.List;

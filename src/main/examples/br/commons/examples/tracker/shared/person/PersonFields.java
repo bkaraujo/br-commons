@@ -2,7 +2,7 @@ package br.commons.examples.tracker.shared.person;
 
 import br.commons.Result;
 import br.commons.examples.tracker.shared.registry.Registry;
-import br.commons.html.form.*;
+import br.commons.lang.html.form.*;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 

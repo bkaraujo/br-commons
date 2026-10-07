@@ -10,13 +10,13 @@ import br.commons.examples.tracker.shared.project.ProjectFields;
 import br.commons.examples.tracker.shared.project.ProjectInput;
 import br.commons.examples.tracker.shared.registry.Registered;
 import br.commons.examples.tracker.shared.registry.Registry;
-import br.commons.html.form.Violation;
-import br.commons.http.MediaType;
-import br.commons.http.message.HTTPResponse;
+import br.commons.lang.html.form.Violation;
+import br.commons.protocol.http.MediaType;
+import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.router.Router;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
-import br.commons.web.server.WebResponse;
+import br.commons.web.WebResponse;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 

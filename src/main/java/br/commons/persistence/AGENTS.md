@@ -107,7 +107,7 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
   públicos; nome padrão `"default"`, timeout padrão `connectionTimeout`.
 - Abertura: adquire conexão, registra em `live`, roda `TransactionInitializer`;
   falha do initializer → rollback + close + `Failure`
-  (`Errors.transactionInitializerFailed`).
+  (`ErrorMessages.transactionInitializerFailed`).
 - `markRollbackOnly` envenena: o externo faz rollback mesmo com sucesso.
 - `commit`/`rollback` em nível aninhado são no-op.
 - `afterCommit` (de `DataSource`) anexa à transação externa mais recente
@@ -121,7 +121,7 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 
 - `query`/`execute`/`transaction` abrem (ou participam de) transação e
   **lançam** em falha: `Failure` (abrir, SQL) → `IllegalStateException` com a
-  mensagem; commit → `IllegalStateException` (`Errors.commitFailed`);
+  mensagem; commit → `IllegalStateException` (`ErrorMessages.commitFailed`);
   `RuntimeException` do trabalho → rollback e relançada **intacta** (tipo e
   causa, ex.: `BusinessException`).
 - `inTransaction`: falha ao abrir ou no commit → `IllegalStateException` com
@@ -141,7 +141,7 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 - `save` = upsert nativo: PostgreSQL `INSERT ... ON CONFLICT (pk) DO UPDATE`
   (atômico); H2 `MERGE ... USING`, repetido até 3× em violação de PK (23505),
   porque o MERGE do H2 não é atômico entre transações; esgotado →
-  `IllegalStateException` (`Errors.saveFailed`). Respeita
+  `IllegalStateException` (`ErrorMessages.saveFailed`). Respeita
   `updateImmutableColumns`. Banco desconhecido → SELECT + INSERT/UPDATE na
   mesma transação (ainda sujeito a corrida).
 - `findAll` sem paginação. `insert`/`update`/`save` devolvem a entidade.
@@ -149,7 +149,7 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
 ## 10. Pool (`ConnectionPool`)
 
 - Contadores atômicos; `aquire(timeout)` espera até o limite →
-  `Results.poolExhausted` (`Errors.poolTimeout`). Pool fechado →
+  `Results.poolExhausted` (`ErrorMessages.poolTimeout`). Pool fechado →
   `resourceIsClosed`; conexão inválida é descartada e a aquisição repetida.
 - Manutenção: remove ociosas além de `idleTimeout` mantendo `minPoolSize`;
   recria até o mínimo. `maxLifetime` recicla conexões antigas.

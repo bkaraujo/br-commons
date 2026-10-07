@@ -1,12 +1,12 @@
 package br.commons.web.server;
 
 import br.commons.Result;
-import br.commons.http.MediaType;
-import br.commons.http.Multipart;
-import br.commons.http.message.HTTPMethod;
-import br.commons.http.message.HTTPRequest;
+import br.commons.lang.Json;
 import br.commons.locale.i18n.Errors;
-import br.commons.serializer.Json;
+import br.commons.protocol.http.MediaType;
+import br.commons.protocol.http.Multipart;
+import br.commons.protocol.http.message.HTTPMethod;
+import br.commons.protocol.http.message.HTTPRequest;
 import br.commons.web.router.Route;
 import br.commons.web.router.Router;
 import com.google.errorprone.annotations.CheckReturnValue;

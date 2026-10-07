@@ -1,6 +1,6 @@
 package br.commons.web;
 
-import br.commons.http.message.HTTPResponse;
+import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.router.Router;
 import br.commons.web.server.WebRequest;
 import org.jspecify.annotations.NullMarked;

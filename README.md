@@ -24,24 +24,23 @@ em compilação (JSpecify + NullAway).
 | Pacote | Conteúdo |
 |---|---|
 | `br.commons` | `Result`, `Logger`, `Meta`, `Strings`, `Threads`, `Platform` |
-| `business` | `BusinessError` (chave de tradução + args) e `BusinessException` |
-| `cache` | Cache off-heap particionado (`AbstractCache`, `CacheWorker`) |
+| `business` | `BusinessError` (chave de tradução + args), `BusinessException` e `BusinessEvent` |
+| `cache` | Cache off-heap particionado (`Cache`, `CacheRegion`, `CacheServer`, `CacheWorker`) |
 | `cdi` | `Context`: registro global de singletons |
 | `chrono` | Tempo e datas (`Time`, `Dates`) |
 | `debug` | Cronometragem condicional (`Execution`) |
-| `html` | DSL HTML 4/5 tipada, com escape e formulários |
-| `htmx` | Atributos `hx-*`, leitura e escrita dos headers htmx |
-| `http` | Servidor HTTP puro (`HTTPServer`), cookies, multipart, sessão por requisição |
-| `i18n` | Textos traduzidos por interface + bundle, formatação por locale |
+| `lang` | Linguagens, uma fachada cada: `Html4`/`Html5` (DSL HTML tipada, com escape e formulários), `Htmx` (atributos `hx-*` e headers htmx), `Json`/`Yaml` (formatos do `serializer`) |
+| `locale` | `i18n` (textos por interface + bundle, formatação por locale) e `l10n` (locales suportados e bundles da lib) |
 | `logger` | Canais (console, arquivo, arquivo diário), MDC, ponte JUL |
 | `message` | `MessageBus`: mensagens in-process |
 | `persistence` | `DataSource` com pool, transações, `JDBCRepository`, `Migrator`, `Storage` |
 | `platform` | SO, terminal e rede via FFM; `NativeCache` (memória off-heap) |
-| `serializer` | JSON/YAML sobre um modelo de documento comum |
+| `protocol` | `http`: servidor HTTP puro (`HTTPServer`), cookies, multipart, sessão por requisição |
+| `serializer` | Modelo de documento comum (`Serializer`) lido de JSON/YAML (`lang`) |
 | `text` | Normalização de texto |
-| `web` | Rotas, JSON, `WebServer` e filtros sobre `http` |
+| `web` | Rotas, JSON, `WebServer` e filtros sobre `protocol.http` |
 
-Cada pacote tem um `src/main/java/br/commons/locale/i18n/AGENTS.md` com uso, regras, checklist de revisão e
+Cada pacote tem um `AGENTS.md` com uso, regras, checklist de revisão e
 detalhes de implementação — é a documentação de referência.
 
 ## Exemplo rápido

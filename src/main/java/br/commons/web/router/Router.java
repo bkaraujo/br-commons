@@ -1,9 +1,9 @@
 package br.commons.web.router;
 
 import br.commons.Result;
-import br.commons.http.MediaType;
-import br.commons.http.message.HTTPMethod;
 import br.commons.locale.i18n.Errors;
+import br.commons.protocol.http.MediaType;
+import br.commons.protocol.http.message.HTTPMethod;
 import br.commons.web.RouteHandler;
 import com.google.errorprone.annotations.CheckReturnValue;
 import lombok.val;

@@ -2,19 +2,20 @@ package br.commons.examples.tracker.htmx.ui;
 
 import br.commons.examples.tracker.shared.Ids;
 import br.commons.examples.tracker.shared.week.Hours;
-import br.commons.html.core.Content;
-import br.commons.html.core.Node;
-import br.commons.html.form.Field;
-import br.commons.html.form.Violation;
-import br.commons.htmx.HtmxRequest;
-import br.commons.htmx.HxSwap;
-import br.commons.htmx.SwapSpec;
-import br.commons.http.HTTPStatus;
-import br.commons.http.message.HTTPRequest;
-import br.commons.http.message.HTTPResponse;
+import br.commons.lang.html.Html;
+import br.commons.lang.html.core.Content;
+import br.commons.lang.html.core.Node;
+import br.commons.lang.html.form.Field;
+import br.commons.lang.html.form.Violation;
+import br.commons.lang.htmx.HtmxRequest;
+import br.commons.lang.htmx.HxSwap;
+import br.commons.lang.htmx.SwapSpec;
 import br.commons.locale.i18n.Text;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.protocol.http.message.HTTPRequest;
+import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.server.WebRequest;
-import br.commons.web.server.WebResponse;
+import br.commons.web.WebResponse;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -24,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-import static br.commons.html.html5.Html5.*;
+import static br.commons.lang.Html5.*;
 
 /**
  * What the screens share: htmx from the CDN, formats, the error next to a field and request helpers. Names avoid
@@ -62,7 +63,7 @@ public final class Ui {
                 .filter(violation -> violation.field().equals(field.name()))
                 .findFirst()
                 .map(violation -> (Node) small(cls("error"), role("alert"), text(message(messages.apply(violation)))))
-                .orElseGet(() -> fragment());
+                .orElseGet(Html::fragment);
     }
 
     public static Content[] join(Content[] extra, Content... more) {

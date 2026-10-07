@@ -1,7 +1,7 @@
 package br.commons.web.server;
 
-import br.commons.http.MediaType;
-import br.commons.http.message.HTTPRequest;
+import br.commons.protocol.http.MediaType;
+import br.commons.protocol.http.message.HTTPRequest;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 

@@ -6,6 +6,7 @@ import br.commons.annotation.Lifecycle;
 import br.commons.business.BusinessError;
 import br.commons.chrono.Time;
 import lombok.val;
+import org.jspecify.annotations.NullMarked;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,7 @@ import java.util.List;
  * process ends: right after {@link #run()} when nothing keeps it alive, or on a signal (Ctrl+C) when a module runs a
  * thread of its own (e.g. {@code WebServer}).
  */
+@NullMarked
 public abstract class Application {
 
     private final List<Lifecycle> lifecycles = new ArrayList<>();

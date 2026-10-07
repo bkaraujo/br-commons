@@ -22,7 +22,7 @@ Texto só nasce em `render(locale)`, no locale de quem pede (request HTTP):
 
 ```java
 String msg = error.render(request.locale());
-error.render();      // locale de `br.commons.locale` (I18N.locale())
+error.render();      // locale do processo (L10N.locale(), propriedade br.commons.locale)
 error.toConsole();   // Logger.error(render())
 ```
 
@@ -85,7 +85,7 @@ Listener com parâmetro `BusinessEvent` recebe todos os eventos de domínio.
 ## 6. Resolução de texto
 
 `BusinessError.render` delega a `I18N.of(key, locale, args)` (`render()` sem
-locale usa `I18N.of(key, args)` → `I18N.locale()`):
+locale usa `I18N.of(key, args)` → `L10N.locale()`):
 
 - Busca `ResourceBundle` `messages` (classpath da aplicação; a lib não traz
   um) com fallback padrão do JDK.
@@ -107,9 +107,8 @@ iguais. Ao criar nova variante, repita os três métodos.
 - `BusinessException` resolve a mensagem no construtor (custo de bundle +
   format em cada criação). Não use em laço quente como controle de fluxo.
 - `LOG_LOCALE` é `pt-BR` fixo por decisão: logs e time em pt-BR.
-- Mapeamento para status HTTP fica fora do pacote. O javadoc cita
-  `DomainExceptionMapper`, mas ele **não existe** no código atual — ao criar
-  variante nova, revise os `switch`/mappers da aplicação.
+- Mapeamento para status HTTP fica fora do pacote (não há mapper na lib) —
+  ao criar variante nova, revise os `switch`/mappers da aplicação.
 
 ## 9. Pontos de extensão
 

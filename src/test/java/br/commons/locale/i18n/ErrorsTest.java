@@ -1,7 +1,7 @@
 package br.commons.locale.i18n;
 
-import br.commons.http.HTTPStatus;
-import br.commons.locale.l10n.Locales;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.locale.l10n.L10N;
 import lombok.val;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -18,19 +18,19 @@ class ErrorsTest {
 
     @AfterEach
     void reset() {
-        System.clearProperty(I18N.LOCALE_PROPERTY);
+        System.clearProperty(L10N.LOCALE_PROPERTY);
     }
 
     @Test
     void errorBundleIsCompleteInEverySupportedLocale() {
-        for (val locale : new Locale[] {Locales.PT_BR, Locales.EN_US}) {
+        for (val locale : new Locale[] {L10N.PT_BR, L10N.EN_US}) {
             assertEquals(java.util.List.of(), Bundles.check(ErrorMessages.class, "br/commons/locale/l10n/errors", locale), locale.toString());
         }
     }
 
     @Test
     void everyRegisteredHttpStatusHasADescriptionInEverySupportedLocale() throws IllegalAccessException {
-        for (val locale : new Locale[] {Locales.PT_BR, Locales.EN_US}) {
+        for (val locale : new Locale[] {L10N.PT_BR, L10N.EN_US}) {
             val bundle = ResourceBundle.getBundle("br/commons/locale/l10n/http_status", locale,
                     ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES));
             for (val field : HTTPStatus.class.getFields()) {
@@ -50,15 +50,15 @@ class ErrorsTest {
 
     @Test
     void propertySwitchesToEnglish() {
-        System.setProperty(I18N.LOCALE_PROPERTY, "en-US");
+        System.setProperty(L10N.LOCALE_PROPERTY, "en-US");
         assertEquals("Route not found", Errors.get().routeNotFound().value());
         assertEquals("Resource not found", HTTPStatus.NOT_FOUND.description());
     }
 
     @Test
     void unsupportedLanguageFallsBackToEnglish() {
-        System.setProperty(I18N.LOCALE_PROPERTY, "fr-FR");
-        assertEquals(Locales.EN_US, I18N.locale());
+        System.setProperty(L10N.LOCALE_PROPERTY, "fr-FR");
+        assertEquals(L10N.EN_US, L10N.locale());
     }
 
     @Test

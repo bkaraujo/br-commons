@@ -1,13 +1,13 @@
 # br.commons.serializer — ler, criar e persistir documentos
 
-Documentos JSON e YAML lidos para uma representação interna comum e consultados
-por uma única API. Formatos só leem/validam (e o YAML persiste).
+Documentos JSON e YAML (formatos em `br.commons.lang`, ver §8) lidos para uma
+representação interna comum e consultados por uma única API. Formatos só leem/validam (e o YAML persiste).
 
 | Tipo                               | Papel                                                          |
 |------------------------------------|----------------------------------------------------------------|
 | `Serializer`                       | **Única API de leitura**; também `builder(...)` e `overlay(...)` |
-| `Json`                             | Fábricas: `from(String)`, `write(Object)`                      |
-| `Yaml`                             | Fábricas: `from(Path)`, `fromClasspath`, `from(Map)`, `from()`, `save` |
+| `lang.Json`                        | Fábricas: `from(String)`, `write(Object)`                      |
+| `lang.Yaml`                        | Fábricas: `from(Path)`, `fromClasspath`, `from(Map)`, `from()`, `save` |
 | `document.builder.DocumentBuilder` | Cria/edita documento: `put`, `append`, `clear`, `build`        |
 | `document.builder.Entry`           | Par chave/valor para `append`                                  |
 | `document.Document`                | Representação interna imutável; uso interno (ver §8)           |
@@ -106,19 +106,20 @@ origem dentro da janela devolve a **mesma instância** de documento.
 ```
 Serializer (API de leitura)  <—  document.Document (única implementação) / document.Overlay
           ^                              ^
-Json ——> json.JsonReader ——(JsonParser valida)——> Document.of(tree, null, WIRE)
-Json.write ——> json.JsonWriter
-Yaml ——> yaml.YamlReader ——(valida)——> Document.of(tree, path, CONFIG)
-Yaml.save ——> yaml.YamlWriter ——> arquivo + DocumentCache.invalidate(path)
+lang.Json ——> lang.json.JsonReader ——(JsonParser valida)——> Document.of(tree, null, WIRE)
+lang.Json.write ——> lang.json.JsonWriter
+lang.Yaml ——> lang.yaml.YamlReader ——(valida)——> Document.of(tree, path, CONFIG)
+lang.Yaml.save ——> lang.yaml.YamlWriter ——> arquivo + DocumentCache.invalidate(path)
 ```
 
 ```
-serializer/            Serializer, Json, Yaml                 (a API)
-├── document/          Document (+unwrap), DocumentCache, Overlay, Policy
-│   ├── builder/       DocumentBuilder, Entry
-│   ├── cache/         LruCache, CacheSettings
-│   ├── navigation/    Trees                                  (caminhos pontuados, índice plano)
-│   └── binding/       TreeBinder, Scalars                    (records, coerção de escalar)
+serializer/            Serializer                             (a API)
+└── document/          Document (+unwrap), DocumentCache, Overlay, Policy
+    ├── builder/       DocumentBuilder, Entry
+    ├── cache/         LruCache, CacheSettings
+    ├── navigation/    Trees                                  (caminhos pontuados, índice plano)
+    └── binding/       TreeBinder, Scalars                    (records, coerção de escalar)
+lang/                  Json, Yaml                             (fachadas dos formatos)
 ├── json/              JsonReader, JsonWriter, JsonParser
 └── yaml/              YamlReader, YamlWriter
 ```
@@ -128,8 +129,9 @@ serializer/            Serializer, Json, Yaml                 (a API)
 - `Json`/`Yaml` são classes `final` de fábrica; não estendem `Serializer`.
 - Subpacotes são `public` só porque Java não tem acesso por subpacote.
   `SerializerArchitectureTest` (ArchUnit, sobre `br.commons`) garante: fora de
-  `br.commons.serializer..` só o pacote raiz é usado; formatos independentes;
-  `document` ignora formatos.
+  `br.commons.serializer..`, só `lang.json`/`lang.yaml` veem `document`;
+  formatos só são alcançados pelas fachadas `lang.Json`/`lang.Yaml`; formatos
+  independentes; `serializer` inteiro ignora `br.commons.lang`.
 - Erros de validação/binding vêm localizados de `br.commons.locale.i18n.Errors`
   (`jsonUnexpectedContent`, `yamlRootNotMap`, `keyMustBeText`,
   `unsupportedTargetType`, `cannotBindNull`, `buildFailed`…).
@@ -219,10 +221,12 @@ inválido → `null`. `asInts`… herdam via default sobre `asString`; estrutura
 binding vão para `base`. `Document.unwrap` atravessa o overlay (persistir um
 overlay grava `base`, sem os overrides).
 
-Formato novo (ex.: TOML): pacote `br.commons.serializer.toml` com leitor que
+Formato novo (ex.: TOML): pacote `br.commons.lang.toml` com leitor que
 valida a sintaxe e chama `DocumentCache.cached(source, () -> Document.of(tree, path, policy))`;
-nova fábrica estática (`Toml`) devolvendo `Serializer`. Não adicione métodos de
-leitura fora de `Serializer`.
+nova fachada `br.commons.lang.Toml` devolvendo `Serializer`; inclua o pacote nas
+regras de `SerializerArchitectureTest`. Não adicione métodos de leitura fora de
+`Serializer`.
 
-Testes espelham o main: `src/test/java/br/commons/serializer/` (`document/…`, `yaml/`, `JsonTest`,
-`SerializerArchitectureTest`).
+Testes espelham o main: `src/test/java/br/commons/serializer/` (`document/…`,
+`SerializerArchitectureTest`) e `src/test/java/br/commons/lang/` (`json/JsonTest`,
+`yaml/`).

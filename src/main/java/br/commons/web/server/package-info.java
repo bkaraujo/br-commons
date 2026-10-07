@@ -1,8 +1,7 @@
 /**
- * The server ready for a {@link Router}
- * ({@link WebServer}) and the web format on top of raw HTTP: request with path
- * params and JSON body ({@link WebRequest}) and factories for JSON response,
- * {@code ProblemDetail} and {@code text/event-stream} ({@link WebResponse}).
+ * The server ready for a {@link Router} ({@link WebServer}): dispatch to the matched route ({@link WebDispatcher}),
+ * {@code OPTIONS} answered from the router ({@link PreflightFilter}) and the request with path params and JSON body
+ * ({@link WebRequest}). Responses come from {@link br.commons.web.WebResponse}.
  */
 @NullMarked
 package br.commons.web.server;

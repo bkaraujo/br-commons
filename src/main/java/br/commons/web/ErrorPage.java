@@ -1,7 +1,7 @@
 package br.commons.web;
 
-import br.commons.http.HTTPStatus;
-import br.commons.http.message.HTTPRequest;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.protocol.http.message.HTTPRequest;
 import org.jspecify.annotations.NullMarked;
 
 /**

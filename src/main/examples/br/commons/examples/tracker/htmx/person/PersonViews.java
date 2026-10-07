@@ -6,12 +6,12 @@ import br.commons.examples.tracker.shared.entry.EntryStore;
 import br.commons.examples.tracker.shared.person.Person;
 import br.commons.examples.tracker.shared.person.PersonFields;
 import br.commons.examples.tracker.shared.registry.Registry;
-import br.commons.html.ButtonType;
-import br.commons.html.FormMethod;
-import br.commons.html.core.Node;
-import br.commons.html.form.Field;
-import br.commons.html.form.Violation;
-import br.commons.htmx.HxSwap;
+import br.commons.lang.html.ButtonType;
+import br.commons.lang.html.FormMethod;
+import br.commons.lang.html.core.Node;
+import br.commons.lang.html.form.Field;
+import br.commons.lang.html.form.Violation;
+import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 import static br.commons.examples.tracker.htmx.ui.Ui.message;
-import static br.commons.html.html5.Html5.*;
-import static br.commons.htmx.Htmx.*;
+import static br.commons.lang.Html5.*;
+import static br.commons.lang.Htmx.*;
 
 /** The people screen: the new person form and the list, edited, (de)activated and deleted row by row. */
 @NullMarked

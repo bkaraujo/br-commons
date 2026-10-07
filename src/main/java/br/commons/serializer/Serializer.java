@@ -15,15 +15,13 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * The only API for reading a document, regardless of source format ({@link Json}, {@link Yaml}):
+ * The only API for reading a document, regardless of source format:
  * query by dotted path ({@code server.ports.0.number}), scalar coercion, structure
  * ({@link #subtree}, {@link #list}) and binding to a type — typically a {@code record}.
  *
  * <p>Behind it is always the common internal representation, {@code br.commons.serializer.document.Document}: formats
  * only read and validate input. Typed values and sub-documents are cached in an LRU cache with time window
  * ({@code br.commons.serializer.cache.ttl.seconds}, {@code br.commons.serializer.cache.size}; read at startup).
- *
- * <p>Creation and editing: {@link #builder()} and {@link #builder(Serializer)}; persistence: {@link Yaml#save}.
  */
 @NullMarked
 public interface Serializer {

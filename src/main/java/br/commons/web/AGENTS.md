@@ -1,4 +1,4 @@
-# br.commons.web — rotas, JSON e filtros sobre `br.commons.http`
+# br.commons.web — rotas, JSON e filtros sobre `br.commons.protocol.http`
 
 Conveniências sobre a camada HTTP pura: roteador explícito, servidor web com
 corpo por `MediaType` da rota, respostas JSON/HTML/SSE, `ProblemDetail` e
@@ -7,6 +7,7 @@ filtros prontos.
 | Tipo / subpacote             | Papel                                                 |
 |------------------------------|-------------------------------------------------------|
 | `RouteHandler`               | `HTTPResponse handle(WebRequest)`                     |
+| `WebResponse`                | `ok`, `created`, `json`, `html`, `redirect`, `problem`, `eventStream` |
 | `ProblemDetail`              | Corpo de erro uniforme (RFC 7807 simplificado)        |
 | `ErrorPage`                  | HTML de erro por status: `html(request, status)`      |
 | `router/Router`              | Registro `método + template → handler`; `match`, `Allow` |
@@ -15,9 +16,8 @@ filtros prontos.
 | `server/WebServer`           | Custódia do `HTTPServer`; `register(WebResource)`; `Lifecycle` |
 | `server/WebResource`         | Fatia de rotas: `routes(Router)`                      |
 | `server/WebRequest`          | Request + path params + `body(Class)` pelo `consumes` |
-| `server/WebResponse`         | `ok`, `created`, `json`, `html`, `redirect`, `problem`, `eventStream` |
 | `server/Form`                | Corpo `x-www-form-urlencoded` (multivalor)            |
-| `filter/PreflightFilter`     | Responde `OPTIONS` com `Allow` (sempre primeiro)      |
+| `server/PreflightFilter`     | Responde `OPTIONS` com `Allow` (inserido pelo `WebServer`) |
 | `filter/StaticFiles`         | Serve arquivos de classpath/diretório                 |
 | `filter/RequestLoggingFilter`| Loga `método path -> status`                          |
 | `filter/ErrorPages`          | Registro status → `ErrorPage` (inserido pelo `WebServer`) |
@@ -160,8 +160,8 @@ Responde `OPTIONS` antes dos filtros do cliente (preflight não carrega
 Só vale se `Accept` contém `text/html` (navegação); API/`fetch`/HTMX seguem
 com `ProblemDetail`. Resposta já HTML ou streaming passa intacta. Páginas
 embutidas (`defaults()`): texto = `HTTPStatus.description()` (bundle
-`http_status`), link "voltar" de `Errors`, `lang` = `I18N.locale()`
-(`br.commons.locale`). `errorPage(status, "/recurso.html")` lê do classpath
+`http_status`), link "voltar" de `Errors`, `lang` = `L10N.locale()`
+(propriedade `br.commons.locale`). `errorPage(status, "/recurso.html")` lê do classpath
 uma vez; recurso ausente → `Failure`.
 
 Primeiro filtro da cadeia (antes do `PreflightFilter`): cobre 404/405 do
@@ -170,13 +170,24 @@ status, headers (ex.: `Allow`) e cookies originais ficam. Exceção na cadeia
 com página 500 registrada → loga e devolve a página; sem página → relança
 (`onFailure` do `HTTPServer`). Vazio por padrão; `freeze()` no `start()`.
 
-## 14. Observações
+## 14. Dependências entre subpacotes
+
+- Raiz (`RouteHandler`, `WebResponse`, `ProblemDetail`, `ErrorPage`) é o
+  vocabulário comum; `filter` só vê a raiz e `protocol.http` — nunca
+  `server`/`router` (`WebArchitectureTest`), porque o `WebServer` instala
+  `ErrorPages`. Filtro que precisa do roteador (`PreflightFilter`) mora em
+  `server`.
+- Ainda há ciclo raiz ↔ `server` ↔ `router`: `RouteHandler` recebe
+  `WebRequest` (`server`), que carrega a `Route` (`router`), que guarda o
+  `RouteHandler`.
+
+## 15. Observações
 
 - `Form.parse` lança `IllegalArgumentException` em percent-encoding inválido;
   `WebRequest.body(Form.class)` converte em `Failure`.
-- JSON usa `br.commons.serializer.Json` (`Json.from(...).as(type)`).
+- JSON usa `br.commons.lang.Json` (`Json.from(...).as(type)`).
 
-## 15. Extensão
+## 16. Extensão
 
 | Necessidade              | Onde mexer                                          |
 |--------------------------|-----------------------------------------------------|

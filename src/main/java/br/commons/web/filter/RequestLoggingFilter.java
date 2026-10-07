@@ -1,10 +1,10 @@
 package br.commons.web.filter;
 
 import br.commons.Logger;
-import br.commons.http.message.HTTPRequest;
-import br.commons.http.message.HTTPResponse;
-import br.commons.http.server.HTTPFilter;
-import br.commons.http.server.HTTPHandler;
+import br.commons.protocol.http.message.HTTPRequest;
+import br.commons.protocol.http.message.HTTPResponse;
+import br.commons.protocol.http.server.HTTPFilter;
+import br.commons.protocol.http.server.HTTPHandler;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 

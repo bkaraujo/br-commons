@@ -1,11 +1,11 @@
 package br.commons.web.filter;
 
 import br.commons.Logger;
-import br.commons.http.HTTPStatus;
-import br.commons.http.message.HTTPMethod;
-import br.commons.http.server.HTTPHandler;
-import br.commons.http.server.message.HTTPServerRequest;
-import br.commons.http.server.message.HTTPServerResponse;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.protocol.http.message.HTTPMethod;
+import br.commons.protocol.http.server.HTTPHandler;
+import br.commons.protocol.http.server.message.HTTPServerRequest;
+import br.commons.protocol.http.server.message.HTTPServerResponse;
 import br.commons.logger.LogLevel;
 import br.commons.logger.channel.ConsoleChannel;
 import lombok.val;

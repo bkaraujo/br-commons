@@ -1,14 +1,14 @@
 package br.commons.web.filter;
 
 import br.commons.Strings;
-import br.commons.http.HTTPStatus;
-import br.commons.http.message.HTTPMethod;
-import br.commons.http.message.HTTPRequest;
-import br.commons.http.message.HTTPResponse;
-import br.commons.http.server.HTTPFilter;
-import br.commons.http.server.HTTPHandler;
-import br.commons.http.server.message.HTTPServerResponse;
 import br.commons.locale.i18n.Errors;
+import br.commons.protocol.http.HTTPStatus;
+import br.commons.protocol.http.message.HTTPMethod;
+import br.commons.protocol.http.message.HTTPRequest;
+import br.commons.protocol.http.message.HTTPResponse;
+import br.commons.protocol.http.server.HTTPFilter;
+import br.commons.protocol.http.server.HTTPHandler;
+import br.commons.protocol.http.server.message.HTTPServerResponse;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

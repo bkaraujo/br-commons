@@ -1,7 +1,7 @@
 package br.commons.web.router;
 
 import br.commons.Result;
-import br.commons.http.message.HTTPMethod;
+import br.commons.protocol.http.message.HTTPMethod;
 import org.jspecify.annotations.NullMarked;
 
 /**
