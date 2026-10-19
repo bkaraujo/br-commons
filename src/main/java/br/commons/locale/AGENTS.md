@@ -10,7 +10,7 @@ traduções e a lista do que existe. Um pacote para cada:
 | `i18n.Bundles`          | Proxy de interface sobre `ResourceBundle`; valida no `of`    |
 | `i18n.Text`             | Texto visível: `message` (bundle) ou `data` (dado do usuário) |
 | `i18n.Formats`          | Formata por locale (CLDR): dinheiro, número, %, datas        |
-| `i18n.I18N`             | `of(key, [locale,] args)` (bundle `messages` da aplicação)  |
+| `i18n.I18N`             | `of(key, [locale,] args)` (bundle `messages` da aplicação); `register(prefixo, baseName)` desvia chaves com prefixo para bundle do módulo |
 | `i18n.Errors`           | `get()`/`get(locale)` → `ErrorMessages`; `httpStatus(code)`  |
 | `i18n.ErrorMessages`    | Interface tipada: um método por erro da lib                  |
 | `i18n.CurrencyAmount`   | Dinheiro do domínio: `amount()` + `currency()` (padrão BRL)  |
@@ -54,6 +54,7 @@ Direto: `new Formats(locale).money(valor, Currency.getInstance("USD"))` → `US$
 Text.message("Salvar");                   // interface (normalmente via bundle)
 Text.data(categoria.nome());              // dado do usuário/banco, como está
 I18N.of("order.not_found", locale, id);   // bundle "messages" da aplicação
+I18N.register("money.", "br/money/messages");  // chaves money.* → br/money/messages_<locale> (maior prefixo vence)
 L10N.locale();                            // propriedade br.commons.locale → L10N.supported
 Errors.get().routerFrozen(method, template).value();   // erro da lib, locale do processo
 ```

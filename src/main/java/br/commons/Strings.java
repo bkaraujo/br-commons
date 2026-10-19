@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 @NullMarked
@@ -25,6 +26,7 @@ public abstract class Strings {
     public static final String EMPTY = "";
     public static final String LINE_SEPARATOR = System.lineSeparator();
     public static final String PARAGRAPH_SEPARATOR = LINE_SEPARATOR + LINE_SEPARATOR;
+
 
     public static boolean isEmpty(String prefix) {
         if (prefix.isBlank()) return true;
@@ -381,5 +383,40 @@ public abstract class Strings {
     public static String or(@Nullable Object value, String fallback) {
         if (value == null) return fallback;
         return value.toString();
+    }
+
+    /**
+     * Random version 4 UUID in canonical form, backed by {@link ThreadLocalRandom}: fast and contention-free,
+     * but <b>not</b> cryptographically secure — never use it for tokens, secrets or anything guessable-sensitive.
+     */
+    public static String uuid() {
+        val random = ThreadLocalRandom.current();
+        val msb = (random.nextLong() & 0xffff_ffff_ffff_0fffL) | 0x0000_0000_0000_4000L; // version 4
+        val lsb = (random.nextLong() & 0x3fff_ffff_ffff_ffffL) | 0x8000_0000_0000_0000L; // IETF variant
+
+        val buffer = new byte[36];
+        hex(buffer, 0, msb >>> 32, 8);
+        buffer[8] = '-';
+        hex(buffer, 9, msb >>> 16, 4);
+        buffer[13] = '-';
+        hex(buffer, 14, msb, 4);
+        buffer[18] = '-';
+        hex(buffer, 19, lsb >>> 48, 4);
+        buffer[23] = '-';
+        hex(buffer, 24, lsb, 12);
+
+        // ASCII-only bytes: the UTF-8 decoder takes its ASCII fast path straight into the compact String
+        return new String(buffer, StandardCharsets.UTF_8);
+    }
+
+    private static final byte[] HEX_DIGITS = "0123456789abcdef".getBytes(StandardCharsets.UTF_8);
+
+    /** Writes the low {@code digits} nibbles of {@code value} as lowercase hex, most significant first. */
+    private static void hex(byte[] buffer, int offset, long value, int digits) {
+        long remaining = value;
+        for (int index = offset + digits - 1; index >= offset; index--) {
+            buffer[index] = HEX_DIGITS[(int) (remaining & 0xf)];
+            remaining >>>= 4;
+        }
     }
 }

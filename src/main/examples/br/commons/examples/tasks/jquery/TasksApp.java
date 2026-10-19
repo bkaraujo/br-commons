@@ -2,7 +2,7 @@ package br.commons.examples.tasks.jquery;
 
 import br.Application;
 import br.commons.Logger;
-import br.commons.annotation.Lifecycle;
+import br.commons.module.Module;
 import br.commons.examples.tasks.jquery.api.TasksApi;
 import br.commons.examples.tasks.jquery.page.TasksPage;
 import br.commons.examples.tasks.shared.TaskStore;
@@ -36,16 +36,6 @@ public final class TasksApp extends Application {
 
     private TasksApp(int port) {
         this.port = port;
-    }
-
-    public static void main(String[] args) {
-        val app = new TasksApp(args.length > 0 ? Integer.parseInt(args[0]) : 5000);
-        app.run();
-        Logger.info("Tarefas em http://localhost:%d", app.port);
-    }
-
-    @Override
-    protected List<Lifecycle> modules() {
         val store = new TaskStore();
         store.add("Ler a documentação do jQuery");
         store.add("Consumir a API JSON");
@@ -55,6 +45,12 @@ public final class TasksApp extends Application {
         val server = new WebServer(port, List.of(new RequestLoggingFilter(), assets));
         server.register(new TasksPage());
         server.register(new TasksApi(store));
-        return List.of(server);
+        attach(Module.of(server));
+    }
+
+    public static void main(String[] args) {
+        val app = new TasksApp(args.length > 0 ? Integer.parseInt(args[0]) : 5000);
+        app.run();
+        Logger.info("Tarefas em http://localhost:%d", app.port);
     }
 }

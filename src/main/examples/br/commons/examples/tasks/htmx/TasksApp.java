@@ -2,7 +2,7 @@ package br.commons.examples.tasks.htmx;
 
 import br.Application;
 import br.commons.Logger;
-import br.commons.annotation.Lifecycle;
+import br.commons.module.Module;
 import br.commons.examples.tasks.shared.TaskStore;
 import br.commons.web.filter.RequestLoggingFilter;
 import br.commons.web.filter.StaticFiles;
@@ -32,16 +32,6 @@ public final class TasksApp extends Application {
 
     private TasksApp(int port) {
         this.port = port;
-    }
-
-    public static void main(String[] args) {
-        val app = new TasksApp(args.length > 0 ? Integer.parseInt(args[0]) : 5003);
-        app.run();
-        Logger.info("Tarefas (htmx) em http://localhost:%d", app.port);
-    }
-
-    @Override
-    protected List<Lifecycle> modules() {
         val store = new TaskStore();
         store.add("Ler a documentação do htmx");
         store.add("Renderizar no servidor");
@@ -50,6 +40,12 @@ public final class TasksApp extends Application {
         val assets = new StaticFiles("/static/", "static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO);
         val server = new WebServer(port, List.of(new RequestLoggingFilter(), assets));
         server.register(new TaskRoutes(store));
-        return List.of(server);
+        attach(Module.of(server));
+    }
+
+    public static void main(String[] args) {
+        val app = new TasksApp(args.length > 0 ? Integer.parseInt(args[0]) : 5003);
+        app.run();
+        Logger.info("Tarefas (htmx) em http://localhost:%d", app.port);
     }
 }

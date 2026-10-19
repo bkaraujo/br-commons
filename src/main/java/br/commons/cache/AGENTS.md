@@ -31,7 +31,7 @@ record ItemRegion(ItemRepo repo) implements CacheRegion<Item> {
 
 val cacheServer = new CacheServer();
 Cache<Item> items = cacheServer.register(new ItemRegion(repo));
-// Application.modules(): List.of(cacheServer, ...) — antes de quem usa o cache
+// Module.of(consumidor).attach(Module.of(cacheServer)) — cache sobe antes de quem o usa
 ```
 
 ## 2. Ciclo de vida

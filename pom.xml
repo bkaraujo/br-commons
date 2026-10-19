@@ -249,6 +249,10 @@
                         <exclude>**/jdbc/primitives/*.java</exclude>
                         <exclude>**/cache/*Layout.java</exclude>
                     </excludes>
+                    <!-- Examples compile with the library but stay out of the quality gates. -->
+                    <excludeRoots>
+                        <excludeRoot>src/main/examples</excludeRoot>
+                    </excludeRoots>
                 </configuration>
                 <executions>
                     <execution>
@@ -266,15 +270,56 @@
                     <dependency><groupId>org.ow2.asm</groupId><artifactId>asm</artifactId><version>${version.asm}</version></dependency>
                 </dependencies>
             </plugin>
+            <!-- Examples compiled in target/classes (IDE and exec:java) but not shipped in the jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>br/commons/examples/**</exclude>
+                        <exclude>static/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <!-- Examples (src/main/examples) always compiled: sources + static/** resources -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <id>add-examples-source</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>add-source</goal></goals>
+                        <configuration>
+                            <sources><source>src/main/examples</source></sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add-examples-static</id>
+                        <phase>generate-resources</phase>
+                        <goals><goal>add-resource</goal></goals>
+                        <configuration>
+                            <resources>
+                                <resource>
+                                    <directory>src/main/examples</directory>
+                                    <includes><include>static/**</include></includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
     <!-- ============================================================ -->
     <!-- Examples: complete applications in src/main/examples         -->
+    <!-- Always compiled (build-helper above), out of jar and PMD/CPD; -->
+    <!-- the profile only runs one:                                  -->
     <!-- mvn -Pexamples compile exec:java                             -->
     <!--   -Dexamples.main=br.commons.examples.tracker.htmx.TrackerApp -->
     <!--   -Dexec.args=PORT                                           -->
-    <!-- Off by default: not in the jar nor in the quality gates.     -->
     <!-- ============================================================ -->
     <profiles>
         <profile>
@@ -284,34 +329,6 @@
             </properties>
             <build>
                 <plugins>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>build-helper-maven-plugin</artifactId>
-                        <version>3.6.1</version>
-                        <executions>
-                            <execution>
-                                <id>add-examples-source</id>
-                                <phase>generate-sources</phase>
-                                <goals><goal>add-source</goal></goals>
-                                <configuration>
-                                    <sources><source>src/main/examples</source></sources>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>add-examples-static</id>
-                                <phase>generate-resources</phase>
-                                <goals><goal>add-resource</goal></goals>
-                                <configuration>
-                                    <resources>
-                                        <resource>
-                                            <directory>src/main/examples</directory>
-                                            <includes><include>static/**</include></includes>
-                                        </resource>
-                                    </resources>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>

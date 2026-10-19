@@ -3,6 +3,8 @@ package br.commons;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashSet;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -313,5 +315,25 @@ class StringsTest {
         Thread.currentThread().interrupt();
         Threads.sleep(1_000);
         assertTrue(Thread.interrupted()); // also clears it for the next tests
+    }
+
+    // ── uuid ──────────────────────────────────────────────────────────────────
+
+    @Test
+    void uuid_isCanonicalVersion4() {
+        val text = Strings.uuid();
+        assertTrue(text.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"), text);
+
+        val parsed = UUID.fromString(text);
+        assertEquals(4, parsed.version());
+        assertEquals(2, parsed.variant());
+    }
+
+    @Test
+    void uuid_isUnique() {
+        val seen = new HashSet<String>();
+        for (int i = 0; i < 100_000; i++) {
+            assertTrue(seen.add(Strings.uuid()));
+        }
     }
 }

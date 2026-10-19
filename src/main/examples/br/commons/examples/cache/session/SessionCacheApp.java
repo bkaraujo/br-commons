@@ -3,9 +3,10 @@ package br.commons.examples.cache.session;
 import br.Application;
 import br.commons.Logger;
 import br.commons.Result;
-import br.commons.annotation.Lifecycle;
+import br.commons.module.Lifecycle;
 import br.commons.business.BusinessError;
 import br.commons.cache.CacheServer;
+import br.commons.module.Module;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
@@ -24,17 +25,17 @@ public final class SessionCacheApp extends Application implements Lifecycle {
 
     private final CacheServer cacheServer = new CacheServer();
 
-    private SessionCacheApp() {}
+    /** The scenario module depends on the cache server: initialized after it, terminated before it. */
+    private SessionCacheApp() {
+        val scenario = Module.of(this);
+        scenario.attach(Module.of(cacheServer));
+        attach(scenario);
+    }
 
     /** The cache server thread keeps the process alive: once the scenario ran, exit, which terminates the modules. */
     public static void main(String[] args) {
         new SessionCacheApp().run();
         System.exit(0);
-    }
-
-    @Override
-    protected List<Lifecycle> modules() {
-        return List.of(cacheServer, this);
     }
 
     /** The whole scenario runs on start, after the cache server. */

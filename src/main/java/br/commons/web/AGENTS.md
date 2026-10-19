@@ -59,7 +59,7 @@ var server = new WebServer(8080, new Router(), List.of(new RequestLoggingFilter(
 server.register(new OrderResource()); server.start().ifFailure(Logger::error);
 ```
 
-`Lifecycle` (via `br.Application.modules()`): `initialize()` = `start()` na thread não-daemon
+`Lifecycle` (via `br.Application.attach(Module.of(server))`): `initialize()` = `start()` na thread não-daemon
 `web-server` (segura a JVM); `terminate()` = `stop()`. `ErrorPages` + `PreflightFilter` vêm antes dos seus filtros.
 Páginas de erro (`Result`, antes do start; §13): `defaultErrorPages()` (404/500),
 `errorPage(HTTPStatus.NOT_FOUND, "/errors/404.html")` ou `errorPage(status, (req, st) -> html)`.

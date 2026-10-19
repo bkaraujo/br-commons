@@ -1,44 +1,33 @@
 package br;
 
 import br.commons.Logger;
-import br.commons.Meta;
-import br.commons.annotation.Lifecycle;
 import br.commons.business.BusinessError;
 import br.commons.chrono.Time;
+import br.commons.module.Module;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/**
- * Initializes the {@link #modules()} in order and terminates the ones that started, in reverse order, when the
- * process ends: right after {@link #run()} when nothing keeps it alive, or on a signal (Ctrl+C) when a module runs a
- * thread of its own (e.g. {@code WebServer}).
- */
 @NullMarked
 public abstract class Application {
 
-    private final List<Lifecycle> lifecycles = new ArrayList<>();
+    private final Module module = new Module();
 
-    protected abstract List<Lifecycle> modules();
+    public void attach(Module module) { this.module.attach(module); }
+    public void detach(Module module) { this.module.detach(module); }
 
     public void run() {
         val start = Time.millis();
-        for (val lifecycle : modules()) {
-            Logger.debug("Initializing %s", Meta.fqn(lifecycle));
-            val result = lifecycle.initialize();
-            result.ifFailure(BusinessError::toConsole);
-            if (result.isSuccess()) lifecycles.add(lifecycle);
-        }
+        module
+                .initialize()
+                .ifFailure(BusinessError::toConsole);
+
         Runtime.getRuntime().addShutdownHook(new Thread(this::terminate, "application-shutdown"));
         Logger.info("Application started in %d ms", Time.millis() - start);
     }
 
     private void terminate() {
-        for (val lifecycle : lifecycles.reversed()) {
-            Logger.debug("Terminating %s", Meta.fqn(lifecycle));
-            lifecycle.terminate().ifFailure(BusinessError::toConsole);
-        }
+        module
+                .terminate()
+                .ifFailure(BusinessError::toConsole);
     }
 }

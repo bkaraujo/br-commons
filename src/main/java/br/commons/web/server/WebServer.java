@@ -1,7 +1,7 @@
 package br.commons.web.server;
 
 import br.commons.Result;
-import br.commons.annotation.Lifecycle;
+import br.commons.module.Lifecycle;
 import br.commons.business.BusinessError;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.server.HTTPFilter;
@@ -43,30 +43,29 @@ public final class WebServer implements Lifecycle {
         this(port, List.of());
     }
 
-    public WebServer(int port, List<HTTPFilter> filters) {
+    public WebServer(int port, List<? extends HTTPFilter> filters) {
         this(port, new Router(), filters, HTTPServer.defaultMaxBodySize());
     }
 
-    public WebServer(int port, Router router, List<HTTPFilter> filters) {
+    public WebServer(int port, Router router, List<? extends HTTPFilter> filters) {
         this(port, router, filters, HTTPServer.defaultMaxBodySize());
     }
 
-    public WebServer(int port, List<HTTPFilter> filters, long maxBodySize) {
+    public WebServer(int port, List<? extends HTTPFilter> filters, long maxBodySize) {
         this(port, new Router(), filters, maxBodySize);
     }
 
     /** {@code maxBodySize}: requests with a larger body get 413 before any filter (spec §14.1). */
-    public WebServer(int port, Router router, List<HTTPFilter> filters, long maxBodySize) {
+    public WebServer(int port, Router router, List<? extends HTTPFilter> filters, long maxBodySize) {
         this(port, router, filters, maxBodySize, null);
     }
 
     /** {@code multipartLimits}: uploads streamed to temporary files instead of memory (spec §5.2). */
-    public WebServer(int port, List<HTTPFilter> filters, long maxBodySize, MultipartParser.@Nullable Limits multipartLimits) {
+    public WebServer(int port, List<? extends HTTPFilter> filters, long maxBodySize, MultipartParser.@Nullable Limits multipartLimits) {
         this(port, new Router(), filters, maxBodySize, multipartLimits);
     }
 
-    public WebServer(int port, Router router, List<HTTPFilter> filters, long maxBodySize,
-                     MultipartParser.@Nullable Limits multipartLimits) {
+    public WebServer(int port, Router router, List<? extends HTTPFilter> filters, long maxBodySize, MultipartParser.@Nullable Limits multipartLimits) {
         this.router = router;
         dispatcher = new WebDispatcher(router);
         val chain = new ArrayList<HTTPFilter>(filters.size() + 2);

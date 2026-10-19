@@ -1,7 +1,7 @@
 # br.commons — núcleo utilitário do br-engine
 
 Tipos base usados por todos os pacotes. Cobre **só** a raiz (e `br.Application`,
-`annotation.Lifecycle`, sem AGENTS.md próprio); cada subpacote tem o seu.
+`module.Lifecycle`/`module.Module`, sem AGENTS.md próprio); cada subpacote tem o seu.
 
 | Tipo       | Papel                                                            |
 |------------|------------------------------------------------------------------|
@@ -14,8 +14,9 @@ Tipos base usados por todos os pacotes. Cobre **só** a raiz (e `br.Application`
 | `RT`       | Estado de runtime: `running`, prefixos de pacotes de infraestrutura |
 | `Parser<T>`| Contrato `parseable(raw)` + `parse(raw)`                         |
 | `Tuple`    | Par `name`/`value` (string)                                      |
-| `annotation.Lifecycle` | `initialize()`/`terminate()` → `Result<Void, BusinessError>` (default: sucesso) |
-| `br.Application` | Bootstrap: `modules()` → `List<Lifecycle>`; `run()`            |
+| `module.Lifecycle` | `initialize()`/`terminate()` → `Result<Void, BusinessError>` (default: sucesso) |
+| `module.Module` | Árvore: `Module.of(lifecycle)` + `attach(dependência)`; dependências antes, inverso no terminate |
+| `br.Application` | Bootstrap: `attach(Module)`; `run()`                          |
 
 ## 1. `Result`
 
@@ -73,10 +74,19 @@ Platform.fileSystem();                   // implementação do SO (ver platform/
 
 ## 5. Ciclo de vida (`br.Application`)
 
-Subclasse implementa `modules()`; `run()` chama `initialize()` na ordem e
-registra shutdown hook que chama `terminate()` em ordem inversa. Falha →
-`BusinessError.toConsole`, módulo não entra no `terminate` e os demais
-seguem. JVM só fica viva com thread não-daemon (ex.: `WebServer`).
+Subclasse chama `attach(Module.of(lifecycle))` (construtor ou `main`); um
+`Module` inicializa suas dependências (`attach`) na ordem e depois o próprio
+`Lifecycle`; `terminate()` faz o inverso, **só no que inicializou** (falha no meio
+não termina quem nem subiu; segunda chamada não faz nada). `run()` inicializa a
+árvore e registra shutdown hook que a termina. Primeira falha interrompe a
+inicialização → `BusinessError.toConsole`; no `terminate` falha não interrompe,
+retorna a primeira. JVM só fica viva com thread não-daemon (ex.: `WebServer`).
+
+```java
+val scenario = Module.of(this);
+scenario.attach(Module.of(cacheServer));   // cacheServer sobe antes, desce depois
+attach(scenario);
+```
 
 ## 6. Regras rápidas para agentes
 

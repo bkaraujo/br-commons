@@ -2,11 +2,11 @@ package br.commons.examples.tracker.htmx;
 
 import br.Application;
 import br.commons.Logger;
-import br.commons.annotation.Lifecycle;
 import br.commons.examples.tracker.htmx.person.PersonRoutes;
 import br.commons.examples.tracker.htmx.project.ProjectRoutes;
 import br.commons.examples.tracker.htmx.week.WeekRoutes;
 import br.commons.examples.tracker.shared.Seed;
+import br.commons.module.Module;
 import br.commons.web.filter.RequestLoggingFilter;
 import br.commons.web.filter.StaticFiles;
 import br.commons.web.server.WebServer;
@@ -46,22 +46,18 @@ public final class TrackerApp extends Application {
 
     private TrackerApp(int port) {
         this.port = port;
-    }
-
-    static void main(String[] args) {
-        val app = new TrackerApp(args.length > 0 ? Integer.parseInt(args[0]) : 5001);
-        app.run();
-        Logger.info("Horas em http://localhost:%d", app.port);
-    }
-
-    @Override
-    protected List<Lifecycle> modules() {
         val state = Seed.state();
         val server = new WebServer(port, List.of(new RequestLoggingFilter(),
                 new StaticFiles("/static/", "static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO)));
         server.register(new WeekRoutes(state));
         server.register(new ProjectRoutes(state.projects(), state.entries()));
         server.register(new PersonRoutes(state.people(), state.entries()));
-        return List.of(server);
+        attach(Module.of(server));
+    }
+
+    static void main(String[] args) {
+        val app = new TrackerApp(args.length > 0 ? Integer.parseInt(args[0]) : 5001);
+        app.run();
+        Logger.info("Horas em http://localhost:%d", app.port);
     }
 }

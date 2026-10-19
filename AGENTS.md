@@ -9,3 +9,10 @@ to check if the task is done. Use the .agents/temp folder for any temporary need
 
 Time matters here: do not spend time that can be avoided, and the earlier a correct
 result is obtained, the better.
+
+Always use the IntelliJ IDEA MCP (mcp__idea__*) to read, search, edit, build and
+inspect code; fall back to shell/other tools only when the MCP lacks the capability.
+
+At the end of every code edit, check the warnings reported by the IntelliJ IDEA
+MCP (mcp__idea__get_file_problems / mcp__idea__lint_files) for the touched files
+and fix them before considering the task done.

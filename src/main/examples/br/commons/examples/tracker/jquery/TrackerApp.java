@@ -2,7 +2,7 @@ package br.commons.examples.tracker.jquery;
 
 import br.Application;
 import br.commons.Logger;
-import br.commons.annotation.Lifecycle;
+import br.commons.module.Module;
 import br.commons.examples.tracker.jquery.api.RegisterApi;
 import br.commons.examples.tracker.jquery.api.WeekApi;
 import br.commons.examples.tracker.jquery.page.TrackerPage;
@@ -36,16 +36,6 @@ public final class TrackerApp extends Application {
 
     private TrackerApp(int port) {
         this.port = port;
-    }
-
-    static void main(String[] args) {
-        val app = new TrackerApp(args.length > 0 ? Integer.parseInt(args[0]) : 5002);
-        app.run();
-        Logger.info("Horas (jQuery) em http://localhost:%d", app.port);
-    }
-
-    @Override
-    protected List<Lifecycle> modules() {
         val state = Seed.state();
         val server = new WebServer(port, List.of(new RequestLoggingFilter(),
                 new StaticFiles("/static/", "static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO)));
@@ -53,6 +43,12 @@ public final class TrackerApp extends Application {
         server.register(new WeekApi(state));
         server.register(RegisterApi.projects(state.projects(), state.entries()));
         server.register(RegisterApi.people(state.people(), state.entries()));
-        return List.of(server);
+        attach(Module.of(server));
+    }
+
+    static void main(String[] args) {
+        val app = new TrackerApp(args.length > 0 ? Integer.parseInt(args[0]) : 5002);
+        app.run();
+        Logger.info("Horas (jQuery) em http://localhost:%d", app.port);
     }
 }

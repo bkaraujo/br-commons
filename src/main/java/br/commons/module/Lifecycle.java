@@ -1,4 +1,4 @@
-package br.commons.annotation;
+package br.commons.module;
 
 import br.commons.Result;
 import br.commons.business.BusinessError;
