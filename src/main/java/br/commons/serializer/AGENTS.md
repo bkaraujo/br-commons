@@ -1,13 +1,14 @@
 # br.commons.serializer — ler, criar e persistir documentos
 
-Documentos JSON e YAML (formatos em `br.commons.lang`, ver §8) lidos para uma
-representação interna comum e consultados por uma única API. Formatos só leem/validam (e o YAML persiste).
+Documentos JSON, YAML e XML (formatos em `br.commons.lang`, ver §8) lidos para uma
+representação interna comum e consultados por uma única API. Formatos só leem/validam (YAML e XML também persistem).
 
 | Tipo                               | Papel                                                          |
 |------------------------------------|----------------------------------------------------------------|
 | `Serializer`                       | **Única API de leitura**; também `builder(...)` e `overlay(...)` |
 | `lang.Json`                        | Fábricas: `from(String)`, `write(Object)`                      |
 | `lang.Yaml`                        | Fábricas: `from(Path)`, `fromClasspath`, `from(Map)`, `from()`, `save` |
+| `lang.Xml`                         | Fábricas: `from(String)`, `from(Path)`, `fromClasspath`, `write`, `save` |
 | `document.builder.DocumentBuilder` | Cria/edita documento: `put`, `append`, `clear`, `build`        |
 | `document.builder.Entry`           | Par chave/valor para `append`                                  |
 | `document.Document`                | Representação interna imutável; uso interno (ver §8)           |
@@ -19,8 +20,9 @@ Serializer body = Json.from(text);                      // IllegalArgumentExcept
 Serializer cfg  = Yaml.from(Path.of("app.yaml"));       // vazio se o arquivo falta/ilegível
 Serializer res  = Yaml.fromClasspath("defaults.yaml");  // vazio se o recurso falta
 Serializer mem  = Yaml.from(Map.of("port", 8080));      // cópia do map; Yaml.from() = vazio
+Serializer xml  = Xml.from(Path.of("nf.xml"));          // atributo/filho = chave; mapeamento §14
 ```
-Declare sempre a variável como `Serializer`: `Json`/`Yaml` não são tipos de documento.
+Declare sempre a variável como `Serializer`: `Json`/`Yaml`/`Xml` não são tipos de documento.
 
 ## 2. Consultar
 
@@ -80,19 +82,17 @@ origem dentro da janela devolve a **mesma instância** de documento.
 
 ## 6. Regras rápidas para agentes
 
-1. Leia só por métodos de `Serializer`; nunca use `Document` diretamente.
-2. Nunca tente mutar um documento; edite com `Serializer.builder(doc)`.
-3. Depois de gravar, releia com `Yaml.from(path)` (cache já invalidado).
-4. Nunca grave YAML fora de `Yaml.save`: o cache não saberá (§10.3).
-5. Escalar inválido em JSON lança `NumberFormatException`; em YAML é `Logger.fatal`.
-6. `asInts`/`asBytes`… em chave ausente é `Logger.fatal`: confira `contains`.
-7. Formato novo = leitor que produz `Document.of(...)` (§13).
+1. Leia só por `Serializer` (nunca `Document`); edite com `Serializer.builder(doc)`, nunca mute.
+2. Grave só por `Yaml.save`/`Xml.save` (invalidam o cache, §10.3); releia com `from(path)`.
+3. Escalar inválido em JSON/XML lança `NumberFormatException`; em YAML é `Logger.fatal`.
+4. `asInts`/`asBytes`… em chave ausente é `Logger.fatal`: confira `contains`.
+5. Formato novo = leitor que produz `Document.of(...)` (§13).
 
 ## 7. Checklist de revisão
 
 - [ ] Variáveis tipadas como `Serializer`, não `Document`.
 - [ ] Defaults explícitos (`asInt(key, def)`) para configuração opcional.
-- [ ] Escritas passam por `Serializer.builder` + `Yaml.save`.
+- [ ] Escritas passam por `Serializer.builder` + `Yaml.save`/`Xml.save`.
 - [ ] Testes novos usam `@TempDir` para arquivos.
 
 ---
@@ -110,6 +110,8 @@ lang.Json ——> lang.json.JsonReader ——(JsonParser valida)——> Document
 lang.Json.write ——> lang.json.JsonWriter
 lang.Yaml ——> lang.yaml.YamlReader ——(valida)——> Document.of(tree, path, CONFIG)
 lang.Yaml.save ——> lang.yaml.YamlWriter ——> arquivo + DocumentCache.invalidate(path)
+lang.Xml ——> lang.xml.XmlReader ——(StAX valida)——> Document.of(tree, path|null, WIRE)
+lang.Xml.write/save ——> lang.xml.XmlWriter ——> texto | arquivo + DocumentCache.invalidate(path)
 ```
 
 ```
@@ -119,21 +121,22 @@ serializer/            Serializer                             (a API)
     ├── cache/         LruCache, CacheSettings
     ├── navigation/    Trees                                  (caminhos pontuados, índice plano)
     └── binding/       TreeBinder, Scalars                    (records, coerção de escalar)
-lang/                  Json, Yaml                             (fachadas dos formatos)
+lang/                  Json, Yaml, Xml                        (fachadas dos formatos)
 ├── json/              JsonReader, JsonWriter, JsonParser
-└── yaml/              YamlReader, YamlWriter
+├── yaml/              YamlReader, YamlWriter
+└── xml/               XmlReader, XmlWriter
 ```
 
 - `document`: a representação e tudo que é compartilhado; não conhece formato.
-- `json`/`yaml`: só sintaxe, validação e escrita; um não vê o outro.
-- `Json`/`Yaml` são classes `final` de fábrica; não estendem `Serializer`.
+- `json`/`yaml`/`xml`: só sintaxe, validação e escrita; um não vê o outro.
+- `Json`/`Yaml`/`Xml` são classes `final` de fábrica; não estendem `Serializer`.
 - Subpacotes são `public` só porque Java não tem acesso por subpacote.
   `SerializerArchitectureTest` (ArchUnit, sobre `br.commons`) garante: fora de
-  `br.commons.serializer..`, só `lang.json`/`lang.yaml` veem `document`;
-  formatos só são alcançados pelas fachadas `lang.Json`/`lang.Yaml`; formatos
+  `br.commons.serializer..`, só `lang.json`/`lang.yaml`/`lang.xml` veem `document`;
+  formatos só são alcançados pelas fachadas `lang.Json`/`lang.Yaml`/`lang.Xml`; formatos
   independentes; `serializer` inteiro ignora `br.commons.lang`.
 - Erros de validação/binding vêm localizados de `br.commons.locale.i18n.Errors`
-  (`jsonUnexpectedContent`, `yamlRootNotMap`, `keyMustBeText`,
+  (`jsonUnexpectedContent`, `yamlRootNotMap`, `xmlMalformed`, `xmlInvalidName`, `keyMustBeText`,
   `unsupportedTargetType`, `cannotBindNull`, `buildFailed`…).
 
 ## 9. `Document` — o invariante
@@ -183,12 +186,12 @@ expiração/despejo. `as`/`asList` **não** são cacheados (binding novo a cada 
 
 ### 10.3 Documentos por origem — `DocumentCache`
 
-Chaves: `Path` absoluto normalizado, `"classpath:" + recurso`, texto JSON.
+Chaves: `Path` absoluto normalizado, `"classpath:" + recurso`, texto JSON/XML.
 `Yaml.from(Map)`/`Yaml.from()` e `Yaml.from((Path) null)` não passam pelo cache.
 
 - Arquivo alterado por fora fica velho até a janela expirar.
 - Arquivo ausente/ilegível também é cacheado (documento vazio) pela janela.
-- `YamlWriter.save` invalida a origem no `finally`, mesmo se a escrita falhar.
+- `YamlWriter.save`/`XmlWriter.save` invalidam a origem no `finally`, mesmo se a escrita falhar.
 - Corpos JSON são cacheados: até `size` textos retidos por `ttl`. Se pesar
   (corpos grandes), reduza `size` ou desligue.
 
@@ -196,7 +199,7 @@ Chaves: `Path` absoluto normalizado, `"classpath:" + recurso`, texto JSON.
 
 | Policy   | Quem    | Texto      | Número inválido                          |
 |----------|---------|------------|------------------------------------------|
-| `WIRE`   | JSON    | cru        | `NumberFormatException` propaga          |
+| `WIRE`   | JSON, XML | cru      | `NumberFormatException` propaga          |
 | `CONFIG` | YAML    | `trim()`   | `Logger.fatal` (encerra o processo)      |
 
 Em `CONFIG`, tipo não suportado por `Scalars` cai em `type.cast` (falha em quem
@@ -229,4 +232,16 @@ regras de `SerializerArchitectureTest`. Não adicione métodos de leitura fora d
 
 Testes espelham o main: `src/test/java/br/commons/serializer/` (`document/…`,
 `SerializerArchitectureTest`) e `src/test/java/br/commons/lang/` (`json/JsonTest`,
-`yaml/`).
+`yaml/`, `xml/XmlTest`).
+
+## 14. Mapeamento XML
+
+Raiz = documento (nome descartado na leitura); atributo e
+elemento filho viram chave (prefixo de namespace some); irmãos repetidos viram
+lista — **um só item não é lista** (`list("x")` avisa; use `x.0` só com 2+);
+texto ao lado de atributos/filhos vira chave `value`; elemento vazio = `null`;
+todo escalar é texto (coerção por `Scalars`, policy `WIRE`). DTD/entidades
+externas desligadas (XXE). Escrita: chave → elemento (nunca atributo), lista sob
+chave repete o elemento, lista solta vira `<item>`; `Xml.write(v)` usa raiz
+`root`, `Xml.write(v, "nome")` escolhe; `Xml.save` mantém a raiz do arquivo
+existente, grava indentado com declaração UTF-8 e invalida o cache.

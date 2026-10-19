@@ -135,4 +135,7 @@ public interface ErrorMessages {
     Text jsonInvalidEscape(Object escape);
     Text jsonInvalidLiteral(String pos);
     Text jsonExpectedChar(Object expected, String pos);
+    Text xmlMalformed(String line, String column, Object detail);
+    Text xmlInvalidName(Object name);
+    Text xmlInvalidChar(String code);
 }
