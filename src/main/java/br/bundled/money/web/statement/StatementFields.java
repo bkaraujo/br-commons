@@ -49,10 +49,12 @@ final class StatementFields {
         if (from != null && from.equals(to)) {
             violations.add(new Violation(TO.name(), ValidationRule.INVALID));
         }
+        val date = LocalDate.parse(value.apply(DATE.name()));
+        Forms.open(DATE, date, book, violations);
         if (from == null || to == null || !violations.isEmpty()) {
             return new Result.Failure<>(List.copyOf(violations));
         }
-        return Result.success(new Revision(LocalDate.parse(value.apply(DATE.name())), value.apply(DESCRIPTION.name()).strip(),
+        return Result.success(new Revision(date, value.apply(DESCRIPTION.name()).strip(),
                 new BigDecimal(value.apply(AMOUNT.name())), from, to));
     }
 
@@ -62,7 +64,8 @@ final class StatementFields {
 
     private static final Map<String, String> INVALID_MESSAGES = Map.of(
             FROM.name(), "Escolha uma conta.",
-            TO.name(), "Escolha uma conta diferente da origem.");
+            TO.name(), "Escolha uma conta diferente da origem.",
+            DATE.name(), Forms.CLOSED);
 
     /** The submitted values, by field name, to show them again with the errors. */
     static Map<String, String> values(Function<String, String> value) {

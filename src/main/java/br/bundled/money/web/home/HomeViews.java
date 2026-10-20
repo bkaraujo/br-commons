@@ -56,7 +56,7 @@ final class HomeViews {
                 hxGet("/home/chart"), hxTrigger("change"), hxTarget("#home-chart"), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(message("Minhas contas"))),
                 input(type("hidden"), name(FILTERED), value("1")),
-                ul(each(book.financial(), account -> li(option(account, selected.contains(account.id()))))));
+                ul(each(book.moneyAccounts(), account -> li(option(account, selected.contains(account.id()))))));
     }
 
     /** A checkbox with the name. */
@@ -68,7 +68,7 @@ final class HomeViews {
 
     /** Income and expenses of the last 12 months of the checked accounts, the current one last. */
     static Node chart(Book book, Set<Integer> selected) {
-        val current = YearMonth.from(book.today());
+        val current = book.month();
         val months = IntStream.range(0, MONTHS).mapToObj(back -> current.minusMonths(MONTHS - 1 - back)).toList();
         return div(
                 id("home-chart"), cls("home-chart card"),

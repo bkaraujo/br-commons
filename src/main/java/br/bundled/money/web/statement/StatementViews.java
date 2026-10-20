@@ -22,7 +22,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -114,18 +113,21 @@ final class StatementViews {
     private static Node line(Book book, LedgerLine line, MockAccount account, YearMonth month) {
         val transaction = line.transaction();
         val planned = transaction.date().isAfter(book.today());
+        val closed = book.closed(transaction);
         val path = "/statement/transactions/" + transaction.id();
         val context = "?account=" + account.id() + "&month=" + month;
         return tr(
                 cls(planned ? "planned" : ""),
                 td(time(datetime(transaction.date().toString()), text(Text.data(Ui.day(transaction.date())))),
-                        when(planned, () -> small(cls("sub"), text(message("previsto"))))),
+                        when(planned, () -> small(cls("sub"), text(message("previsto")))),
+                        when(closed, () -> small(cls("sub"), text(message("fechado"))))),
                 td(strong(text(Text.data(transaction.description()))),
                         small(cls("sub"), text(Text.data(line.counterpart())))),
                 td(cls("num"), Ui.amount(line.amount(), true)),
                 td(cls("num hide-narrow"), Ui.amount(line.balance(), false)),
-                td(cls("actions"),
-                        // com mais de duas contas (importado) só exclui: o editor reescreve como de uma conta para outra
+                // fechado (antes da data-limite) é imutável: sem ações; com mais de duas contas (importado) só exclui,
+                // o editor reescreve como de uma conta para outra
+                td(cls("actions"), when(!closed, () -> fragment(
                         when(book.editable(transaction), () -> button(
                                 type(ButtonType.BUTTON), cls("link icon-button"), hxGet(path + "/edit" + context),
                                 hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
@@ -134,7 +136,7 @@ final class StatementViews {
                         button(type(ButtonType.BUTTON), cls("link danger icon-button"), hxGet(path + "/delete" + context),
                                 hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
                                 title(message("Excluir")), ariaLabel(message("Excluir " + transaction.description())),
-                                span(cls("glyph glyph-delete"), ariaHidden(true))))
+                                span(cls("glyph glyph-delete"), ariaHidden(true))))))
         );
     }
 

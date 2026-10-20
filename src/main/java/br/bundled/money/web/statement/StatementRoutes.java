@@ -41,6 +41,9 @@ import static br.bundled.money.web.ui.Ui.pathId;
 @NullMarked
 public final class StatementRoutes implements WebResource {
 
+    /** A transaction before the closing date (INTENT F9) is neither edited nor deleted. */
+    private static final String CLOSED = "Lançamento em período fechado: recue a data-limite para alterá-lo.";
+
     private final Book book;
 
     public StatementRoutes(Book book) {
@@ -79,7 +82,7 @@ public final class StatementRoutes implements WebResource {
 
     private HTTPResponse edit(WebRequest request) {
         return book.transaction(pathId(request))
-                .map(transaction -> book.editable(transaction)
+                .map(transaction -> book.editable(transaction) && !book.closed(transaction)
                         ? ok(StatementViews.transactionForm(book, transaction, StatementFields.values(book, transaction),
                                 List.of(), chosen(request::parameter), month(request::parameter)).render())
                         : ok(""))
@@ -88,8 +91,8 @@ public final class StatementRoutes implements WebResource {
 
     private HTTPResponse confirm(WebRequest request) {
         return book.transaction(pathId(request))
-                .map(transaction -> ok(StatementViews.deletePanel(book, transaction, chosen(request::parameter),
-                        month(request::parameter)).render()))
+                .map(transaction -> book.closed(transaction) ? ok("")
+                        : ok(StatementViews.deletePanel(book, transaction, chosen(request::parameter), month(request::parameter)).render()))
                 .orElseGet(() -> ok(""));
     }
 
@@ -120,6 +123,9 @@ public final class StatementRoutes implements WebResource {
         if (found.isEmpty()) {
             return changed(account, month, "O lançamento não existe mais.");
         }
+        if (book.closed(found.get())) {
+            return changed(account, month, CLOSED);
+        }
         if (!book.editable(found.get())) {
             return changed(account, month, "Lançamento com mais de duas contas: não é editável aqui.");
         }
@@ -144,6 +150,9 @@ public final class StatementRoutes implements WebResource {
         val account = chosen(request::parameter);
         val month = month(request::parameter);
         val found = book.transaction(pathId(request));
+        if (found.isPresent() && book.closed(found.get())) {
+            return changed(account, month, CLOSED);
+        }
         if (found.isEmpty() || !book.discard(found.get().id())) {
             return changed(account, month, "O lançamento não existe mais.");
         }
@@ -160,7 +169,7 @@ public final class StatementRoutes implements WebResource {
     // ---------- account and month of the request
 
     private YearMonth month(Function<String, @Nullable String> value) {
-        return Ui.monthOf(value.apply("month"), YearMonth.from(book.today()));
+        return Ui.monthOf(value.apply("month"), book.month());
     }
 
     private MockAccount chosen(Function<String, @Nullable String> value) {

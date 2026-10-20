@@ -21,6 +21,9 @@ public final class DomainErrors {
     /** Arg: transaction identity */
     public static final String TRANSACTION_UNBALANCED = PREFIX + "transaction.unbalanced";
 
+    /** Args: what was changed (a date, an account id), the closing date (INTENT F9) */
+    public static final String PERIOD_CLOSED = PREFIX + "period.closed";
+
     static { I18N.register(PREFIX, BUNDLE); }
 
     private DomainErrors() {}

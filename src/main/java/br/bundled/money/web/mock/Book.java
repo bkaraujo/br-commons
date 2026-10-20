@@ -1,6 +1,8 @@
 package br.bundled.money.web.mock;
 
+import br.bundled.money.business._0_domain.DomainErrors;
 import br.bundled.money.business._0_domain.model.AccountType;
+import br.commons.business.BusinessException;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -28,6 +30,7 @@ public final class Book {
     private final AtomicInteger transactionIds = new AtomicInteger();
     private final AtomicInteger accountIds;
     private final LocalDate today;
+    private volatile @Nullable LocalDate threshold;
 
     Book(List<MockAccount> accounts, LocalDate today) {
         this.accounts = new CopyOnWriteArrayList<>(accounts);
@@ -37,6 +40,51 @@ public final class Book {
 
     public LocalDate today() {
         return today;
+    }
+
+    /**
+     * The month the screens open on: the one of the latest transaction up to today, else today's. An imported book
+     * can stop months in the past; opening on an empty month would hide it.
+     */
+    public YearMonth month() {
+        return transactions.stream().map(MockTransaction::date).filter(date -> !date.isAfter(today))
+                .max(Comparator.naturalOrder()).map(YearMonth::from).orElseGet(() -> YearMonth.from(today));
+    }
+
+    // ---------- closing (INTENT F9)
+
+    /** The closing date: every transaction dated before it is immutable; {@code null}, nothing is closed. */
+    public @Nullable LocalDate threshold() {
+        return threshold;
+    }
+
+    /**
+     * Closes the period before {@code date}. Moving it back (or {@code null}) is the explicit reopening: correct, then
+     * move it forward again.
+     */
+    public void close(@Nullable LocalDate date) {
+        threshold = date;
+    }
+
+    public boolean closed(LocalDate date) {
+        val limit = threshold;
+        return limit != null && date.isBefore(limit);
+    }
+
+    public boolean closed(MockTransaction transaction) {
+        return closed(transaction.date());
+    }
+
+    /** Whether the account has a transaction in the closed period: moving its splits away would change it. */
+    public boolean closedUses(int id) {
+        return transactions.stream().anyMatch(transaction -> closed(transaction) && touches(transaction, Set.of(id)));
+    }
+
+    /** A change dated in the closed period is rejected; the screens check before, this is the rule itself. */
+    private void open(LocalDate date) {
+        if (closed(date)) {
+            throw new BusinessException(DomainErrors.rule(DomainErrors.PERIOD_CLOSED, date, Objects.requireNonNull(threshold)));
+        }
     }
 
     // ---------- accounts
@@ -80,6 +128,15 @@ public final class Book {
 
     public List<MockAccount> financial() {
         return tree().stream().filter(MockAccount::financial).toList();
+    }
+
+    /**
+     * The financial accounts the screens offer ("Minhas contas", the quick entry): stocks and funds have no UI in the
+     * MVP (INTENT §5). They still count in {@link #netWorth}.
+     */
+    public List<MockAccount> moneyAccounts() {
+        return financial().stream()
+                .filter(account -> account.type() != AccountType.STOCK && account.type() != AccountType.MUTUAL).toList();
     }
 
     /** Income and expense accounts without children, the ones a quick entry can use. */
@@ -177,6 +234,9 @@ public final class Book {
      * {@code target} has its splits there merged; one left with no effect (a transfer between the two) is removed.
      */
     public void remove(int id, @Nullable Integer target) {
+        if (closedUses(id)) {
+            throw new BusinessException(DomainErrors.rule(DomainErrors.PERIOD_CLOSED, id, Objects.requireNonNull(threshold)));
+        }
         val from = type(id);
         if (target != null) {
             val factor = BigDecimal.valueOf((long) from.debit * type(target).debit);
@@ -339,12 +399,16 @@ public final class Book {
      * {@code from}, each converted to the sign of its account nature (amount = debit value × type.debit).
      */
     public MockTransaction move(LocalDate date, String description, int from, int to, BigDecimal value) {
+        open(date);
         val transaction = new MockTransaction(transactionIds.incrementAndGet(), date, description, splits(from, to, value));
         transactions.add(transaction);
         return transaction;
     }
 
-    /** A transaction with any number of splits, already signed in the nature of each account (see {@link MockSplit}). */
+    /**
+     * A transaction with any number of splits, already signed in the nature of each account (see {@link MockSplit}).
+     * Loading a book: the closing date does not apply.
+     */
     MockTransaction post(LocalDate date, String description, List<MockSplit> splits) {
         val transaction = new MockTransaction(transactionIds.incrementAndGet(), date, description, List.copyOf(splits));
         transactions.add(transaction);
@@ -388,12 +452,15 @@ public final class Book {
     public Optional<MockTransaction> revise(int id, LocalDate date, String description, int from, int to, BigDecimal value) {
         val index = indexOf(id);
         if (index < 0) return Optional.empty();
+        open(transactions.get(index).date());
+        open(date);
         val revised = new MockTransaction(id, date, description, splits(from, to, value));
         transactions.set(index, revised);
         return Optional.of(revised);
     }
 
     public boolean discard(int id) {
+        transaction(id).ifPresent(transaction -> open(transaction.date()));
         return transactions.removeIf(transaction -> transaction.id() == id);
     }
 

@@ -5,10 +5,14 @@ import br.bundled.money.web.mock.Book;
 import br.bundled.money.web.mock.MockAccount;
 import br.bundled.money.web.ui.Ledger;
 import br.bundled.money.web.ui.Ui;
+import br.commons.lang.html.ButtonType;
+import br.commons.lang.html.FormMethod;
 import br.commons.lang.html.core.Node;
+import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -17,6 +21,7 @@ import java.time.YearMonth;
 
 import static br.bundled.money.web.ui.Ui.message;
 import static br.commons.lang.Html5.*;
+import static br.commons.lang.Htmx.*;
 
 /**
  * The balance sheet (Ativo = Passivo + PL + resultado acumulado) and the DRE of the month, each group with its
@@ -25,6 +30,11 @@ import static br.commons.lang.Html5.*;
 @NullMarked
 final class ReportViews {
 
+    /** The closing form (INTENT F9): where it posts and its fields. */
+    static final String CLOSING = "/reports/closing";
+    static final String THRESHOLD = "threshold";
+    static final String CONFIRM = "confirm";
+
     private ReportViews() {}
 
     static Node screen(Book book, YearMonth month) {
@@ -32,9 +42,48 @@ final class ReportViews {
                 id("reports"), cls("reports"),
                 div(cls("ledger-head"), h2(text(message("Relatórios"))),
                         Ledger.monthNav(month, YearMonth.from(book.today()), shown -> "/reports?month=" + shown, "#reports")),
-                div(cls("report-grid"), balanceSheet(book, month.atEndOfMonth()), incomeStatement(book, month))
+                div(cls("report-grid"), balanceSheet(book, month.atEndOfMonth()), incomeStatement(book, month),
+                        closing(book, null, null))
         );
     }
+
+    // ---------- closing (INTENT F9)
+
+    /**
+     * The closing date: every transaction before it is immutable. {@code reopening}: the date asked, earlier than the
+     * current one (or none), waiting for the confirmation; moving it back is an explicit act. {@code notice}: what the
+     * last change did.
+     */
+    static Node closing(Book book, @Nullable String reopening, @Nullable String notice) {
+        val threshold = book.threshold();
+        val shown = reopening != null ? reopening : threshold == null ? "" : threshold.toString();
+        return article(
+                id("closing"), cls("report card closing"),
+                h3(text(message("Fechamento de período"))),
+                p(cls("caption"), text(message(threshold == null ? "Nenhum período fechado."
+                        : "Lançamentos antes de " + Ui.fullDay(threshold) + " estão fechados: não podem ser criados, "
+                        + "editados nem excluídos."))),
+                notice == null ? fragment() : p(cls("notice"), role("status"), text(message(notice))),
+                form(
+                        cls("closing-form"), method(FormMethod.POST), action(CLOSING),
+                        hxPost(CLOSING), hxTarget("#closing"), hxSwap(HxSwap.OUTER_HTML),
+                        label(text(message("Data-limite")),
+                                reopening == null ? input(type("date"), name(THRESHOLD), value(shown))
+                                        : input(type("date"), name(THRESHOLD), value(shown), readonly())),
+                        reopening == null
+                                ? div(cls("buttons"), button(type(ButtonType.SUBMIT), text(message("Salvar"))))
+                                : fragment(
+                                        p(cls("error"), role("alert"), text(message(
+                                                "Recuar a data-limite reabre os lançamentos do período para alteração."))),
+                                        input(type("hidden"), name(CONFIRM), value("1")),
+                                        div(cls("buttons"),
+                                                button(type(ButtonType.SUBMIT), cls("danger"), text(message("Confirmar reabertura"))),
+                                                button(type(ButtonType.BUTTON), cls("link"), hxGet(CLOSING), hxTarget("#closing"),
+                                                        hxSwap(HxSwap.OUTER_HTML), text(message("Cancelar")))))
+                )
+        );
+    }
+
 
     // ---------- balance sheet
 

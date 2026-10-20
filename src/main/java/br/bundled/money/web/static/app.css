@@ -1074,6 +1074,26 @@ tr:hover .actions button,
     margin-top: .75rem;
 }
 
+/* Fechamento de período (F9): a data-limite e o botão; reabrir pede confirmação no próprio cartão. */
+.closing-form {
+    display: grid;
+    gap: .75rem;
+    max-width: 22rem;
+    margin-top: .75rem;
+}
+
+.closing-form label input {
+    margin-top: .35rem;
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: normal;
+}
+
+.closing-form .error {
+    margin: 0;
+}
+
 .report-table {
     width: 100%;
     margin-top: .75rem;

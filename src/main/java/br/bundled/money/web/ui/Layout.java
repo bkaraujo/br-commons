@@ -83,7 +83,7 @@ public final class Layout {
                                 themeSwitch()
                         ),
                         main(id("content"), content),
-                        footer(small(text(message("Mockup · dados fictícios em memória"))))
+                        footer(small(text(message("Mockup · dados em memória"))))
                 )
         ));
     }

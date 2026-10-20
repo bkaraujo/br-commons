@@ -30,13 +30,19 @@ import java.util.zip.GZIPInputStream;
  * GnuCash keeps the money accounts as plain {@code ASSET}/{@code LIABILITY}; a leaf among them gets the financial
  * type the app lists in "Minhas contas" by the name of its group: credit card {@code CREDIT}, broker {@code STOCK},
  * bank, benefit or wallet {@code BANK}; anything else (a property, a loan given) keeps its type. Only one currency is
- * expected (the values are taken as they are, in BRL); each transaction is kept balanced to the cent.
+ * expected (the values are taken as they are, in BRL); each transaction is kept balanced to the cent. The read-only
+ * threshold of the book becomes the closing date.
  */
 @NullMarked
 final class GnuCashSeed {
 
     private static final Pattern CARD_GROUP = Pattern.compile("(?iu)cart(?:[ãa]o|[õo]es)");
     private static final Pattern BROKER_GROUP = Pattern.compile("(?iu)corretora");
+    /**
+     * The book option of the read-only threshold, in days before today (0: none), as GnuCash keeps it; it becomes the
+     * closing date (INTENT F9).
+     */
+    private static final String THRESHOLD_KEY = "Day Threshold for Read-Only Transactions (red line)";
     private static final Pattern BANK_GROUP = Pattern.compile("(?iu)conta|banc|benef[ií]cio|carteira");
 
     private GnuCashSeed() {}
@@ -55,11 +61,21 @@ final class GnuCashSeed {
             val accounts = new ArrayList<Account>();
             val transactions = new ArrayList<Transaction>();
             var templates = 0;
+            String key = null;
+            var thresholdDays = 0L;
             while (reader.hasNext()) {
                 val event = reader.next();
                 if (event == XMLStreamConstants.START_ELEMENT) {
+                    val slot = "slot".equals(reader.getPrefix());
                     switch (reader.getLocalName()) {
                         case "template-transactions" -> templates++;
+                        // the book's slots (the accounts' and transactions' are read with them)
+                        case "key" -> key = slot ? reader.getElementText() : null;
+                        case "value" -> {
+                            if (slot && THRESHOLD_KEY.equals(key)) {
+                                thresholdDays = Math.round(Double.parseDouble(reader.getElementText().strip()));
+                            }
+                        }
                         case "account" -> {
                             if (templates == 0 && "gnc".equals(reader.getPrefix())) accounts.add(account(reader));
                         }
@@ -72,7 +88,9 @@ final class GnuCashSeed {
                     templates--;
                 }
             }
-            return book(accounts, transactions, today);
+            val book = book(accounts, transactions, today);
+            if (thresholdDays > 0) book.close(today.minusDays(thresholdDays));
+            return book;
         } catch (IOException e) {
             throw new UncheckedIOException("Reading the GnuCash book " + file, e);
         } catch (XMLStreamException e) {
@@ -111,7 +129,7 @@ final class GnuCashSeed {
             val values = balanced(kept.stream().map(Split::value).toList());
             val splits = new ArrayList<MockSplit>();
             for (var i = 0; i < kept.size(); i++) {
-                val id = Objects.requireNonNull(ids.get(kept.get(i).account()));
+                int id = Objects.requireNonNull(ids.get(kept.get(i).account()));
                 val debit = accounts.get(id - 1).type().debit;
                 splits.add(new MockSplit(id, values.get(i).multiply(BigDecimal.valueOf(debit))));
             }

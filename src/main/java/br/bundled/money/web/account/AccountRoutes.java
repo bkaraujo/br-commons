@@ -26,7 +26,6 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -144,7 +143,7 @@ public final class AccountRoutes implements WebResource {
             return ok("");
         }
         val account = found.get();
-        if (!book.children(account.id()).isEmpty()) {
+        if (!book.children(account.id()).isEmpty() || book.closedUses(account.id())) {
             return invalid(RegisterViews.deletePanel(book, account, Map.of(), List.of()), "#account-editor");
         }
         val uses = book.uses(account.id());
@@ -194,7 +193,7 @@ public final class AccountRoutes implements WebResource {
         if (account.isEmpty()) {
             return Layout.page(request, HTTPStatus.NOT_FOUND, Screen.ACCOUNTS, AccountViews.missing());
         }
-        val month = Ui.monthOf(request.parameter("month"), YearMonth.from(book.today()));
+        val month = Ui.monthOf(request.parameter("month"), book.month());
         val view = AccountViews.ledger(book, account.get(), month);
         val screen = account.get().financial() ? Screen.HOME : Screen.ACCOUNTS;
         return Ui.partial(request) ? ok(view.render()) : Layout.page(request, screen, view);

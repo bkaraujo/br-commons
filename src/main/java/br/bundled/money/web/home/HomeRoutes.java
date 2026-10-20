@@ -46,7 +46,7 @@ public final class HomeRoutes implements WebResource {
     /** The checked financial accounts; all of them before the first change. */
     private Set<Integer> selected(WebRequest request) {
         val filtered = request.parameter(HomeViews.FILTERED) != null;
-        return book.financial().stream().map(MockAccount::id)
+        return book.moneyAccounts().stream().map(MockAccount::id)
                 .filter(id -> !filtered || request.parameter(HomeViews.ACCOUNT + id) != null)
                 .collect(Collectors.toSet());
     }

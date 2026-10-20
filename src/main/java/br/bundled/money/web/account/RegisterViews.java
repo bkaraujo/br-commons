@@ -183,6 +183,11 @@ final class RegisterViews {
                     p(text(message("Esta conta tem subcontas: mova-as (editando a conta-mãe delas) ou exclua-as antes."))),
                     div(cls("buttons"), cancel()));
         }
+        if (book.closedUses(account.id())) {
+            return div(cls("delete-panel card"), role("dialog"), ariaLabel(label), title,
+                    p(text(message("Esta conta tem lançamentos em período fechado: recue a data-limite para excluí-la."))),
+                    div(cls("buttons"), cancel()));
+        }
         return form(
                 cls("delete-panel card"), role("dialog"), ariaLabel(label), hxDelete("/accounts/" + account.id()),
                 hxTarget("#accounts"),

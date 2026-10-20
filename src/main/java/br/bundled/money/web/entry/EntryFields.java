@@ -45,10 +45,12 @@ final class EntryFields {
         val violations = new ArrayList<Violation>();
         val category = Forms.account(CATEGORY, value, book, MockAccount::category, violations);
         val account = Forms.account(ACCOUNT, value, book, MockAccount::financial, violations);
-        if (category == null || account == null) {
+        val date = LocalDate.parse(value.apply(DATE.name()));
+        Forms.open(DATE, date, book, violations);
+        if (category == null || account == null || !violations.isEmpty()) {
             return new Result.Failure<>(List.copyOf(violations));
         }
-        return Result.success(new QuickEntry(LocalDate.parse(value.apply(DATE.name())),
+        return Result.success(new QuickEntry(date,
                 new BigDecimal(value.apply(AMOUNT.name())), account, category, value.apply(DESCRIPTION.name()).strip()));
     }
 
@@ -58,7 +60,8 @@ final class EntryFields {
 
     private static final Map<String, String> INVALID_MESSAGES = Map.of(
             CATEGORY.name(), "Escolha uma categoria.",
-            ACCOUNT.name(), "Escolha uma conta.");
+            ACCOUNT.name(), "Escolha uma conta.",
+            DATE.name(), Forms.CLOSED);
 
     /** The submitted values, by field name, to show them again with the errors. */
     static Map<String, String> values(Function<String, String> value) {

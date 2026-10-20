@@ -12,6 +12,7 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,15 @@ public final class Forms {
 
     private static final String INVALID_VALUE = "Valor inválido.";
 
+    /** The message of a date in the closed period (INTENT F9). */
+    public static final String CLOSED = "Período fechado: escolha uma data a partir da data-limite.";
+
     private Forms() {}
+
+    /** A date before the closing date is a violation of {@code field}: the period is immutable. */
+    public static void open(Field field, LocalDate date, Book book, List<Violation> violations) {
+        if (book.closed(date)) violations.add(new Violation(field.name(), ValidationRule.INVALID));
+    }
 
     /** The message of a violation; an invalid field says what is expected by {@code invalid} (field name → text). */
     public static String violation(Violation violation, Map<String, String> invalid) {

@@ -48,7 +48,7 @@ final class EntryViews {
                         labeled(EntryFields.AMOUNT, "Valor (R$)", values, errors, null,
                                 cls("amount-input"), inputmode(InputMode.DECIMAL), placeholder(Text.data("0,00")), autofocus()),
                         labeled(EntryFields.CATEGORY, "Categoria", values, errors, options(book, book.categories(), true)),
-                        labeled(EntryFields.ACCOUNT, "Conta", values, errors, options(book, book.financial(), false)),
+                        labeled(EntryFields.ACCOUNT, "Conta", values, errors, options(book, book.moneyAccounts(), false)),
                         labeled(EntryFields.DESCRIPTION, "Descrição", values, errors, null,
                                 placeholder(message("Ex.: mercado, salário…"))),
                         labeled(EntryFields.DATE, "Data", values, errors, null),
