@@ -44,7 +44,7 @@ final class HomeViews {
                 id("home"), cls("home statement"),
                 accounts(book, selected),
                 chart(book, selected),
-                a(cls("fab"), href(Screen.ENTRY.path()), hxBoost(true), ariaLabel(message("Novo lançamento")),
+                a(cls("fab"), href(Screen.ENTRY.path()), ariaLabel(message("Novo lançamento")),
                         text(Text.data("+")))
         );
     }

@@ -62,8 +62,8 @@ public final class StatementRoutes implements WebResource {
     private HTTPResponse statement(WebRequest request) {
         val month = month(request::parameter);
         val account = chosen(request::parameter);
-        return (Ui.partial(request) ? ok(StatementViews.panel(book, account, month, Html.fragment()).render())
-                : Layout.page(request, Screen.STATEMENT, StatementViews.screen(book, account, month))).header("Vary", "HX-Request, HX-Boosted");
+        return Ui.partial(request) ? ok(StatementViews.panel(book, account, month, Html.fragment()).render())
+                : Layout.page(request, Screen.STATEMENT, StatementViews.screen(book, account, month));
     }
 
     // ---------- editor
@@ -79,8 +79,10 @@ public final class StatementRoutes implements WebResource {
 
     private HTTPResponse edit(WebRequest request) {
         return book.transaction(pathId(request))
-                .map(transaction -> ok(StatementViews.transactionForm(book, transaction, StatementFields.values(book, transaction),
-                        List.of(), chosen(request::parameter), month(request::parameter)).render()))
+                .map(transaction -> book.editable(transaction)
+                        ? ok(StatementViews.transactionForm(book, transaction, StatementFields.values(book, transaction),
+                                List.of(), chosen(request::parameter), month(request::parameter)).render())
+                        : ok(""))
                 .orElseGet(() -> ok(""));
     }
 
@@ -117,6 +119,9 @@ public final class StatementRoutes implements WebResource {
         val month = month(form::value);
         if (found.isEmpty()) {
             return changed(account, month, "O lançamento não existe mais.");
+        }
+        if (!book.editable(found.get())) {
+            return changed(account, month, "Lançamento com mais de duas contas: não é editável aqui.");
         }
         return switch (StatementFields.read(form::value, book)) {
             case Result.Success<StatementFields.Revision, List<Violation>>(var revision) -> {

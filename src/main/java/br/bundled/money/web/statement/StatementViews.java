@@ -103,7 +103,7 @@ final class StatementViews {
                         cls("records ledger-table"),
                         Ledger.columns(th(ariaLabel(message("Ações")))),
                         tbody(
-                                each(lines, line -> line(line, book.today(), account, month)),
+                                each(lines, line -> line(book, line, account, month)),
                                 when(lines.isEmpty(), () -> tr(cls("empty"),
                                         td(colspan(5), text(message("Nenhum lançamento previsto para " + Ui.month(month) + "."))))))
                 ))
@@ -111,9 +111,9 @@ final class StatementViews {
     }
 
     /** A line dated after today is planned: still counted, shown apart. */
-    private static Node line(LedgerLine line, LocalDate today, MockAccount account, YearMonth month) {
+    private static Node line(Book book, LedgerLine line, MockAccount account, YearMonth month) {
         val transaction = line.transaction();
-        val planned = transaction.date().isAfter(today);
+        val planned = transaction.date().isAfter(book.today());
         val path = "/statement/transactions/" + transaction.id();
         val context = "?account=" + account.id() + "&month=" + month;
         return tr(
@@ -125,10 +125,12 @@ final class StatementViews {
                 td(cls("num"), Ui.amount(line.amount(), true)),
                 td(cls("num hide-narrow"), Ui.amount(line.balance(), false)),
                 td(cls("actions"),
-                        button(type(ButtonType.BUTTON), cls("link icon-button"), hxGet(path + "/edit" + context),
+                        // com mais de duas contas (importado) só exclui: o editor reescreve como de uma conta para outra
+                        when(book.editable(transaction), () -> button(
+                                type(ButtonType.BUTTON), cls("link icon-button"), hxGet(path + "/edit" + context),
                                 hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
                                 title(message("Editar")), ariaLabel(message("Editar " + transaction.description())),
-                                span(cls("glyph glyph-edit"), ariaHidden(true))),
+                                span(cls("glyph glyph-edit"), ariaHidden(true)))),
                         button(type(ButtonType.BUTTON), cls("link danger icon-button"), hxGet(path + "/delete" + context),
                                 hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
                                 title(message("Excluir")), ariaLabel(message("Excluir " + transaction.description())),

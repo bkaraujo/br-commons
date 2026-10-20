@@ -47,12 +47,15 @@ public final class Layout {
         return page(request, HTTPStatus.OK, current, content);
     }
 
-    /** The whole page, or for a boosted navigation ({@link Ui#boosted}) only what changes in it. */
+    /**
+     * The whole page, or for a boosted navigation ({@link Ui#boosted}) only what changes in it. That one always goes
+     * as {@code 200}: htmx drops an error answer unswapped (a missing account's 404 would look like a dead click); the
+     * whole page keeps the real status.
+     */
     public static HTTPResponse page(HTTPRequest request, HTTPStatus status, Screen current, Node content) {
-        if (!Ui.boosted(request)) return WebResponse.html(status, document(current, content));
+        if (!Ui.boosted(request)) return Ui.html(status, document(current, content));
         val changed = Html.fragment(pageTitle(current), main(id("content"), content), navigation(current, hxSwapOob()));
-        return HtmxResponse.of(WebResponse.html(status, changed.render())).retarget("#content").reswap(INTO_CONTENT)
-                .response();
+        return HtmxResponse.of(Ui.ok(changed.render())).retarget("#content").reswap(INTO_CONTENT).response();
     }
 
     private static String document(Screen current, Node content) {

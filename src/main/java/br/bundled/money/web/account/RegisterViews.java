@@ -65,16 +65,18 @@ final class RegisterViews {
                         cls("records tree"),
                         thead(tr(th(text(message("Conta"))), th(cls("hide-narrow"), text(message("Tipo"))),
                                 th(cls("num"), text(message("Saldo"))), th(ariaLabel(message("Ações"))))),
-                        each(branches(book), branch -> tbody(
-                                id(BRANCH + branch.getFirst().id()), cls("branch collapsed"),
-                                each(branch, account -> row(book, account, balances.getOrDefault(account.id(), BigDecimal.ZERO)))))
+                        each(branches(book), branch -> {
+                            val rows = each(branch, account -> row(book, account, balances.getOrDefault(account.id(), BigDecimal.ZERO)));
+                            return branch.size() > 1 ? tbody(id(BRANCH + branch.getFirst().id()), cls("branch collapsed"), rows) : tbody(rows);
+                        })
                 )
         );
     }
 
     /**
-     * The tree cut at each top-level account (Ativo, Passivo...): one {@code <tbody>} each, born collapsed, the group
-     * row with the button that opens it ({@code static/money/tree.js}, which remembers the open ones).
+     * The tree cut at each top-level account (Ativo, Passivo...): one {@code <tbody>} each; one with subaccounts is a
+     * branch born collapsed, the group row with the button that opens it ({@code static/money/tree.js}, which
+     * remembers the open ones).
      */
     private static List<List<MockAccount>> branches(Book book) {
         val branches = new ArrayList<List<MockAccount>>();
@@ -91,10 +93,10 @@ final class RegisterViews {
         val path = "/accounts/" + account.id();
         return tr(
                 cls("depth-" + Math.min(depth, 3) + (depth == 0 ? " group" : "")),
-                td(when(depth == 0, () -> button(type(ButtonType.BUTTON), cls("toggle"), ariaExpanded(false),
-                                ariaControls(BRANCH + account.id()), ariaLabel(message("Mostrar ou ocultar " + account.name())),
-                                span(cls("chevron"), ariaHidden(true)))),
-                        a(href(path), hxBoost(true), text(Text.data(account.name())))),
+                td(when(depth == 0 && !book.children(account.id()).isEmpty(), () -> button(
+                                type(ButtonType.BUTTON), cls("toggle"), ariaExpanded(false), ariaControls(BRANCH + account.id()),
+                                ariaLabel(message("Mostrar ou ocultar subcontas")), span(cls("chevron"), ariaHidden(true)))),
+                        a(href(path), text(Text.data(account.name())))),
                 td(cls("hide-narrow"), span(cls("badge" + (account.financial() ? " financial" : "")),
                         text(message(Ui.typeLabel(account.type()))))),
                 td(cls("num"), Ui.amount(balance, false)),

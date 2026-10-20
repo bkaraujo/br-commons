@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,14 +28,16 @@ import java.util.zip.GZIPInputStream;
  * A book read from a GnuCash XML file (gzipped or not), read at startup and never copied into the repository: the
  * chart of accounts and every transaction with its splits. The scheduled transactions' templates are skipped.
  * GnuCash keeps the money accounts as plain {@code ASSET}/{@code LIABILITY}; a leaf among them gets the financial
- * type the app lists in "Minhas contas": under a credit card group {@code CREDIT}, under a broker {@code STOCK},
- * any other asset {@code BANK}. Only one currency is expected (the values are taken as they are, in BRL).
+ * type the app lists in "Minhas contas" by the name of its group: credit card {@code CREDIT}, broker {@code STOCK},
+ * bank, benefit or wallet {@code BANK}; anything else (a property, a loan given) keeps its type. Only one currency is
+ * expected (the values are taken as they are, in BRL); each transaction is kept balanced to the cent.
  */
 @NullMarked
 final class GnuCashSeed {
 
-    private static final Pattern CARD_GROUP = Pattern.compile("(?iu)cart[ãa]o");
+    private static final Pattern CARD_GROUP = Pattern.compile("(?iu)cart(?:[ãa]o|[õo]es)");
     private static final Pattern BROKER_GROUP = Pattern.compile("(?iu)corretora");
+    private static final Pattern BANK_GROUP = Pattern.compile("(?iu)conta|banc|benef[ií]cio|carteira");
 
     private GnuCashSeed() {}
 
@@ -103,16 +106,36 @@ final class GnuCashSeed {
         val book = new Book(accounts, today);
         transactions.sort(Comparator.comparing(Transaction::date));
         for (val transaction : transactions) {
+            val kept = transaction.splits().stream()
+                    .filter(split -> split.value().signum() != 0 && ids.containsKey(split.account())).toList();
+            val values = balanced(kept.stream().map(Split::value).toList());
             val splits = new ArrayList<MockSplit>();
-            for (val split : transaction.splits()) {
-                val id = ids.get(split.account());
-                if (id == null || split.value().signum() == 0) continue;
+            for (var i = 0; i < kept.size(); i++) {
+                val id = Objects.requireNonNull(ids.get(kept.get(i).account()));
                 val debit = accounts.get(id - 1).type().debit;
-                splits.add(new MockSplit(id, split.value().multiply(BigDecimal.valueOf(debit))));
+                splits.add(new MockSplit(id, values.get(i).multiply(BigDecimal.valueOf(debit))));
             }
             if (!splits.isEmpty()) book.post(transaction.date(), transaction.description(), splits);
         }
         return book;
+    }
+
+    /**
+     * The debit values rounded to the cent and summing zero again: what rounding each one alone leaves over (a third of
+     * a value, more than two decimals) goes to the biggest one.
+     */
+    private static List<BigDecimal> balanced(List<BigDecimal> exact) {
+        val values = new ArrayList<BigDecimal>();
+        exact.forEach(value -> values.add(value.setScale(2, RoundingMode.HALF_UP)));
+        val rest = values.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (rest.signum() != 0 && !values.isEmpty()) {
+            var biggest = 0;
+            for (var i = 1; i < values.size(); i++) {
+                if (values.get(i).abs().compareTo(values.get(biggest).abs()) > 0) biggest = i;
+            }
+            values.set(biggest, values.get(biggest).subtract(rest));
+        }
+        return values;
     }
 
     /** The parent, or {@code null} for the top level (a child of GnuCash's root account). */
@@ -126,7 +149,8 @@ final class GnuCashSeed {
         if (group || parent == null) return type;
         return switch (type) {
             case LIABILITY -> CARD_GROUP.matcher(parent.name()).find() ? AccountType.CREDIT : type;
-            case ASSET -> BROKER_GROUP.matcher(parent.name()).find() ? AccountType.STOCK : AccountType.BANK;
+            case ASSET -> BROKER_GROUP.matcher(parent.name()).find() ? AccountType.STOCK
+                    : BANK_GROUP.matcher(parent.name()).find() ? AccountType.BANK : type;
             default -> type;
         };
     }
@@ -172,32 +196,40 @@ final class GnuCashSeed {
             val prefix = reader.getPrefix();
             switch (prefix + ":" + reader.getLocalName()) {
                 case "trn:description" -> { description = reader.getElementText(); depth--; }
-                case "ts:date" -> { date = reader.getElementText(); depth--; } // of date-posted: date-entered is skipped
+                case "trn:date-posted" -> { date = posted(reader); depth--; }
                 case "split:account" -> { account = reader.getElementText(); depth--; }
                 case "split:value" -> { value = reader.getElementText(); depth--; }
-                case "trn:date-entered" -> { skip(reader); depth--; }
                 default -> {}
             }
         }
         return new Transaction(LocalDate.parse(required(date, "trn:date-posted").substring(0, 10)), description, splits);
     }
 
-    /** Past the end of the current element. */
-    private static void skip(XMLStreamReader reader) throws XMLStreamException {
+    /**
+     * The {@code <ts:date>} of {@code <trn:date-posted>}, to its end. Only this one: date-entered, a split's
+     * reconcile-date and the slots have their own {@code <ts:date>}.
+     */
+    private static String posted(XMLStreamReader reader) throws XMLStreamException {
+        String date = null;
         var depth = 1;
         while (depth > 0) {
             val event = reader.next();
-            if (event == XMLStreamConstants.START_ELEMENT) depth++;
-            else if (event == XMLStreamConstants.END_ELEMENT) depth--;
+            if (event == XMLStreamConstants.START_ELEMENT) {
+                if ("date".equals(reader.getLocalName()) && "ts".equals(reader.getPrefix())) date = reader.getElementText();
+                else depth++;
+            } else if (event == XMLStreamConstants.END_ELEMENT) {
+                depth--;
+            }
         }
+        return required(date, "ts:date");
     }
 
-    /** GnuCash's {@code numerator/denominator}, to cents. */
+    /** GnuCash's {@code numerator/denominator}, exact (rounded to the cent per transaction, see {@link #balanced}). */
     private static BigDecimal amount(String fraction) {
         val slash = fraction.indexOf('/');
         val numerator = new BigDecimal(slash < 0 ? fraction : fraction.substring(0, slash));
         val denominator = slash < 0 ? BigDecimal.ONE : new BigDecimal(fraction.substring(slash + 1));
-        return numerator.divide(denominator, 2, RoundingMode.HALF_UP);
+        return numerator.divide(denominator, MathContext.DECIMAL128);
     }
 
     private static <T> T required(@Nullable T value, String element) throws XMLStreamException {

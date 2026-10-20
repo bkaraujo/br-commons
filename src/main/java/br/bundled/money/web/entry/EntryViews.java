@@ -63,7 +63,7 @@ final class EntryViews {
                 .filter(MockAccount::financial).findFirst();
         return p(cls("notice"), role("status"),
                 text(message("Lançado: " + saved.description() + " · " + Ui.money(book.value(saved)) + ". ")),
-                account.map(found -> (Node) a(href("/accounts/" + found.id()), hxBoost(true),
+                account.map(found -> (Node) a(href("/accounts/" + found.id()),
                         text(message("Ver em " + found.name())))).orElseGet(() -> fragment()));
     }
 

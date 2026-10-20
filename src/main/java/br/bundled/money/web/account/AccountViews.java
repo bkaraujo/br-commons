@@ -39,7 +39,7 @@ final class AccountViews {
         val back = account.financial() ? Screen.HOME : Screen.ACCOUNTS;
         return section(
                 id("ledger"), cls("ledger"),
-                a(cls("back"), href(back.path()), hxBoost(true), text(message("← " + back.label()))),
+                a(cls("back"), href(back.path()), text(message("← " + back.label()))),
                 div(cls("ledger-head"),
                         div(p(cls("caption"), text(message(Ui.typeLabel(account.type())))),
                                 h2(text(Text.data(book.path(account))))),

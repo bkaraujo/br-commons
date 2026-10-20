@@ -138,7 +138,15 @@ public final class Ui {
     }
 
     public static HTTPResponse ok(String html) {
-        return WebResponse.html(HTTPStatus.OK, html);
+        return html(HTTPStatus.OK, html);
+    }
+
+    /**
+     * Every HTML answer: the same URL gives the page, a boosted navigation's content or a fragment, by the htmx
+     * headers; {@code Vary} keeps a cache from serving one for the other.
+     */
+    static HTTPResponse html(HTTPStatus status, String html) {
+        return WebResponse.html(status, html).header("Vary", "HX-Request, HX-Boosted");
     }
 
     /** The {@code {id}} of the route; {@code -1} (matches nothing) when it is not a number. */

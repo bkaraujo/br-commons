@@ -197,6 +197,6 @@ public final class AccountRoutes implements WebResource {
         val month = Ui.monthOf(request.parameter("month"), YearMonth.from(book.today()));
         val view = AccountViews.ledger(book, account.get(), month);
         val screen = account.get().financial() ? Screen.HOME : Screen.ACCOUNTS;
-        return (Ui.partial(request) ? ok(view.render()) : Layout.page(request, screen, view)).header("Vary", "HX-Request, HX-Boosted");
+        return Ui.partial(request) ? ok(view.render()) : Layout.page(request, screen, view);
     }
 }

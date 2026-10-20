@@ -362,6 +362,16 @@ public final class Book {
         return transactions.stream().filter(transaction -> transaction.id() == id).findFirst();
     }
 
+    /**
+     * Whether the editor can rewrite it ({@link #from}, {@link #to}, {@link #revise}): one account gives, one receives.
+     * A transaction with more splits (an imported paycheck with its deductions) is shown and deleted, not edited.
+     */
+    public boolean editable(MockTransaction transaction) {
+        val signs = transaction.splits().stream()
+                .map(split -> split.amount().signum() * type(split.account()).debit).toList();
+        return signs.size() == 2 && signs.contains(1) && signs.contains(-1);
+    }
+
     /** The account the value of a two-split transaction leaves: the split that decreases in debit terms. */
     public int from(MockTransaction transaction) {
         return transaction.splits().stream().filter(split -> split.amount().signum() * type(split.account()).debit < 0)
