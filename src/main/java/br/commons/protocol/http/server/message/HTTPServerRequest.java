@@ -1,6 +1,8 @@
 package br.commons.protocol.http.server.message;
 
+import br.commons.Result;
 import br.commons.Strings;
+import br.commons.locale.i18n.Errors;
 import br.commons.protocol.http.Multipart;
 import br.commons.protocol.http.message.HTTPMessage;
 import br.commons.protocol.http.message.HTTPMethod;
@@ -11,6 +13,9 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -27,6 +32,7 @@ public final class HTTPServerRequest implements HTTPRequest {
 
     private final String requestId;
     private final HTTPMethod method;
+    private final URI uri;
     private final String path;
     private final Map<String, String> parameters;
     private final Map<String, String> headers;
@@ -34,21 +40,66 @@ public final class HTTPServerRequest implements HTTPRequest {
     private final Multipart multipart;
     private final Map<String, Object> attributes = new HashMap<>();
 
-    public HTTPServerRequest(String requestId, HTTPMethod method, String path, Map<String, String> parameters,
-                             Map<String, String> headers, byte[] body) {
-        this(requestId, method, path, parameters, headers, body, Multipart.EMPTY);
+    /** A request built off the wire (tests, internal dispatch) from {@code uri} as text, e.g. {@code /x?since=10}. */
+    public HTTPServerRequest(String requestId, HTTPMethod method, String uri, Map<String, String> headers, byte[] body) {
+        this(requestId, method, URI.create(uri), headers, body, Multipart.EMPTY);
     }
 
-    /** A {@code multipart/form-data} request: its body was streamed by the {@link MultipartParser}, not kept in memory. */
-    public HTTPServerRequest(String requestId, HTTPMethod method, String path, Map<String, String> parameters,
-                             Map<String, String> headers, byte[] body, Multipart multipart) {
+    /**
+     * Reads {@link #path()} and {@link #parameters()} from {@code uri}, the raw target the client sent
+     * ({@code /people/?q=caf%C3%A9}): the path decoded and without trailing slash, the query decoded. A
+     * {@code multipart/form-data} body was streamed by the {@link MultipartParser}, not kept in memory.
+     *
+     * @throws IllegalArgumentException when the query is malformed (see {@link #parseQuery(String)}, which the
+     *                                  server checks first to answer 400)
+     */
+    public HTTPServerRequest(String requestId, HTTPMethod method, URI uri, Map<String, String> headers, byte[] body,
+                             Multipart multipart) {
         this.multipart = multipart;
         this.requestId = requestId;
         this.method = method;
-        this.path = path;
-        this.parameters = Collections.unmodifiableMap(new LinkedHashMap<>(parameters));
+        this.uri = uri;
+        this.path = withoutTrailingSlash(Strings.or(uri.getPath(), ""));
+        this.parameters = Collections.unmodifiableMap(query(uri.getRawQuery()));
         this.headers = Collections.unmodifiableMap(lowerCaseNames(headers));
         this.body = body;
+    }
+
+    private static Map<String, String> query(@Nullable String rawQuery) {
+        val query = parseQuery(rawQuery);
+        if (query instanceof Result.Failure<Map<String, String>, String>(var error)) throw new IllegalArgumentException(error);
+        return query.getOrThrow();
+    }
+
+    private static String withoutTrailingSlash(String path) {
+        return path.length() > 1 && path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+    }
+
+    /**
+     * The query string decoded, or why it cannot be: malformed percent-encoding ({@code %zz}, a lone {@code %})
+     * fails, so the server answers 400 instead of failing the request.
+     */
+    public static Result<Map<String, String>, String> parseQuery(@Nullable String rawQuery) {
+        val query = new LinkedHashMap<String, String>();
+        if (rawQuery == null || rawQuery.isBlank()) return Result.success(query);
+        for (val pair : rawQuery.split("&")) {
+            val idx = pair.indexOf('=');
+            if (idx < 0) continue;
+            val entry = decode(pair.substring(0, idx))
+                    .flatMap(key -> decode(pair.substring(idx + 1)).map(value -> Map.entry(key, value)));
+            if (entry instanceof Result.Failure<Map.Entry<String, String>, String>(var error)) return Result.failure(error);
+            entry.ifSuccess(decoded -> query.put(decoded.getKey(), decoded.getValue()));
+        }
+        return Result.success(query);
+    }
+
+    /** {@link URLDecoder} fails by exception; this is where it becomes a {@link Result}. */
+    private static Result<String, String> decode(String text) {
+        try {
+            return Result.success(URLDecoder.decode(text, StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException e) {
+            return Result.failure(Errors.get().malformedQuery(String.valueOf(e.getMessage())).value());
+        }
     }
 
     private static Map<String, String> lowerCaseNames(Map<String, String> headers) {
@@ -78,6 +129,9 @@ public final class HTTPServerRequest implements HTTPRequest {
 
     @Override
     public HTTPMethod method() { return method; }
+
+    @Override
+    public URI uri() { return uri; }
 
     @Override
     public String path() { return path; }

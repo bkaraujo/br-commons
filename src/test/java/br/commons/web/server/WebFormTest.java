@@ -26,7 +26,7 @@ class WebFormTest {
         val router = new Router();
         val route = router.post("/login", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class,
                 request -> WebResponse.noContent()).getOrThrow();
-        val raw = new HTTPServerRequest("", HTTPMethod.POST, "/login", Map.of(), Map.of(), body.getBytes(StandardCharsets.UTF_8));
+        val raw = new HTTPServerRequest("", HTTPMethod.POST, "/login", Map.of(), body.getBytes(StandardCharsets.UTF_8));
         return new WebRequest(raw, route, Map.of());
     }
 

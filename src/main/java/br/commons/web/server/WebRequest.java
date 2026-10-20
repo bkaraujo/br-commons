@@ -14,6 +14,7 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.util.Map;
 
 /**
@@ -94,6 +95,9 @@ public final class WebRequest implements HTTPRequest {
 
     @Override
     public HTTPMethod method() { return request.method(); }
+
+    @Override
+    public URI uri() { return request.uri(); }
 
     @Override
     public String path() { return request.path(); }

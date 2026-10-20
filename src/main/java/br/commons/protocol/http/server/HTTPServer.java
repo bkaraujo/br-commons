@@ -23,8 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -177,17 +175,16 @@ public final class HTTPServer {
      * answers 400 (malformed query or multipart) or 413 and returns {@code null} when it cannot.
      */
     private @Nullable HTTPServerRequest readRequest(HttpExchange exchange, String requestId, HTTPMethod method) throws IOException {
-        val query = parseQuery(exchange.getRequestURI().getRawQuery());
+        val query = HTTPServerRequest.parseQuery(exchange.getRequestURI().getRawQuery());
         if (query instanceof Result.Failure<Map<String, String>, String>(var error)) {
             Logger.debug("[IN ] malformed query: %s", error);
             write(exchange, HTTPServerResponse.status(HTTPStatus.BAD_REQUEST));
             return null;
         }
-        val parameters = query.getOrElse(Map.of());
         val contentType = exchange.getRequestHeaders().getFirst("Content-Type");
         if (multipart != null && MultipartParser.accepts(contentType)) {
             try {
-                return toRequest(exchange, requestId, method, parameters, new byte[0], multipart.parse(contentType, exchange.getRequestBody()));
+                return toRequest(exchange, requestId, method, new byte[0], multipart.parse(contentType, exchange.getRequestBody()));
             } catch (MultipartParser.TooLarge e) {
                 Logger.trace("[IN ]CONTENT_TOO_LARGE (multipart)");
                 write(exchange, HTTPServerResponse.status(HTTPStatus.CONTENT_TOO_LARGE));
@@ -204,10 +201,9 @@ public final class HTTPServer {
             write(exchange, HTTPServerResponse.status(HTTPStatus.CONTENT_TOO_LARGE));
             return null;
         }
-        return toRequest(exchange, requestId, method, parameters, body, Multipart.EMPTY);
+        return toRequest(exchange, requestId, method, body, Multipart.EMPTY);
     }
 
-    /** The client's {@value HTTPMessage#REQUEST_ID_HEADER}, or a new one when it is missing or blank. */
     /** Method outside {@link HTTPMethod} (HEAD, TRACE…) receives 405 instead of blowing up as a failure. */
     private static @Nullable HTTPMethod method(String name) {
         for (val method : HTTPMethod.values()) {
@@ -249,46 +245,17 @@ public final class HTTPServer {
     }
 
     private static HTTPServerRequest toRequest(HttpExchange exchange, String requestId, HTTPMethod method,
-                                               Map<String, String> parameters, byte[] body, Multipart upload) {
-        val rawPath = exchange.getRequestURI().getPath();
-        val path = rawPath.length() > 1 && rawPath.endsWith("/") ? rawPath.substring(0, rawPath.length() - 1) : rawPath;
-
+                                               byte[] body, Multipart upload) {
         val headers = new LinkedHashMap<String, String>();
         exchange.getRequestHeaders().forEach((name, values) -> {
             if (!values.isEmpty()) headers.put(name, values.getFirst());
         });
 
+        val request = new HTTPServerRequest(requestId, method, exchange.getRequestURI(), headers, body, upload);
         Logger.debug("[IN ] headers %s", headers);
-        Logger.debug("[IN ] parameters %s", parameters);
+        Logger.debug("[IN ] parameters %s", request.parameters());
         Logger.verbose("[IN ] body %s", Logger.lazy(() -> Arrays.toString(body)));
-        return new HTTPServerRequest(requestId, method, path, parameters, headers, body, upload);
-    }
-
-    /**
-     * The query string decoded, or why it cannot be: malformed percent-encoding ({@code %zz}, a lone {@code %})
-     * answers 400 instead of failing the request.
-     */
-    static Result<Map<String, String>, String> parseQuery(@Nullable String rawQuery) {
-        val query = new LinkedHashMap<String, String>();
-        if (rawQuery == null || rawQuery.isBlank()) return Result.success(query);
-        for (val pair : rawQuery.split("&")) {
-            val idx = pair.indexOf('=');
-            if (idx < 0) continue;
-            val entry = decode(pair.substring(0, idx))
-                    .flatMap(key -> decode(pair.substring(idx + 1)).map(value -> Map.entry(key, value)));
-            if (entry instanceof Result.Failure<Map.Entry<String, String>, String>(var error)) return Result.failure(error);
-            entry.ifSuccess(decoded -> query.put(decoded.getKey(), decoded.getValue()));
-        }
-        return Result.success(query);
-    }
-
-    /** {@link URLDecoder} fails by exception; this is where it becomes a {@link Result}. */
-    private static Result<String, String> decode(String text) {
-        try {
-            return Result.success(URLDecoder.decode(text, StandardCharsets.UTF_8));
-        } catch (IllegalArgumentException e) {
-            return Result.failure(Errors.get().malformedQuery(String.valueOf(e.getMessage())).value());
-        }
+        return request;
     }
 
     /** Discards what the original response left in the headers; if they were already sent, nothing to do. */

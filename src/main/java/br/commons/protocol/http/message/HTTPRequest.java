@@ -5,6 +5,7 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.net.URI;
 import java.util.Map;
 
 /**
@@ -18,6 +19,14 @@ public interface HTTPRequest extends HTTPMessage {
     HTTPMethod method();
 
     String path();
+
+    /**
+     * The request target as the client sent it, as the browser shows it after the host: its {@code toString()} is
+     * the raw path (no trailing slash removal, percent-encoding kept) and, when present, {@code ?} plus the raw
+     * query — e.g. {@code /people/?q=caf%C3%A9&q=x}. The fragment never reaches the server. For logs and links
+     * back to the same address; routing uses {@link #path()} and reading uses {@link #parameters()}.
+     */
+    URI uri();
 
     /** Query string already decoded; repeated parameter takes the last value. */
     Map<String, String> parameters();

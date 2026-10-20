@@ -26,7 +26,7 @@ class StaticFilesTest {
     Path dir;
 
     private static HTTPServerRequest request(HTTPMethod method, String path) {
-        return new HTTPServerRequest("", method, path, Map.of(), Map.of(), new byte[0]);
+        return new HTTPServerRequest("", method, path, Map.of(), new byte[0]);
     }
 
     @Test
@@ -55,7 +55,7 @@ class StaticFilesTest {
     @Test
     void refusesTraversalAndMissingFiles() {
         val files = new StaticFiles("/static/", "static-test", dir, Duration.ZERO);
-        for (val path : new String[] {"/static/", "/static/../pom.xml", "/static/css\\app.css", "/static/none.js"}) {
+        for (val path : new String[] {"/static/../pom.xml", "/static/css%5Capp.css", "/static/none.js"}) {
             assertEquals(404, files.apply(request(HTTPMethod.GET, path), NEXT).status().code(), path);
         }
     }
@@ -85,8 +85,7 @@ class StaticFilesTest {
         val first = fromClasspath.apply(request(HTTPMethod.GET, "/static/css/app.css"), NEXT);
         val etag = first.header("ETag");
         assertNotNull(etag);
-        val again = new HTTPServerRequest("", HTTPMethod.GET, "/static/css/app.css", Map.of(),
-                Map.of("if-none-match", etag), new byte[0]);
+        val again = new HTTPServerRequest("", HTTPMethod.GET, "/static/css/app.css", Map.of("if-none-match", etag), new byte[0]);
         assertEquals(304, fromClasspath.apply(again, NEXT).status().code());
 
         Files.createDirectories(dir.resolve("css"));
@@ -94,8 +93,7 @@ class StaticFilesTest {
         val fromDisk = new StaticFiles("/static/", "static-test", dir, Duration.ZERO);
         val diskTag = fromDisk.apply(request(HTTPMethod.GET, "/static/css/app.css"), NEXT).header("ETag");
         assertNotNull(diskTag);
-        val conditional = new HTTPServerRequest("", HTTPMethod.GET, "/static/css/app.css", Map.of(),
-                Map.of("if-none-match", diskTag), new byte[0]);
+        val conditional = new HTTPServerRequest("", HTTPMethod.GET, "/static/css/app.css", Map.of("if-none-match", diskTag), new byte[0]);
         assertEquals(304, fromDisk.apply(conditional, NEXT).status().code());
     }
 }

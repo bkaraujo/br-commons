@@ -17,7 +17,7 @@ class HTTPServerRequestTest {
 
     @Test
     void headerNamesAreCaseInsensitive() {
-        val request = new HTTPServerRequest("", HTTPMethod.GET, "/x", Map.of(), Map.of("X-Request-ID", "abc"), new byte[0]);
+        val request = new HTTPServerRequest("", HTTPMethod.GET, "/x", Map.of("X-Request-ID", "abc"), new byte[0]);
         assertEquals("abc", request.header("x-request-id"));
         assertEquals("abc", request.header("X-REQUEST-ID"));
         assertFalse(request.hasBody());
@@ -34,7 +34,7 @@ class HTTPServerRequestTest {
         assertEquals("", HTTPServerRequest.clientRequestId("x".repeat(65)));
         assertEquals("", HTTPServerRequest.clientRequestId("<script>"));
 
-        val request = new HTTPServerRequest("internal", HTTPMethod.GET, "/x", Map.of(), Map.of("X-Request-ID", "abc-123"), new byte[0]);
+        val request = new HTTPServerRequest("internal", HTTPMethod.GET, "/x", Map.of("X-Request-ID", "abc-123"), new byte[0]);
         assertEquals("internal", request.requestId());
         assertEquals("abc-123", request.clientRequestId());
     }
@@ -53,17 +53,29 @@ class HTTPServerRequestTest {
 
     @Test
     void mediaTypeComesFromTheContentTypeHeader() {
-        val request = new HTTPServerRequest("", HTTPMethod.POST, "/x", Map.of(), Map.of("content-type", "application/json; charset=utf-8"), new byte[0]);
+        val request = new HTTPServerRequest("", HTTPMethod.POST, "/x", Map.of("content-type", "application/json; charset=utf-8"), new byte[0]);
         assertEquals(MediaType.APPLICATION_JSON, request.mediaType());
     }
 
     @Test
     void parametersAreReadOnlyAndAttributesAreNot() {
-        val request = new HTTPServerRequest("", HTTPMethod.GET, "/x", Map.of("since", "10"), Map.of(), new byte[0]);
+        val request = new HTTPServerRequest("", HTTPMethod.GET, "/x?since=10", Map.of(), new byte[0]);
         assertEquals("10", request.parameter("since"));
+        assertEquals("/x?since=10", request.uri().toString());
+        assertEquals("/x", request.path());
         assertThrows(UnsupportedOperationException.class, () -> request.parameters().put("since", "0"));
 
         request.attribute("resolved", 42);
         assertEquals(42, request.attribute("resolved"));
+    }
+
+    @Test
+    void constructorReadsPathAndParametersFromTheUri() {
+        val request = new HTTPServerRequest("", HTTPMethod.GET, "/people/caf%C3%A9/?q=caf%C3%A9&x=a+b&flag", Map.of(), new byte[0]);
+        assertEquals("/people/caf%C3%A9/?q=caf%C3%A9&x=a+b&flag", request.uri().toString());
+        assertEquals("/people/café", request.path());
+        assertEquals(Map.of("q", "café", "x", "a b"), request.parameters());
+        assertEquals("/", new HTTPServerRequest("", HTTPMethod.GET, "/", Map.of(), new byte[0]).path());
+        assertThrows(IllegalArgumentException.class, () -> new HTTPServerRequest("", HTTPMethod.GET, "/x?q=%zz", Map.of(), new byte[0]));
     }
 }

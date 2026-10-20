@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class HtmxHeadersTest {
 
     private static HtmxRequest request(Map<String, String> headers) {
-        return HtmxRequest.of(new HTTPServerRequest("", HTTPMethod.GET, "/", Map.of(), headers, new byte[0]));
+        return HtmxRequest.of(new HTTPServerRequest("", HTTPMethod.GET, "/", headers, new byte[0]));
     }
 
     @Test

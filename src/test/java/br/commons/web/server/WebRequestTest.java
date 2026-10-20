@@ -25,7 +25,7 @@ class WebRequestTest {
     }
 
     private static WebRequest request(Route route, String body, Map<String, String> headers) {
-        val raw = new HTTPServerRequest("", route.method(), "/api/x/7", Map.of(), headers, body.getBytes(StandardCharsets.UTF_8));
+        val raw = new HTTPServerRequest("", route.method(), "/api/x/7", headers, body.getBytes(StandardCharsets.UTF_8));
         return new WebRequest(raw, route, Map.of("id", "7"));
     }
 
@@ -64,7 +64,7 @@ class WebRequestTest {
     @Test
     void requestIdIsTheRawRequestOne() {
         val route = post(MediaType.APPLICATION_JSON, Payload.class);
-        val raw = new HTTPServerRequest("", HTTPMethod.POST, "/api/x/7", Map.of(), Map.of(), new byte[0]);
+        val raw = new HTTPServerRequest("", HTTPMethod.POST, "/api/x/7", Map.of(), new byte[0]);
 
         assertEquals(raw.requestId(), new WebRequest(raw, route, Map.of()).requestId());
     }
@@ -72,7 +72,7 @@ class WebRequestTest {
     @Test
     void attributesAreSharedWithTheRawRequest() {
         val route = post(MediaType.APPLICATION_JSON, Payload.class);
-        val raw = new HTTPServerRequest("", HTTPMethod.POST, "/api/x/7", Map.of(), Map.of(), new byte[0]);
+        val raw = new HTTPServerRequest("", HTTPMethod.POST, "/api/x/7", Map.of(), new byte[0]);
         val request = new WebRequest(raw, route, Map.of());
 
         request.attribute("seen", true);

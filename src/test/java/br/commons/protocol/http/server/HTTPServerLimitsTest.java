@@ -4,8 +4,6 @@ import br.commons.protocol.http.Cookie;
 import br.commons.protocol.http.HTTPSession;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.message.HTTPMethod;
-import br.commons.protocol.http.server.HTTPHandler;
-import br.commons.protocol.http.server.HTTPServer;
 import br.commons.protocol.http.server.message.HTTPServerRequest;
 import br.commons.protocol.http.server.message.HTTPServerResponse;
 import lombok.val;
@@ -92,10 +90,10 @@ class HTTPServerLimitsTest {
     /** Regression: malformed percent-encoding in the query failed the request with a 500 and a fatal log. */
     @Test
     void malformedQueryGets400() throws Exception {
-        assertTrue(HTTPServer.parseQuery("q=%zz").isFailure());
-        assertTrue(HTTPServer.parseQuery("q=100%").isFailure());
-        assertTrue(HTTPServer.parseQuery("%zz=1").isFailure());
-        assertEquals(Map.of("q", "a b", "x", "é"), HTTPServer.parseQuery("q=a%20b&x=%C3%A9&flag").getOrThrow());
+        assertTrue(HTTPServerRequest.parseQuery("q=%zz").isFailure());
+        assertTrue(HTTPServerRequest.parseQuery("q=100%").isFailure());
+        assertTrue(HTTPServerRequest.parseQuery("%zz=1").isFailure());
+        assertEquals(Map.of("q", "a b", "x", "é"), HTTPServerRequest.parseQuery("q=a%20b&x=%C3%A9&flag").getOrThrow());
         for (val query : List.of("q=%zz", "q=100%")) {
             try (val socket = new Socket("localhost", server.port())) {
                 socket.getOutputStream().write(("GET /?" + query + " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
@@ -123,10 +121,9 @@ class HTTPServerLimitsTest {
 
     @Test
     void requestWithoutCookieHeaderHasNoCookie() {
-        val request = new HTTPServerRequest("", HTTPMethod.GET, "/", java.util.Map.of(), java.util.Map.of(), new byte[0]);
+        val request = new HTTPServerRequest("", HTTPMethod.GET, "/", java.util.Map.of(), new byte[0]);
         assertNull(request.cookie("sid"));
-        Function<String, String> header = value -> new HTTPServerRequest("", HTTPMethod.GET, "/", java.util.Map.of(),
-                java.util.Map.of("Cookie", value), new byte[0]).cookie("sid");
+        Function<String, String> header = value -> new HTTPServerRequest("", HTTPMethod.GET, "/", java.util.Map.of("Cookie", value), new byte[0]).cookie("sid");
         assertNull(header.apply("broken; =x; other=1"));
     }
 
@@ -202,6 +199,23 @@ class HTTPServerLimitsTest {
             assertEquals("b", b.get(5, java.util.concurrent.TimeUnit.SECONDS).body());
         } finally {
             sessions.stop(Duration.ofMillis(100));
+        }
+    }
+
+    @Test
+    void uriIsTheRawTargetAsTheBrowserSentIt() throws Exception {
+        HTTPHandler handler = request -> HTTPServerResponse.status(HTTPStatus.OK,
+                (request.uri() + " " + request.path()).getBytes(StandardCharsets.UTF_8));
+        val echo = new HTTPServer(0, List.of(), handler);
+        echo.start().getOrThrow();
+        try {
+            val url = "http://localhost:" + echo.port();
+            assertEquals("/people/?q=caf%C3%A9&q=x&empty /people",
+                    send(HttpRequest.newBuilder(URI.create(url + "/people/?q=caf%C3%A9&q=x&empty"))).body());
+            assertEquals("/a%20b /a b", send(HttpRequest.newBuilder(URI.create(url + "/a%20b"))).body());
+            assertEquals("/ /", send(HttpRequest.newBuilder(URI.create(url + "/"))).body());
+        } finally {
+            echo.stop(Duration.ofMillis(100));
         }
     }
 }

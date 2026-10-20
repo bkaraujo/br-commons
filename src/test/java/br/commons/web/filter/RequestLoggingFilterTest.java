@@ -38,7 +38,7 @@ class RequestLoggingFilterTest {
 
     private boolean logs(RequestLoggingFilter filter, String path) {
         captured.clear();
-        filter.apply(new HTTPServerRequest("", HTTPMethod.GET, path, Map.of(), Map.of(), new byte[0]), NEXT);
+        filter.apply(new HTTPServerRequest("", HTTPMethod.GET, path, Map.of(), new byte[0]), NEXT);
         return captured.stream().anyMatch(line -> line.contains("GET " + path + " -> 200"));
     }
 

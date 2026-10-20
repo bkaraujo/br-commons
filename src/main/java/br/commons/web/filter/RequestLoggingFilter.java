@@ -37,7 +37,12 @@ public final class RequestLoggingFilter implements HTTPFilter {
     public HTTPResponse apply(HTTPRequest request, HTTPHandler next) {
         val response = next.handle(request);
         if (!ignored(request.path()))
-            Logger.info("%s %s -> %d %s", request.method(), request.path(), response.status().code(), response.status().name());
+            Logger.info("%s %s -> %d %s",
+                    request.method(),
+                    request.uri(),
+                    response.status().code(),
+                    response.status().name()
+            );
 
         return response;
     }
