@@ -99,14 +99,14 @@ final class StatementViews {
                                 Ledger.monthNav(month, YearMonth.from(book.today()),
                                         shown -> "/statement?account=" + account.id() + "&month=" + shown, "#statement-panel"))),
                 Ledger.summary(book, account, month, lines),
-                table(
+                div(cls("ledger-scroll"), table(
                         cls("records ledger-table"),
                         Ledger.columns(th(ariaLabel(message("Ações")))),
                         tbody(
                                 each(lines, line -> line(line, book.today(), account, month)),
                                 when(lines.isEmpty(), () -> tr(cls("empty"),
                                         td(colspan(5), text(message("Nenhum lançamento previsto para " + Ui.month(month) + "."))))))
-                )
+                ))
         );
     }
 

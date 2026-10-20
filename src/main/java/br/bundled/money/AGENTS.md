@@ -67,6 +67,12 @@ web
 - Mesma URL serve página inteira e fragmento: `Ui.partial(request)` decide
   (htmx não-boosted e não history-restore → fragmento).
 - Menu com `hx-boost`; filtros (mês, conta) na URL com `hx-push-url`.
+- Cabeçalho (menu) fixo; navegação boosted troca só `<main id="content">`:
+  `Layout.page(request, ...)` responde título + conteúdo (`HX-Retarget`) +
+  menu `hx-swap-oob`. Toda página inteira passa por `Layout.page`.
+- Todo JS fica no `<head>` do `Layout` (carregado uma vez, nunca no body nem
+  em fragmento). Scripts agem por delegação no `document` / eventos htmx
+  (`htmx:load`), para valer em conteúdo trocado sem recarregar.
 - Campos declarados uma vez (`FieldSpec`) → renderizados com `DIALECT` e
   validados no servidor; erro ao lado do campo (`Ui.errorOf`).
 - Inválido com htmx: `HX-Retarget` no form; sem htmx: post/redirect/get.
@@ -88,6 +94,9 @@ memória em `web/mock` (seed fictício). Regras:
 - `mock` respeita as regras do domínio (sinal, balanceamento) usando
   `AccountType` real.
 - Nada de `mock` vaza para `_0_domain`.
+- Dados reais: `-Dbr.commons.money.seed.gnucash=<arquivo .gnucash>` faz o
+  `Seed` ler o livro GnuCash (`GnuCashSeed`) na inicialização. Dado real
+  nunca entra no repositório (nem em código, nem em recurso).
 
 ## 5. Convenções gerais
 

@@ -287,6 +287,22 @@ public abstract class Html5 extends Html {
      */
     public static Attribute ariaHidden(boolean hidden) { return attribute("aria-hidden", String.valueOf(hidden)); }
 
+    /**
+     * The {@code aria-expanded} attribute (WAI-ARIA): whether the content the element controls (a disclosure button,
+     * a menu button) is shown.
+     *
+     * @see <a href="https://www.w3.org/TR/wai-aria-1.2/#aria-expanded">WAI-ARIA 1.2: aria-expanded</a>
+     */
+    public static Attribute ariaExpanded(boolean expanded) { return attribute("aria-expanded", String.valueOf(expanded)); }
+
+    /**
+     * The {@code aria-controls} attribute (WAI-ARIA): the ids of the elements whose content or presence this one
+     * controls.
+     *
+     * @see <a href="https://www.w3.org/TR/wai-aria-1.2/#aria-controls">WAI-ARIA 1.2: aria-controls</a>
+     */
+    public static Attribute ariaControls(String ids) { return attribute("aria-controls", ids); }
+
     // ---------- element attributes
 
     /**

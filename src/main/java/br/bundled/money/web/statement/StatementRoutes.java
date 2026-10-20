@@ -63,7 +63,7 @@ public final class StatementRoutes implements WebResource {
         val month = month(request::parameter);
         val account = chosen(request::parameter);
         return (Ui.partial(request) ? ok(StatementViews.panel(book, account, month, Html.fragment()).render())
-                : ok(Layout.page(Screen.STATEMENT, StatementViews.screen(book, account, month)))).header("Vary", "HX-Request");
+                : Layout.page(request, Screen.STATEMENT, StatementViews.screen(book, account, month))).header("Vary", "HX-Request, HX-Boosted");
     }
 
     // ---------- editor

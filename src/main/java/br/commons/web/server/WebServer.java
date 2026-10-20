@@ -75,8 +75,10 @@ public final class WebServer implements Lifecycle {
         server = new HTTPServer(port, chain, dispatcher::handle, failure -> WebResponse.internalServerError(), maxBodySize, multipartLimits);
     }
 
-    public void register(WebResource resource) {
-        dispatcher.register(resource);
+    public void register(WebResource ... resources) {
+        for (val resource : resources) {
+            dispatcher.register(resource);
+        }
     }
 
     /**

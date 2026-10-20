@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -19,6 +20,9 @@ import java.util.List;
  */
 @NullMarked
 public final class Seed {
+
+    /** The path of a GnuCash XML book to load instead of the fictitious one. */
+    public static final String GNUCASH_PROPERTY = "br.commons.money.seed.gnucash";
 
     private static final String CHECKING = "Conta corrente";
     private static final String SAVINGS = "Conta Poupança";
@@ -72,7 +76,17 @@ public final class Seed {
             new Row("Saúde", AccountType.EXPENSE, "Despesas"),
             new Row("Lazer", AccountType.EXPENSE, "Despesas"));
 
+    /**
+     * The book: read from the GnuCash file named by {@value #GNUCASH_PROPERTY} when it is set (real data stays out of
+     * the repository); else the fictitious one.
+     */
     public static Book book(LocalDate today) {
+        val gnucash = System.getProperty(GNUCASH_PROPERTY);
+
+        return gnucash == null || gnucash.isBlank() ? fictitious(today) : GnuCashSeed.book(Path.of(gnucash), today);
+    }
+
+    private static Book fictitious(LocalDate today) {
         val accounts = chart();
         val book = new Book(accounts, today);
         val first = YearMonth.from(today).minusMonths(2);

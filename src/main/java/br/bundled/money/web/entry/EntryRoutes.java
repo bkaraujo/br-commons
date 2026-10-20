@@ -43,7 +43,7 @@ public final class EntryRoutes implements WebResource {
 
     private HTTPResponse blank(WebRequest request) {
         val view = EntryViews.screen(book, EntryFields.blank(book.today(), null), List.of(), null);
-        return Ui.partial(request) ? ok(view.render()) : ok(Layout.page(Screen.ENTRY, view));
+        return Ui.partial(request) ? ok(view.render()) : Layout.page(request, Screen.ENTRY, view);
     }
 
     private HTTPResponse create(WebRequest request) {
@@ -57,7 +57,7 @@ public final class EntryRoutes implements WebResource {
             }
             case Result.Failure<QuickEntry, List<Violation>>(var errors) -> {
                 val view = EntryViews.screen(book, EntryFields.values(form::value), errors, null);
-                yield htmx ? ok(view.render()) : ok(Layout.page(Screen.ENTRY, view));
+                yield htmx ? ok(view.render()) : Layout.page(request, Screen.ENTRY, view);
             }
         };
     }

@@ -1,7 +1,6 @@
 package br.bundled.money.web;
 
 import br.bundled.money.web.account.AccountRoutes;
-import br.bundled.money.web.dev.DevReload;
 import br.bundled.money.web.entry.EntryRoutes;
 import br.bundled.money.web.home.HomeRoutes;
 import br.bundled.money.web.mock.Seed;
@@ -26,8 +25,7 @@ import java.util.List;
 
 /**
  * The web server of br.money on port 9000: static files and the routes of each screen over the mock book. Open
- * {@code http://localhost:9000}. While developing (the static files on disk) the page hot-reloads
- * ({@link DevReload}).
+ * {@code http://localhost:9000}.
  */
 public final class WebModule implements Lifecycle {
 
@@ -40,18 +38,23 @@ public final class WebModule implements Lifecycle {
     public Result<Void, BusinessError> initialize() {
         val book = Seed.book(LocalDate.now(ZoneId.of("America/Sao_Paulo")));
         val developing = Files.isDirectory(STATIC_DIR);
-        server = new WebServer(9000, List.of(
-                new RequestLoggingFilter(List.of("/static/", "/.well-known/", "/dev/"),
-                        RequestLoggingFilter.DEFAULT_IGNORED_SUFFIXES),
-                new HtmxScript(),
-                new StaticFiles("/static/money/", "br/bundled/money/web/static", developing ? STATIC_DIR : null, Duration.ZERO)
-        ));
-        server.register(new HomeRoutes(book));
-        server.register(new AccountRoutes(book));
-        server.register(new StatementRoutes(book));
-        server.register(new EntryRoutes(book));
-        server.register(new ReportRoutes(book));
-        if (developing) server.register(new DevReload(STATIC_DIR));
+        server = new WebServer(
+                9000,
+                List.of(
+                        new RequestLoggingFilter(),
+                        new HtmxScript(),
+                        new StaticFiles("/static/money/", "br/bundled/money/web/static", developing ? STATIC_DIR : null, Duration.ZERO)
+                )
+        );
+
+        server.register(
+                new HomeRoutes(book),
+                new AccountRoutes(book),
+                new StatementRoutes(book),
+                new EntryRoutes(book),
+                new ReportRoutes(book)
+        );
+
         return server.initialize();
     }
 

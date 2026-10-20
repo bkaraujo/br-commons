@@ -20,6 +20,10 @@
     --shadow-color: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
     --shadow: 0 1px 2px var(--shadow-color);
     --radius: 12px;
+    --top-height: 3.5rem; /* altura do cabeçalho fixo (.top), medida pelo header.js; este valor vale sem JS */
+    --footer-height: 2.5rem; /* rodapé fixo no fim da janela (tela larga) */
+    /* o que cabe entre o cabeçalho e o rodapé: padding do body + margem do .top acima, folga acima do rodapé */
+    --content-height: calc(100dvh - var(--top-height) - var(--footer-height) - 4rem);
 }
 
 :root[data-theme="light"] {
@@ -36,12 +40,15 @@
 
 html {
     background: var(--bg);
+    scroll-padding-top: calc(var(--top-height) + 1rem);
+    /* Espaço da barra de rolagem sempre reservado: tela curta e longa ficam com a mesma largura e posição. */
+    scrollbar-gutter: stable;
 }
 
 body {
     margin: 0 auto;
     max-width: 87.625rem;
-    padding: 1.25rem 1rem 3rem;
+    padding: 1.25rem 1rem calc(var(--footer-height) + 1.25rem);
     background: var(--bg);
     color: var(--text);
     font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -104,15 +111,28 @@ a {
     box-shadow: var(--shadow);
 }
 
+/* Fixo no fim da janela; o body reserva a altura dele embaixo (padding-bottom). */
 footer {
-    margin-top: 2rem;
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    height: var(--footer-height);
+    border-top: 1px solid var(--line);
+    background: var(--bg);
     color: var(--muted);
-    text-align: center;
 }
 
 /* ---------- topo: marca, menu e tema */
 
+/* Fixo no topo: a navegação boosted troca só o #content abaixo (Layout.page). */
 .top {
+    position: sticky;
+    top: 0;
+    z-index: 25;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -169,6 +189,20 @@ footer {
     background: var(--soft);
     color: var(--accent);
     font-weight: 600;
+}
+
+/* Cada rótulo reserva a largura da versão em negrito (data-label): marcar a tela não muda o tamanho da barra. */
+.menu .label {
+    display: inline-grid;
+}
+
+.menu .label::after {
+    content: attr(data-label);
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 600;
+    user-select: none;
 }
 
 .theme {
@@ -533,6 +567,75 @@ button:hover {
     font-weight: 700;
 }
 
+/*
+ * Colunas de largura fixa (pelo cabeçalho): abrir um ramo mostra os botões de ação das subcontas, e com largura
+ * automática as colunas se mexeriam. A conta fica com a sobra.
+ */
+.tree {
+    table-layout: fixed;
+}
+
+.tree th:nth-child(2) {
+    width: 12rem;
+}
+
+/* saldo: cabe com folga 12 dígitos com 2 decimais em negrito (-R$ 9.999.999.999,99 ≈ 9rem + padding) */
+.tree th:nth-child(3) {
+    width: 13rem;
+}
+
+.tree th:nth-child(4) {
+    width: 6.5rem;
+}
+
+.tree td:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A linha do grupo inteira abre e fecha o ramo (tree.js); recolhido, só ela fica, com o total. */
+.tree .branch > tr.group {
+    cursor: pointer;
+}
+
+.tree .branch.collapsed tr:not(.group) {
+    display: none;
+}
+
+.tree .toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: -.2rem .25rem -.2rem -.35rem;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--muted);
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.tree .toggle:hover {
+    background: var(--soft);
+    color: var(--text);
+}
+
+.tree .chevron {
+    width: .45rem;
+    height: .45rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-.1rem) rotate(45deg);
+    transition: transform .15s ease;
+}
+
+.tree .branch.collapsed .chevron {
+    transform: rotate(-45deg);
+}
+
 .depth-1 td:first-child {
     padding-left: 1.75rem;
 }
@@ -812,8 +915,8 @@ tr:hover .actions button,
 
 .statement-accounts {
     position: sticky;
-    top: 1rem;
-    max-height: calc(100vh - 2rem);
+    top: calc(var(--top-height) + 1rem);
+    max-height: var(--content-height);
     padding: .75rem .5rem;
     overflow-y: auto;
 }
@@ -871,8 +974,36 @@ tr:hover .actions button,
     font-size: .8rem;
 }
 
+/*
+ * O painel ocupa a janela abaixo do cabeçalho (o espaço acima: padding do body + margem do .top) e a tabela rola
+ * sozinha (.ledger-scroll), com o cabeçalho dela fixo: um mês longo não estica a página.
+ */
 .statement-panel {
+    display: flex;
+    flex-direction: column;
     min-width: 0;
+    height: var(--content-height);
+}
+
+.ledger-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.ledger-scroll .records {
+    overflow: visible;
+    box-shadow: none;
+}
+
+.ledger-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--card);
 }
 
 /* ações só com a largura dos botões: a sobra vai para a descrição */
@@ -890,11 +1021,6 @@ tr:hover .actions button,
 }
 
 /* ---------- lançamento rápido */
-
-.quick {
-    max-width: 40rem;
-    margin: 0 auto;
-}
 
 .quick-form {
     display: grid;
@@ -1013,6 +1139,15 @@ tr:hover .actions button,
         padding-bottom: 6rem;
     }
 
+    /* o menu já é a barra fixa de baixo: o rodapé volta ao fim da página */
+    footer {
+        position: static;
+        height: auto;
+        margin-top: 2rem;
+        border-top: 0;
+        background: none;
+    }
+
     .menu {
         position: fixed;
         right: 0;
@@ -1061,8 +1196,17 @@ tr:hover .actions button,
         grid-template-columns: 1fr;
     }
 
+    /* tela estreita: a barra de contas já ocupa o topo; a tabela volta a rolar com a página */
+    .statement-panel {
+        height: auto;
+    }
+
+    .ledger-scroll {
+        overflow: visible;
+    }
+
     .statement-accounts {
-        top: 0;
+        top: var(--top-height);
         z-index: 5;
         max-height: none;
         padding: .5rem;

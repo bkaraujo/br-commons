@@ -34,6 +34,6 @@ public final class ReportRoutes implements WebResource {
     private HTTPResponse reports(WebRequest request) {
         val month = Ui.monthOf(request.parameter("month"), YearMonth.from(book.today()));
         val view = ReportViews.screen(book, month);
-        return (Ui.partial(request) ? ok(view.render()) : ok(Layout.page(Screen.REPORTS, view))).header("Vary", "HX-Request");
+        return (Ui.partial(request) ? ok(view.render()) : Layout.page(request, Screen.REPORTS, view)).header("Vary", "HX-Request, HX-Boosted");
     }
 }

@@ -40,7 +40,7 @@ public final class HomeRoutes implements WebResource {
 
     private HTTPResponse home(WebRequest request) {
         val view = HomeViews.screen(book, selected(request));
-        return Ui.partial(request) ? ok(view.render()) : ok(Layout.page(Screen.HOME, view));
+        return Ui.partial(request) ? ok(view.render()) : Layout.page(request, Screen.HOME, view);
     }
 
     /** The checked financial accounts; all of them before the first change. */

@@ -66,7 +66,7 @@ public final class AccountRoutes implements WebResource {
 
     private HTTPResponse tree(WebRequest request) {
         return Ui.partial(request) ? ok(RegisterViews.screen(book, Html.fragment()).render())
-                : page(Html.fragment());
+                : page(request, Html.fragment());
     }
 
     // ---------- editor
@@ -96,7 +96,7 @@ public final class AccountRoutes implements WebResource {
 
     /** htmx: just the editor's content. A plain GET: the page with the editor open. */
     private HTTPResponse editor(WebRequest request, Node content) {
-        return Ui.partial(request) ? ok(content.render()) : page(content);
+        return Ui.partial(request) ? ok(content.render()) : page(request, content);
     }
 
     // ---------- create, update, delete
@@ -112,7 +112,7 @@ public final class AccountRoutes implements WebResource {
             }
             case Result.Failure<AccountInput, List<Violation>>(var errors) -> {
                 val view = RegisterViews.accountForm(book, AccountFields.values(form::value), errors, null);
-                yield htmx ? invalid(view, "#account-form") : page(view);
+                yield htmx ? invalid(view, "#account-form") : page(request, view);
             }
         };
     }
@@ -183,8 +183,8 @@ public final class AccountRoutes implements WebResource {
         return HtmxResponse.of(ok(view.render())).retarget(target).reswap(swap).response();
     }
 
-    private HTTPResponse page(Node editor) {
-        return ok(Layout.page(Screen.ACCOUNTS, RegisterViews.screen(book, editor)));
+    private HTTPResponse page(WebRequest request, Node editor) {
+        return Layout.page(request, Screen.ACCOUNTS, RegisterViews.screen(book, editor));
     }
 
     // ---------- ledger
@@ -192,11 +192,11 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse ledger(WebRequest request) {
         val account = book.account(pathId(request));
         if (account.isEmpty()) {
-            return WebResponse.html(HTTPStatus.NOT_FOUND, Layout.page(Screen.ACCOUNTS, AccountViews.missing()));
+            return Layout.page(request, HTTPStatus.NOT_FOUND, Screen.ACCOUNTS, AccountViews.missing());
         }
         val month = Ui.monthOf(request.parameter("month"), YearMonth.from(book.today()));
         val view = AccountViews.ledger(book, account.get(), month);
         val screen = account.get().financial() ? Screen.HOME : Screen.ACCOUNTS;
-        return (Ui.partial(request) ? ok(view.render()) : ok(Layout.page(screen, view))).header("Vary", "HX-Request");
+        return (Ui.partial(request) ? ok(view.render()) : Layout.page(request, screen, view)).header("Vary", "HX-Request, HX-Boosted");
     }
 }

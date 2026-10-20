@@ -344,6 +344,13 @@ public final class Book {
         return transaction;
     }
 
+    /** A transaction with any number of splits, already signed in the nature of each account (see {@link MockSplit}). */
+    MockTransaction post(LocalDate date, String description, List<MockSplit> splits) {
+        val transaction = new MockTransaction(transactionIds.incrementAndGet(), date, description, List.copyOf(splits));
+        transactions.add(transaction);
+        return transaction;
+    }
+
     /** The two splits of {@code value} going from {@code from} to {@code to} (see {@link #move}). */
     private List<MockSplit> splits(int from, int to, BigDecimal value) {
         val scaled = value.setScale(2, RoundingMode.HALF_UP);
