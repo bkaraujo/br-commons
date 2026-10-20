@@ -80,8 +80,7 @@ cacheServer.terminate();
 4. Em testes, `cacheServer.waitForPending()` (ou `join()` do future) antes de asserts pós-mutação.
 5. Em teste, servidor próprio: `initialize()` em `@BeforeAll`, `terminate()` em `@AfterAll`.
 6. Sempre `unload` quando a partição não for mais usada (memória nativa não é coletada).
-7. Exemplo completo (cache por sessão de usuário): `src/main/examples/br/commons/examples/cache/session`.
-8. Teste de referência: `src/test/java/br/commons/cache/CacheTest.java` — `ItemRegion`
+7. Teste de referência: `src/test/java/br/commons/cache/CacheTest.java` — `ItemRegion`
    mínimo (uuid + long, 24 bytes) e partições `east`/`west`; cobre hit/miss, partição
    não carregada, ordem do `list`, upsert/evict, `evictEverywhere`, `unload`, isolamento,
    corridas leitura×unload/compactação, reload e `terminate`. Mudou a API? Ajuste e rode:

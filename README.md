@@ -85,25 +85,24 @@ mvn verify    # + PMD, detecção de código duplicado (CPD) e relatório JaCoCo
 Os testes de banco usam H2 em memória; testes com PostgreSQL usam
 Testcontainers (exigem Docker).
 
-### Exemplos
+### Aplicações embarcadas
 
-Aplicações completas em `src/main/examples`, fora do jar e dos quality gates:
+Aplicações completas em `br.bundled`, no jar e sob os mesmos quality gates da biblioteca:
 
 | Exemplo | Classe principal |
 |---|---|
-| Lista de tarefas com jQuery sobre API JSON (porta 5000) | `br.commons.examples.tasks.jquery.TasksApp` |
-| Lista de tarefas com htmx (porta 5003) | `br.commons.examples.tasks.htmx.TasksApp` |
-| Controle de horas com htmx (porta 5001) | `br.commons.examples.tracker.htmx.TrackerApp` |
-| Controle de horas com jQuery sobre API JSON (porta 5002) | `br.commons.examples.tracker.jquery.TrackerApp` |
-| Cache por sessão de usuário (console) | `br.commons.examples.cache.session.SessionCacheApp` |
+| Lista de tarefas com jQuery sobre API JSON (porta 5000) | `br.bundled.tasks.jquery.TasksApp` |
+| Lista de tarefas com htmx (porta 5003) | `br.bundled.tasks.htmx.TasksApp` |
+| Controle de horas com htmx (porta 5001) | `br.bundled.tracker.htmx.TrackerApp` |
+| Controle de horas com jQuery sobre API JSON (porta 5002) | `br.bundled.tracker.jquery.TrackerApp` |
 
 ```sh
 mvn -Pexamples compile exec:java                                    # TasksApp na porta 5000
 mvn -Pexamples compile exec:java \
-    -Dexamples.main=br.commons.examples.tracker.htmx.TrackerApp -Dexec.args=8080
+    -Dexamples.main=br.bundled.tracker.htmx.TrackerApp -Dexec.args=8080
 ```
 
-Cada aplicação segue `br.commons.examples.<aplicação>.[shared, htmx, jquery]`: `shared` tem o domínio
+Cada aplicação segue `br.bundled.<aplicação>.[shared, htmx, jquery]` (estáticos em `br/bundled/<aplicação>/static`): `shared` tem o domínio
 (modelos, stores, campos e validação, sem HTTP nem HTML); `htmx` renderiza no servidor; `jquery` renderiza no
 navegador sobre uma API JSON.
 
@@ -120,8 +119,7 @@ System properties lidas pela biblioteca:
 ## Estrutura do repositório
 
 ```
-src/main/java       biblioteca (br.commons.*), um AGENTS.md por pacote
-src/main/examples   aplicações de exemplo (perfil Maven "examples")
+src/main/java       biblioteca (br.commons.*) e aplicações embarcadas (br.bundled.*, perfil Maven "examples")
 src/test/java       testes JUnit 5, ArchUnit e de regressão
 config/pmd          regras PMD
 .agents/            planos e notas de trabalho

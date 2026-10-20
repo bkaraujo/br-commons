@@ -249,10 +249,6 @@
                         <exclude>**/jdbc/primitives/*.java</exclude>
                         <exclude>**/cache/*Layout.java</exclude>
                     </excludes>
-                    <!-- Examples compile with the library but stay out of the quality gates. -->
-                    <excludeRoots>
-                        <excludeRoot>src/main/examples</excludeRoot>
-                    </excludeRoots>
                 </configuration>
                 <executions>
                     <execution>
@@ -270,40 +266,21 @@
                     <dependency><groupId>org.ow2.asm</groupId><artifactId>asm</artifactId><version>${version.asm}</version></dependency>
                 </dependencies>
             </plugin>
-            <!-- Examples compiled in target/classes (IDE and exec:java) but not shipped in the jar -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>br/commons/examples/**</exclude>
-                        <exclude>static/**</exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
-            <!-- Examples (src/main/examples) always compiled: sources + static/** resources -->
+            <!-- Bundled apps keep their static files beside the code: br/bundled/<app>/static/** as resources -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
                 <version>3.6.1</version>
                 <executions>
                     <execution>
-                        <id>add-examples-source</id>
-                        <phase>generate-sources</phase>
-                        <goals><goal>add-source</goal></goals>
-                        <configuration>
-                            <sources><source>src/main/examples</source></sources>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>add-examples-static</id>
+                        <id>add-bundled-static</id>
                         <phase>generate-resources</phase>
                         <goals><goal>add-resource</goal></goals>
                         <configuration>
                             <resources>
                                 <resource>
-                                    <directory>src/main/examples</directory>
-                                    <includes><include>static/**</include></includes>
+                                    <directory>src/main/java</directory>
+                                    <includes><include>br/bundled/*/static/**</include></includes>
                                 </resource>
                             </resources>
                         </configuration>
@@ -314,18 +291,17 @@
     </build>
 
     <!-- ============================================================ -->
-    <!-- Examples: complete applications in src/main/examples         -->
-    <!-- Always compiled (build-helper above), out of jar and PMD/CPD; -->
+    <!-- Bundled apps (br.bundled.*) ship with the library;          -->
     <!-- the profile only runs one:                                  -->
     <!-- mvn -Pexamples compile exec:java                             -->
-    <!--   -Dexamples.main=br.commons.examples.tracker.htmx.TrackerApp -->
+    <!--   -Dexamples.main=br.bundled.tracker.htmx.TrackerApp        -->
     <!--   -Dexec.args=PORT                                           -->
     <!-- ============================================================ -->
     <profiles>
         <profile>
             <id>examples</id>
             <properties>
-                <examples.main>br.commons.examples.tasks.jquery.TasksApp</examples.main>
+                <examples.main>br.bundled.tasks.jquery.TasksApp</examples.main>
             </properties>
             <build>
                 <plugins>

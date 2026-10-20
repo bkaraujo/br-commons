@@ -24,7 +24,7 @@ public abstract class I18N {
     private static final String MESSAGES = "messages";
     private static final Map<String, String> BUNDLES = new ConcurrentHashMap<>();
 
-    /** Keys starting with {@code prefix} resolve in {@code baseName} (e.g. {@code "money."} → {@code "br/money/messages"}). */
+    /** Keys starting with {@code prefix} resolve in {@code baseName} (e.g. {@code "money."} → {@code "br/bundled/money/messages"}). */
     public static void register(String prefix, String baseName) {
         BUNDLES.put(prefix, baseName);
     }

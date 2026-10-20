@@ -54,7 +54,7 @@ Direto: `new Formats(locale).money(valor, Currency.getInstance("USD"))` → `US$
 Text.message("Salvar");                   // interface (normalmente via bundle)
 Text.data(categoria.nome());              // dado do usuário/banco, como está
 I18N.of("order.not_found", locale, id);   // bundle "messages" da aplicação
-I18N.register("money.", "br/money/messages");  // chaves money.* → br/money/messages_<locale> (maior prefixo vence)
+I18N.register("money.", "br/bundled/money/messages");  // chaves money.* → br/bundled/money/messages_<locale> (maior prefixo vence)
 L10N.locale();                            // propriedade br.commons.locale → L10N.supported
 Errors.get().routerFrozen(method, template).value();   // erro da lib, locale do processo
 ```
