@@ -2,7 +2,6 @@ package br.bundled.tracker.htmx.ui;
 
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.core.Node;
-import br.commons.lang.html.html5.CrossOrigin;
 import br.commons.locale.i18n.Text;
 import org.jspecify.annotations.NullMarked;
 
@@ -12,6 +11,7 @@ import java.util.Locale;
 import static br.bundled.tracker.htmx.ui.Ui.message;
 import static br.commons.lang.Html5.*;
 import static br.commons.lang.Htmx.hxBoost;
+import static br.commons.lang.Htmx.htmxScript;
 
 /**
  * The page around every screen: head, the menu and the theme switch. The menu is boosted ({@code hx-boost}): its
@@ -30,7 +30,7 @@ public final class Layout {
                         script(src("/static/tracker/theme.js")),
                         title(text(message(current.label() + " · Horas trabalhadas"))),
                         link(rel("stylesheet"), href("/static/tracker/app.css")),
-                        script(src(Ui.HTMX), integrity(Ui.HTMX_INTEGRITY), crossorigin(CrossOrigin.ANONYMOUS))
+                        htmxScript()
                 ),
                 body(
                         header(

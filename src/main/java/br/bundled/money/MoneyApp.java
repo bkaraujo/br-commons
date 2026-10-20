@@ -9,7 +9,6 @@ import br.commons.module.Module;
 public class MoneyApp extends Application {
 
     static void main() {
-        Logger.level(LogLevel.VERBOSE);
         new MoneyApp().run();
     }
 

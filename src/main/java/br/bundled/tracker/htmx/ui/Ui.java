@@ -29,15 +29,11 @@ import static br.commons.lang.Html5.*;
 import static br.commons.lang.Htmx.*;
 
 /**
- * What the screens share: htmx from the CDN, formats, the error next to a field and request helpers. Names avoid
+ * What the screens share: formats, the error next to a field and request helpers. Names avoid
  * the DSL ({@code pathId}, not {@code id}): a method declared here would hide the statically imported ones.
  */
 @NullMarked
 public final class Ui {
-
-    /** htmx 2 from the CDN, as <a href="https://htmx.org/docs/#installing">the docs</a> recommend, with its integrity hash. */
-    public static final String HTMX = "https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js";
-    public static final String HTMX_INTEGRITY = "sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg";
 
     /** Removing a row waits for the {@code .htmx-swapping} fade of the CSS. */
     public static final SwapSpec FADE_OUT = SwapSpec.of(HxSwap.OUTER_HTML).swap(Duration.ofMillis(200));

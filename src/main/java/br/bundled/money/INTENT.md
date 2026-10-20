@@ -96,9 +96,18 @@ modelo de domínio e comportamento.
 - Fechamento por data-limite: criar/editar/excluir transação com data anterior à
   data-limite é rejeitado (`BusinessException`). Reabrir é ação explícita (recuar a
   data); após correção, avançar de novo. Data-limite faz round-trip com o GnuCash.
-- Cartão de crédito = conta de Passivo. Compra parcelada em N vezes de valor P:
+- Cartão de crédito = conta de Passivo (tipo CREDIT). Compra parcelada em N vezes de valor P:
   despesa total (N×P) na data da compra contra o passivo do cartão; cada parcela da
   fatura não gera nova despesa — é casada com a compra original.
+- Hierarquia de tipos: subconta é da mesma família da mãe (ativo: BANK, CASH, STOCK,
+  MUTUAL, ASSET, RECEIVABLE; passivo: CREDIT, LIABILITY, PAYABLE; EQUITY; INCOME;
+  EXPENSE). Contas de topo (Ativo, Passivo, PL, Receitas, Despesas) são fixas.
+- Saldo agregado: conta contábil soma as subcontas, cada split convertido para a
+  natureza da mãe (valor × `debit` do tipo do split × `debit` do tipo da mãe); conta
+  financeira mostra só o próprio saldo.
+- Excluir conta com lançamentos: usuário escolhe a conta de destino; os splits são
+  movidos para ela (valor convertido de natureza, mantendo o balanceamento) e então a
+  conta é removida. Conta com subcontas não é excluída. Tipo só muda sem lançamentos.
 - Parcelada vista pela 1ª vez já na parcela k>1 (compra anterior ao sistema):
   reconhece apenas o saldo restante (parcelas k..N) contra conta de
   ajuste/abertura; despesa anterior fica fora.

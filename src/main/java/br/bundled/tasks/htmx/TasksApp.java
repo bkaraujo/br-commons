@@ -2,6 +2,7 @@ package br.bundled.tasks.htmx;
 
 import br.Application;
 import br.bundled.tasks.shared.TaskStore;
+import br.commons.lang.htmx.HtmxScript;
 import br.commons.module.Module;
 import br.commons.web.filter.RequestLoggingFilter;
 import br.commons.web.filter.StaticFiles;
@@ -36,6 +37,7 @@ public final class TasksApp extends Application {
                 port,
                 List.of(
                         new RequestLoggingFilter(),
+                        new HtmxScript(),
                         new StaticFiles("/static/tasks/", "br/bundled/tasks/static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO)
                 )
         );

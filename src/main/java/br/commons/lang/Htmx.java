@@ -6,6 +6,7 @@ import br.commons.lang.html.core.Content;
 import br.commons.lang.html.core.Keyword;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.htmx.HtmxRequest;
+import br.commons.lang.htmx.HtmxScript;
 import br.commons.lang.htmx.HxSwap;
 import br.commons.lang.htmx.HxSync;
 import br.commons.lang.htmx.SwapSpec;
@@ -423,6 +424,12 @@ public final class Htmx {
      * @see <a href="https://htmx.org/attributes/hx-partial/">htmx: hx-partial</a>
      */
     public static Node.Element hxPartial(Content... content) { return Html.element("hx-partial", content); }
+
+    /**
+     * {@code <script src>} of the htmx library served by the application itself ({@link HtmxScript}, which must be
+     * among the filters of the server), not by a CDN. Goes in the {@code <head>} of every page that uses htmx.
+     */
+    public static Node.Element htmxScript() { return Html.element("script", attribute("src", HtmxScript.PATH)); }
 
     private static Attribute attribute(String name, String value) {
         return new Attribute(name, value);

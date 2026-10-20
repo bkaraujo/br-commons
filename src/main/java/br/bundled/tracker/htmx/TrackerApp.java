@@ -5,6 +5,7 @@ import br.bundled.tracker.htmx.person.PersonRoutes;
 import br.bundled.tracker.htmx.project.ProjectRoutes;
 import br.bundled.tracker.htmx.week.WeekRoutes;
 import br.bundled.tracker.shared.Seed;
+import br.commons.lang.htmx.HtmxScript;
 import br.commons.module.Module;
 import br.commons.web.filter.RequestLoggingFilter;
 import br.commons.web.filter.StaticFiles;
@@ -47,6 +48,7 @@ public final class TrackerApp extends Application {
                 port,
                 List.of(
                         new RequestLoggingFilter(),
+                        new HtmxScript(),
                         new StaticFiles("/static/tracker/", "br/bundled/tracker/static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO)
                 )
         );

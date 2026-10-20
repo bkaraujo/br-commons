@@ -266,7 +266,7 @@
                     <dependency><groupId>org.ow2.asm</groupId><artifactId>asm</artifactId><version>${version.asm}</version></dependency>
                 </dependencies>
             </plugin>
-            <!-- Bundled apps keep their static files beside the code: br/bundled/<app>/static/** as resources -->
+            <!-- Static files beside the code as resources: br/bundled/<app>/static/** and the bundled htmx -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
@@ -280,7 +280,10 @@
                             <resources>
                                 <resource>
                                     <directory>src/main/java</directory>
-                                    <includes><include>br/bundled/*/static/**</include></includes>
+                                    <includes>
+                                        <include>br/bundled/**/static/**</include>
+                                        <include>br/commons/lang/htmx/*.js</include>
+                                    </includes>
                                 </resource>
                             </resources>
                         </configuration>

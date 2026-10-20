@@ -1,0 +1,62 @@
+package br.bundled.money.web.ui;
+
+import br.bundled.money.web.mock.Book;
+import br.bundled.money.web.mock.LedgerLine;
+import br.bundled.money.web.mock.MockAccount;
+import br.commons.lang.html.core.Node;
+import br.commons.lang.htmx.HxSwap;
+import br.commons.locale.i18n.Text;
+import lombok.val;
+import org.jspecify.annotations.NullMarked;
+
+import java.math.BigDecimal;
+import java.time.YearMonth;
+import java.util.List;
+import java.util.function.Function;
+
+import static br.bundled.money.web.ui.Ui.message;
+import static br.commons.lang.Html5.*;
+import static br.commons.lang.Htmx.*;
+
+/** What the ledger and the statement share: the month's summary, the columns and the month navigation. */
+@NullMarked
+public final class Ledger {
+
+    private Ledger() {}
+
+    /** Opening, increases, reductions and closing of the account in the month of {@code lines}. */
+    public static Node summary(Book book, MockAccount account, YearMonth month, List<LedgerLine> lines) {
+        val opening = book.balance(account.id(), month.atDay(1).minusDays(1));
+        val in = lines.stream().map(LedgerLine::amount).filter(amount -> amount.signum() > 0)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        val out = lines.stream().map(LedgerLine::amount).filter(amount -> amount.signum() < 0)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return dl(cls("summary"),
+                div(dt(text(message("Saldo inicial"))), dd(Ui.amount(opening, false))),
+                div(dt(text(message("Aumentos"))), dd(Ui.amount(in, true))),
+                div(dt(text(message("Reduções"))), dd(Ui.amount(out, true))),
+                div(cls("closing"), dt(text(message("Saldo final"))), dd(Ui.amount(opening.add(in).add(out), false))));
+    }
+
+    /** Date, description, value and running balance; {@code extra} columns after them. */
+    public static Node columns(Node... extra) {
+        return thead(tr(th(text(message("Data"))), th(text(message("Descrição"))),
+                th(cls("num"), text(message("Valor"))), th(cls("num hide-narrow"), text(message("Saldo"))), fragment(extra)));
+    }
+
+    /** Previous, next and (away from it) the current month; each loads into {@code target} and pushes its URL. */
+    public static Node monthNav(YearMonth month, YearMonth current, Function<YearMonth, String> url, String target) {
+        return nav(
+                cls("month-nav"),
+                monthLink(url.apply(month.minusMonths(1)), target, "←", "Mês anterior"),
+                h3(text(Text.data(Ui.month(month)))),
+                monthLink(url.apply(month.plusMonths(1)), target, "→", "Próximo mês"),
+                when(!month.equals(current), () -> monthLink(url.apply(current), target, "Hoje", "Mês atual"))
+        );
+    }
+
+    private static Node monthLink(String url, String target, String content, String label) {
+        return a(href(url), hxGet(url), hxTarget(target), hxSwap(HxSwap.OUTER_HTML),
+                hxPushUrl(true), ariaLabel(message(label)), text(Text.data(content)));
+    }
+}

@@ -17,6 +17,19 @@ Referência: https://htmx.org/reference/
 | `HxSync`        | Estratégias de `hx-sync` (`drop`, `abort`, `replace`, `queue ...`) |
 | `HtmxRequest`   | Lê `HX-Request`, `HX-Target`, `HX-Trigger`, `HX-Trigger-Name`, `HX-Boosted`, `HX-History-Restore-Request`... |
 | `HtmxResponse`  | Escreve `HX-Location`, `HX-Retarget`, `HX-Reswap`, `HX-Trigger`... |
+| `HtmxScript`    | Filtro que serve o htmx embutido (`2.0.11.min.js`) em `HtmxScript.PATH`, cache imutável |
+
+## 0. Carregando o htmx (sem CDN)
+
+O htmx vem junto, em `br/commons/lang/htmx/<versão>.min.js`. A aplicação o serve
+e o referencia como link local:
+
+```java
+new WebServer(port, List.of(new RequestLoggingFilter(), new HtmxScript(), ...));
+head(..., htmxScript())   // <script src="/br/commons/lang/htmx/2.0.11.min.js">
+```
+
+Trocar de versão: novo `.min.js` no pacote + `HtmxScript.VERSION`.
 
 ## 1. Atributos na view
 

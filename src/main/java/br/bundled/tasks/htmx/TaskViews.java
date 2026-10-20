@@ -6,7 +6,6 @@ import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.FormMethod;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.Violation;
-import br.commons.lang.html.html5.CrossOrigin;
 import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;
 import lombok.val;
@@ -25,10 +24,6 @@ import static br.commons.lang.Htmx.*;
 @NullMarked
 final class TaskViews {
 
-    /** htmx 2 from the CDN, as https://htmx.org/docs/#installing recommends, with its integrity hash. */
-    private static final String HTMX = "https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js";
-    private static final String HTMX_INTEGRITY = "sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg";
-
     /** Every action sends the tab and the search, to answer with the same list. */
     private static final String STATE = "#view [name=filter], #q";
 
@@ -40,7 +35,7 @@ final class TaskViews {
                 head(metaCharset("utf-8"), meta(name("viewport"), content("width=device-width, initial-scale=1")),
                         title(text(message("Tarefas"))),
                         link(rel("stylesheet"), href("/static/tasks/app.css")),
-                        script(src(HTMX), integrity(HTMX_INTEGRITY), crossorigin(CrossOrigin.ANONYMOUS))
+                        htmxScript()
                 ),
                 body(
                         header(h1(text(message("Tarefas"))), counter(tasks, false)),
