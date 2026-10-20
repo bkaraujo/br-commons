@@ -100,7 +100,11 @@ public final class HTTPServer {
             httpServer.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
             httpServer.start();
             server = httpServer;
-            Logger.info("HTTP server listening on port %d", port);
+
+            val address = httpServer.getAddress();
+            val host = address.getAddress().isAnyLocalAddress() ? "localhost" : address.getHostString();
+            Logger.info("HTTP server listening on http://%s:%d", host, address.getPort());
+
             return Result.success();
         } catch (IOException e) {
             return Result.failure(Errors.get().httpServerStartFailed(String.valueOf(port), e).value());
