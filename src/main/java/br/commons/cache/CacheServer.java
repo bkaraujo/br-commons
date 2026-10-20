@@ -2,8 +2,8 @@ package br.commons.cache;
 
 import br.commons.Logger;
 import br.commons.Result;
-import br.commons.module.Lifecycle;
 import br.commons.business.BusinessError;
+import br.commons.module.Lifecycle;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 

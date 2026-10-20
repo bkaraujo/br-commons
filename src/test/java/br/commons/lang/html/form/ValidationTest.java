@@ -1,6 +1,5 @@
 package br.commons.lang.html.form;
 
-import br.commons.lang.html.form.*;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

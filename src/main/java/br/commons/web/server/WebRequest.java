@@ -13,8 +13,8 @@ import com.google.errorprone.annotations.CheckReturnValue;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
-import java.nio.charset.StandardCharsets;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**

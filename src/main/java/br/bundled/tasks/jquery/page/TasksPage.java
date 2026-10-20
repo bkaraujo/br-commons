@@ -7,9 +7,9 @@ import br.commons.lang.html.html5.CrossOrigin;
 import br.commons.locale.i18n.Text;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
+import br.commons.web.WebResponse;
 import br.commons.web.router.Router;
 import br.commons.web.server.WebResource;
-import br.commons.web.WebResponse;
 import org.jspecify.annotations.NullMarked;
 
 import static br.commons.lang.Html5.*;

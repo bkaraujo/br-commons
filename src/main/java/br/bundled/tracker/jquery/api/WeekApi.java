@@ -1,20 +1,19 @@
 package br.bundled.tracker.jquery.api;
 
-import br.bundled.tracker.shared.week.*;
-import br.commons.Result;
 import br.bundled.tracker.shared.Ids;
 import br.bundled.tracker.shared.entry.Entry;
 import br.bundled.tracker.shared.entry.EntryInput;
 import br.bundled.tracker.shared.registry.Registered;
 import br.bundled.tracker.shared.registry.Registry;
 import br.bundled.tracker.shared.week.*;
+import br.commons.Result;
 import br.commons.lang.html.form.Violation;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
+import br.commons.web.WebResponse;
 import br.commons.web.router.Router;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
-import br.commons.web.WebResponse;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

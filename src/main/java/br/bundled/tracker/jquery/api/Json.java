@@ -1,13 +1,13 @@
 package br.bundled.tracker.jquery.api;
 
-import br.commons.Result;
 import br.bundled.tracker.shared.Ids;
+import br.commons.Result;
 import br.commons.lang.html.form.Violation;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.ProblemDetail;
-import br.commons.web.server.WebRequest;
 import br.commons.web.WebResponse;
+import br.commons.web.server.WebRequest;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

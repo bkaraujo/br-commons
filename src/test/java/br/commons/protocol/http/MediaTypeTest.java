@@ -1,6 +1,5 @@
 package br.commons.protocol.http;
 
-import br.commons.protocol.http.MediaType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -1,7 +1,6 @@
 package br.bundled.tracker.htmx;
 
 import br.Application;
-import br.commons.Logger;
 import br.bundled.tracker.htmx.person.PersonRoutes;
 import br.bundled.tracker.htmx.project.ProjectRoutes;
 import br.bundled.tracker.htmx.week.WeekRoutes;
@@ -42,13 +41,16 @@ public final class TrackerApp extends Application {
     /** Read from disk while developing, so the CSS reloads without a rebuild; from the classpath otherwise. */
     private static final Path STATIC_DIR = Path.of("src/main/java/br/bundled/tracker/static");
 
-    private final int port;
-
     private TrackerApp(int port) {
-        this.port = port;
         val state = Seed.state();
-        val server = new WebServer(port, List.of(new RequestLoggingFilter(),
-                new StaticFiles("/static/tracker/", "br/bundled/tracker/static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO)));
+        val server = new WebServer(
+                port,
+                List.of(
+                        new RequestLoggingFilter(),
+                        new StaticFiles("/static/tracker/", "br/bundled/tracker/static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO)
+                )
+        );
+
         server.register(new WeekRoutes(state));
         server.register(new ProjectRoutes(state.projects(), state.entries()));
         server.register(new PersonRoutes(state.people(), state.entries()));
@@ -56,8 +58,6 @@ public final class TrackerApp extends Application {
     }
 
     static void main(String[] args) {
-        val app = new TrackerApp(args.length > 0 ? Integer.parseInt(args[0]) : 5001);
-        app.run();
-        Logger.info("Horas em http://localhost:%d", app.port);
+        new TrackerApp(args.length > 0 ? Integer.parseInt(args[0]) : 5001).run();
     }
 }

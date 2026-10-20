@@ -1,8 +1,6 @@
 package br.commons.lang.html.form;
 
 import br.commons.Result;
-import br.commons.lang.html.form.InputKind;
-import br.commons.lang.html.form.InputType;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

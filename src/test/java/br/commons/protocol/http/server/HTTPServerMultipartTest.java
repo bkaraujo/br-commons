@@ -1,9 +1,6 @@
 package br.commons.protocol.http.server;
 
 import br.commons.protocol.http.HTTPStatus;
-import br.commons.protocol.http.server.HTTPHandler;
-import br.commons.protocol.http.server.HTTPServer;
-import br.commons.protocol.http.server.MultipartParser;
 import br.commons.protocol.http.server.message.HTTPServerResponse;
 import lombok.val;
 import org.junit.jupiter.api.AfterEach;

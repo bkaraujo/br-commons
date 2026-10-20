@@ -1,9 +1,6 @@
 package br.commons.lang.html.form;
 
 import br.commons.Result;
-import br.commons.lang.html.form.Field;
-import br.commons.lang.html.form.FieldSpec;
-import br.commons.lang.html.form.InputType;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

@@ -8,11 +8,11 @@ import br.commons.lang.htmx.HxSwap;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
+import br.commons.web.WebResponse;
 import br.commons.web.router.Router;
 import br.commons.web.server.Form;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
-import br.commons.web.WebResponse;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 

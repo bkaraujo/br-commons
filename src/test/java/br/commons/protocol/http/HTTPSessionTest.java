@@ -1,9 +1,8 @@
 package br.commons.protocol.http;
 
 import br.commons.Result;
-import br.commons.protocol.http.HTTPSession;
-import br.commons.protocol.http.message.HTTPRequest;
 import br.commons.logger.MDC;
+import br.commons.protocol.http.message.HTTPRequest;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

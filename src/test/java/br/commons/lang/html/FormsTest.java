@@ -1,12 +1,12 @@
 package br.commons.lang.html;
 
+import br.commons.lang.Html4;
+import br.commons.lang.Html5;
 import br.commons.lang.html.form.Field;
 import br.commons.lang.html.form.FieldSpec;
 import br.commons.lang.html.form.InputType;
 import br.commons.lang.html.form.Option;
-import br.commons.lang.Html4;
 import br.commons.lang.html.html4.Html4Dialect;
-import br.commons.lang.Html5;
 import br.commons.lang.html.html5.Html5Dialect;
 import br.commons.locale.i18n.Text;
 import lombok.val;

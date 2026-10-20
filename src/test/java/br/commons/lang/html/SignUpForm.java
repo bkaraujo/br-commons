@@ -1,11 +1,8 @@
 package br.commons.lang.html;
 
-import br.commons.lang.html.ButtonType;
-import br.commons.lang.html.Dialect;
-import br.commons.lang.html.FormMethod;
 import br.commons.lang.html.core.Node;
-import br.commons.locale.i18n.Text;
 import br.commons.lang.html.form.*;
+import br.commons.locale.i18n.Text;
 import lombok.val;
 
 import java.util.List;

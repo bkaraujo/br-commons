@@ -1,8 +1,8 @@
 package br.bundled.money.business._0_domain.model;
 
+import br.bundled.money.business._0_domain.DomainErrors;
 import br.commons.annotation.Entity;
 import br.commons.business.BusinessException;
-import br.bundled.money.business._0_domain.DomainErrors;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 

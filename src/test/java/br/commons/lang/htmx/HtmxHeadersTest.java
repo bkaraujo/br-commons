@@ -1,9 +1,5 @@
 package br.commons.lang.htmx;
 
-import br.commons.lang.htmx.HtmxRequest;
-import br.commons.lang.htmx.HtmxResponse;
-import br.commons.lang.htmx.HxSwap;
-import br.commons.lang.htmx.SwapSpec;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.message.HTTPMethod;
 import br.commons.protocol.http.server.message.HTTPServerRequest;

@@ -1,6 +1,5 @@
 package br.commons.protocol.http;
 
-import br.commons.protocol.http.HTTPStatus;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

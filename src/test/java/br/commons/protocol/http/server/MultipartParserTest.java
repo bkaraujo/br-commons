@@ -1,7 +1,6 @@
 package br.commons.protocol.http.server;
 
 import br.commons.protocol.http.Multipart;
-import br.commons.protocol.http.server.MultipartParser;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

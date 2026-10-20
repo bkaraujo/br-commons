@@ -12,11 +12,7 @@ import org.jspecify.annotations.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Output syntax: Java object to XML text, the inverse of {@link XmlReader}. Map keys and record components become

@@ -1,7 +1,7 @@
 package br.commons.lang.yaml;
 
-import br.commons.serializer.Serializer;
 import br.commons.lang.Yaml;
+import br.commons.serializer.Serializer;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

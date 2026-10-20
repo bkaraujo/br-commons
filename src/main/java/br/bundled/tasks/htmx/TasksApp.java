@@ -1,9 +1,8 @@
 package br.bundled.tasks.htmx;
 
 import br.Application;
-import br.commons.Logger;
-import br.commons.module.Module;
 import br.bundled.tasks.shared.TaskStore;
+import br.commons.module.Module;
 import br.commons.web.filter.RequestLoggingFilter;
 import br.commons.web.filter.StaticFiles;
 import br.commons.web.server.WebServer;
@@ -28,24 +27,23 @@ public final class TasksApp extends Application {
     /** Read from disk while developing, so the CSS reloads without a rebuild; from the classpath otherwise. */
     private static final Path STATIC_DIR = Path.of("src/main/java/br/bundled/tasks/static");
 
-    private final int port;
-
     private TasksApp(int port) {
-        this.port = port;
         val store = new TaskStore();
         store.add("Ler a documentação do htmx");
         store.add("Renderizar no servidor");
         store.markDone(1, true);
-
-        val assets = new StaticFiles("/static/tasks/", "br/bundled/tasks/static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO);
-        val server = new WebServer(port, List.of(new RequestLoggingFilter(), assets));
+        val server = new WebServer(
+                port,
+                List.of(
+                        new RequestLoggingFilter(),
+                        new StaticFiles("/static/tasks/", "br/bundled/tasks/static", Files.isDirectory(STATIC_DIR) ? STATIC_DIR : null, Duration.ZERO)
+                )
+        );
         server.register(new TaskRoutes(store));
         attach(Module.of(server));
     }
 
     static void main(String[] args) {
-        val app = new TasksApp(args.length > 0 ? Integer.parseInt(args[0]) : 5003);
-        app.run();
-        Logger.info("Tarefas (htmx) em http://localhost:%d", app.port);
+        new TasksApp(args.length > 0 ? Integer.parseInt(args[0]) : 5003).run();
     }
 }

@@ -1,8 +1,8 @@
 package br.commons.persistence.jdbc;
 
 import br.commons.Result;
-import br.commons.persistence.jdbc.primitives.JDBCResultSet;
 import br.commons.cdi.Context;
+import br.commons.persistence.jdbc.primitives.JDBCResultSet;
 import lombok.val;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;

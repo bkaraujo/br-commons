@@ -1,8 +1,8 @@
 package br.commons.web.server;
 
 import br.commons.Result;
-import br.commons.module.Lifecycle;
 import br.commons.business.BusinessError;
+import br.commons.module.Lifecycle;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.server.HTTPFilter;
 import br.commons.protocol.http.server.HTTPServer;

@@ -1,10 +1,6 @@
 package br.commons.lang.htmx;
 
 import br.commons.locale.i18n.Text;
-import br.commons.lang.htmx.HxSwap;
-import br.commons.lang.htmx.HxSync;
-import br.commons.lang.htmx.ScrollEdge;
-import br.commons.lang.htmx.SwapSpec;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

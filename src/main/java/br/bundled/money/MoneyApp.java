@@ -1,10 +1,10 @@
 package br.bundled.money;
 
 import br.Application;
+import br.bundled.money.web.WebModule;
 import br.commons.Logger;
 import br.commons.logger.LogLevel;
 import br.commons.module.Module;
-import br.bundled.money.web.WebModule;
 
 public class MoneyApp extends Application {
 

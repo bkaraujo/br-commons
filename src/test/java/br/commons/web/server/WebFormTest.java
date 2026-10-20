@@ -1,11 +1,11 @@
 package br.commons.web.server;
 
 import br.commons.Result;
+import br.commons.locale.i18n.Errors;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPMethod;
 import br.commons.protocol.http.server.message.HTTPServerRequest;
-import br.commons.locale.i18n.Errors;
 import br.commons.web.WebResponse;
 import br.commons.web.router.Router;
 import lombok.val;

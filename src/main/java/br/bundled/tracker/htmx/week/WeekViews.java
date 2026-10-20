@@ -5,7 +5,6 @@ import br.bundled.tracker.shared.entry.Entry;
 import br.bundled.tracker.shared.registry.Registered;
 import br.bundled.tracker.shared.registry.Registry;
 import br.bundled.tracker.shared.week.*;
-import br.bundled.tracker.shared.week.*;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.FormMethod;
 import br.commons.lang.html.core.Content;
@@ -26,9 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static br.commons.lang.Htmx.*;
+import static br.bundled.tracker.htmx.ui.Ui.hours;
+import static br.bundled.tracker.htmx.ui.Ui.message;
 import static br.commons.lang.Html5.*;
-import static br.bundled.tracker.htmx.ui.Ui.*;
+import static br.commons.lang.Htmx.*;
 
 /**
  * The week screen: navigation, the person filter, the entry form, the entries and the totals. Everything that

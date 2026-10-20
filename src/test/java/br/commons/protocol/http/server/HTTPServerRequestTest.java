@@ -1,11 +1,11 @@
 package br.commons.protocol.http.server;
 
+import br.commons.logger.MDC;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPMethod;
 import br.commons.protocol.http.message.HTTPRequest;
 import br.commons.protocol.http.server.message.HTTPServerRequest;
 import br.commons.protocol.http.server.message.HTTPServerResponse;
-import br.commons.logger.MDC;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

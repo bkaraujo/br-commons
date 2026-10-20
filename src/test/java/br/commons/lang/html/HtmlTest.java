@@ -2,13 +2,12 @@ package br.commons.lang.html;
 
 import br.commons.lang.Html4;
 import br.commons.lang.Html5;
-import br.commons.lang.html.*;
+import br.commons.lang.Htmx;
+import br.commons.lang.html.core.Attribute;
+import br.commons.lang.html.core.Node;
 import br.commons.lang.html.html4.*;
 import br.commons.lang.html.html5.*;
-import br.commons.lang.html.core.Node;
 import br.commons.locale.i18n.Text;
-import br.commons.lang.html.core.Attribute;
-import br.commons.lang.Htmx;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 
