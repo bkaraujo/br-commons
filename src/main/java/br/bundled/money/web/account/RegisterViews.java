@@ -57,8 +57,11 @@ final class RegisterViews {
                 id("accounts"), cls("registry"),
                 div(cls("ledger-head"),
                         h2(text(message("Plano de contas"))),
-                        button(type(ButtonType.BUTTON), hxGet("/accounts/new"), hxTarget("#account-editor"),
-                                hxSwap(INTO_EDITOR), text(message("+ Nova conta")))),
+                        div(cls("buttons"),
+                                button(type(ButtonType.BUTTON), cls("link"), hxGet(EMPTY), hxTarget("#account-editor"),
+                                        hxSwap(INTO_EDITOR), text(message("Novo livro vazio"))),
+                                button(type(ButtonType.BUTTON), hxGet("/accounts/new"), hxTarget("#account-editor"),
+                                        hxSwap(INTO_EDITOR), text(message("+ Nova conta"))))),
                 div(id("account-editor"), cls("modal"), hxGet("/accounts/editor"), hxTrigger(DISMISS),
                         hxSwap(HxSwap.INNER_HTML), editor),
                 table(
@@ -200,6 +203,27 @@ final class RegisterViews {
                         : p(text(message("A conta não tem lançamentos."))),
                 div(cls("buttons"),
                         button(type(ButtonType.SUBMIT), cls("danger"), text(message(uses > 0 ? "Mover e excluir" : "Excluir"))),
+                        cancel())
+        );
+    }
+
+    /** The empty book from the personal chart of accounts (INTENT F8): GET the confirmation, POST to create it. */
+    static final String EMPTY = "/accounts/empty";
+
+    /** Starting over discards everything in memory, so it is confirmed first; no file is touched. */
+    static Node emptyPanel(Book book, int template) {
+        val label = message("Novo livro vazio");
+        return form(
+                cls("delete-panel card"), role("dialog"), ariaLabel(label), method(FormMethod.POST), action(EMPTY),
+                hxPost(EMPTY), hxTarget("#accounts"), hxSwap(HxSwap.OUTER_HTML),
+                h3(text(label)),
+                p(text(message("O livro recomeça com o plano de contas pessoal (" + template + " contas): Ativo, Passivo, "
+                        + "Patrimônio líquido, Receitas e Despesas com suas categorias, e a Carteira. Bancos e cartões "
+                        + "você cria depois, com o saldo inicial."))),
+                p(text(message("As " + book.tree().size() + " contas e " + book.count()
+                        + " lançamento(s) em memória serão descartados. Nenhum arquivo é alterado."))),
+                div(cls("buttons"),
+                        button(type(ButtonType.SUBMIT), cls("danger"), text(message("Criar livro vazio"))),
                         cancel())
         );
     }

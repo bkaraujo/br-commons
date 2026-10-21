@@ -1,6 +1,7 @@
 package br.bundled.money.web.mock;
 
 import br.bundled.money.business._0_domain.model.AccountType;
+import br.bundled.money.business._0_domain.model.ChartTemplate;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -15,8 +16,8 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * A personal book with three months up to {@code today}: salary, rent, bills, card purchases, the card bill paid
- * from the checking account, savings. Variable expenses grow a bit each month so the reports differ.
+ * A personal book with three months up to {@code today}, on the personal chart of accounts (INTENT F8): salary,
+ * rent, bills, card purchases, the card bill paid from the checking account, savings. Variable expenses grow a bit each month so the reports differ.
  */
 @NullMarked
 public final class Seed {
@@ -35,46 +36,28 @@ public final class Seed {
 
     private Seed() {}
 
-    /** An account of the chart; {@code parent} by name (the parents' names are unique). */
-    private record Row(String name, AccountType type, @Nullable String parent) {}
+    /** An account added to the template; {@code parent} by name (the template's names are unique). */
+    private record Row(String name, AccountType type, String parent) {}
 
     /** {@code value == null}: the credit card bill, the card balance of the day before. Accounts by name. */
     private record Event(int day, String description, String from, String to, @Nullable BigDecimal value) {}
 
-    private static final List<Row> CHART = List.of(
-            new Row("Ativo", AccountType.ASSET, null),
-            new Row(CHECKING, AccountType.BANK, "Ativo"),
-            new Row(SAVINGS, AccountType.BANK, "Ativo"),
-            new Row("Conta Investimento", AccountType.BANK, "Ativo"),
-            new Row(WALLET, AccountType.CASH, "Ativo"),
-            new Row("Passivo", AccountType.LIABILITY, null),
-            new Row(CARD, AccountType.CREDIT, "Passivo"),
-            new Row("Patrimônio líquido", AccountType.EQUITY, null),
-            new Row(OPENING, AccountType.EQUITY, "Patrimônio líquido"),
-            new Row("Receitas", AccountType.INCOME, null),
-            new Row("CLT", AccountType.INCOME, "Receitas"),
-            new Row("Salário", AccountType.INCOME, "CLT"),
-            new Row("Benefício", AccountType.INCOME, "CLT"),
-            new Row("Restituição", AccountType.INCOME, "CLT"),
-            new Row("13º Salário", AccountType.INCOME, "CLT"),
-            new Row("CNPJ", AccountType.INCOME, "Receitas"),
-            new Row("Pro labore", AccountType.INCOME, "CNPJ"),
-            new Row("Restituição", AccountType.INCOME, "CNPJ"),
-            new Row("Rendimentos", AccountType.INCOME, "Receitas"),
-            new Row("Vendas", AccountType.INCOME, "Receitas"),
-            new Row("Despesas", AccountType.EXPENSE, null),
-            new Row("Moradia", AccountType.EXPENSE, "Despesas"),
-            new Row("Aluguel", AccountType.EXPENSE, "Moradia"),
-            new Row("Energia", AccountType.EXPENSE, "Moradia"),
-            new Row("Internet", AccountType.EXPENSE, "Moradia"),
-            new Row("Alimentação", AccountType.EXPENSE, "Despesas"),
-            new Row(MARKET, AccountType.EXPENSE, "Alimentação"),
-            new Row(RESTAURANTS, AccountType.EXPENSE, "Alimentação"),
-            new Row("Transporte", AccountType.EXPENSE, "Despesas"),
-            new Row("Combustível", AccountType.EXPENSE, "Transporte"),
-            new Row(RIDES, AccountType.EXPENSE, "Transporte"),
-            new Row("Saúde", AccountType.EXPENSE, "Despesas"),
-            new Row("Lazer", AccountType.EXPENSE, "Despesas"));
+    /** The financial accounts of the fictitious book, beside the template's {@value #WALLET}. */
+    private static final List<Row> MONEY = List.of(
+            new Row(CHECKING, AccountType.BANK, "Contas bancárias"),
+            new Row(SAVINGS, AccountType.BANK, "Contas bancárias"),
+            new Row(CARD, AccountType.CREDIT, "Cartões de crédito"));
+
+    /** The personal chart of accounts (INTENT F8) as the accounts of an empty book, ids from 1 in its order. */
+    public static List<MockAccount> template() {
+        val entries = ChartTemplate.personal();
+        val accounts = new ArrayList<MockAccount>();
+        for (val entry : entries) {
+            val parent = entry.parent();
+            accounts.add(new MockAccount(accounts.size() + 1, entry.name(), entry.type(), parent == null ? null : parent + 1));
+        }
+        return accounts;
+    }
 
     /**
      * The book: read from the GnuCash file named by {@value #GNUCASH_PROPERTY} when it is set (real data stays out of
@@ -108,11 +91,11 @@ public final class Seed {
         return book;
     }
 
+    /** The template plus the bank accounts and the credit card. */
     private static List<MockAccount> chart() {
-        val accounts = new ArrayList<MockAccount>();
-        for (val row : CHART) {
-            accounts.add(new MockAccount(accounts.size() + 1, row.name(), row.type(),
-                    row.parent() == null ? null : id(accounts, row.parent())));
+        val accounts = new ArrayList<>(template());
+        for (val row : MONEY) {
+            accounts.add(new MockAccount(accounts.size() + 1, row.name(), row.type(), id(accounts, row.parent())));
         }
         return accounts;
     }
@@ -128,15 +111,15 @@ public final class Seed {
                 new Event(7, "Aluguel", CHECKING, "Aluguel", money("2200")),
                 new Event(8, "Conta de luz", CHECKING, "Energia", money("164.90").multiply(grow)),
                 new Event(9, "Almoço de domingo", CARD, RESTAURANTS, money("86.50").multiply(grow)),
-                new Event(10, "Internet fibra", CARD, "Internet", money("119.90")),
+                new Event(10, "Internet fibra", CARD, "Internet e telefone", money("119.90")),
                 new Event(11, "Hortifruti", CARD, MARKET, money("287.15").multiply(grow)),
                 new Event(12, "Pagamento da fatura", CHECKING, CARD, null),
                 new Event(14, "Posto", CARD, "Combustível", money("230").multiply(grow)),
                 new Event(16, "Corrida", CARD, RIDES, money("27.90")),
                 new Event(18, "Supermercado", CARD, MARKET, money("356.80").multiply(grow)),
-                new Event(20, "Farmácia", WALLET, "Saúde", money("64.70").multiply(grow)),
+                new Event(20, "Farmácia", WALLET, "Farmácia", money("64.70").multiply(grow)),
                 new Event(21, "Jantar", CARD, RESTAURANTS, money("142").multiply(grow)),
-                new Event(22, "Cinema", CARD, "Lazer", money("58")),
+                new Event(22, "Cinema", CARD, "Passeios", money("58")),
                 new Event(25, "Feira", WALLET, MARKET, money("48.60").multiply(grow)),
                 new Event(27, "Corrida", CARD, RIDES, money("33.40")),
                 new Event(28, "Rendimento da poupança", "Rendimentos", SAVINGS, money("62.35").add(BigDecimal.valueOf(i * 6L)))));

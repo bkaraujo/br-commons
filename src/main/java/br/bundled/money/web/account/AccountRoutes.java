@@ -3,6 +3,7 @@ package br.bundled.money.web.account;
 import br.bundled.money.web.mock.AccountInput;
 import br.bundled.money.web.mock.Book;
 import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.web.mock.Seed;
 import br.bundled.money.web.ui.Layout;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
@@ -38,6 +39,7 @@ import static br.bundled.money.web.ui.Ui.pathId;
  * ({@code #account-editor}) receives the form ({@code /accounts/new}, {@code /accounts/{id}/edit}, re-rendered by
  * {@code /accounts/form} when the type changes) or the delete panel ({@code /accounts/{id}/delete}). Saving and
  * deleting answer with the whole {@code #accounts}; invalid, the form or the panel with its errors.
+ * {@code /accounts/empty}: the empty book from the personal chart of accounts (INTENT F8), confirmed first.
  * {@code GET /accounts/{id}?month=2026-10}: the ledger. Literal routes come before {@code {id}}: the first match wins.
  */
 @NullMarked
@@ -55,6 +57,9 @@ public final class AccountRoutes implements WebResource {
         router.get("/accounts/new", MediaType.TEXT_HTML, String.class, this::blank).getOrThrow();
         router.get("/accounts/form", MediaType.TEXT_HTML, String.class, this::reform).getOrThrow();
         router.get("/accounts/editor", MediaType.TEXT_HTML, String.class, request -> ok("")).getOrThrow();
+        router.get(RegisterViews.EMPTY, MediaType.TEXT_HTML, String.class, this::confirmEmpty).getOrThrow();
+        router.post(RegisterViews.EMPTY, MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::empty)
+                .getOrThrow();
         router.post("/accounts", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();
         router.get("/accounts/{id}", MediaType.TEXT_HTML, String.class, this::ledger).getOrThrow();
         router.get("/accounts/{id}/edit", MediaType.TEXT_HTML, String.class, this::edit).getOrThrow();
@@ -96,6 +101,19 @@ public final class AccountRoutes implements WebResource {
     /** htmx: just the editor's content. A plain GET: the page with the editor open. */
     private HTTPResponse editor(WebRequest request, Node content) {
         return Ui.partial(request) ? ok(content.render()) : page(request, content);
+    }
+
+    // ---------- empty book (INTENT F8)
+
+    private HTTPResponse confirmEmpty(WebRequest request) {
+        return editor(request, RegisterViews.emptyPanel(book, Seed.template().size()));
+    }
+
+    /** The book starts over from the template; without htmx: post/redirect/get. */
+    private HTTPResponse empty(WebRequest request) {
+        book.reset(Seed.template());
+        return HtmxRequest.of(request).isHtmx() ? saved("Livro vazio criado com o plano de contas pessoal.")
+                : WebResponse.redirect("/accounts");
     }
 
     // ---------- create, update, delete

@@ -38,6 +38,18 @@ public final class Book {
         this.today = today;
     }
 
+    /**
+     * Starts over with {@code accounts} (INTENT F8, an empty book from the template): no transactions, nothing closed.
+     * The book read at startup is only in memory; no file is touched.
+     */
+    public void reset(List<MockAccount> accounts) {
+        transactions.clear();
+        this.accounts.clear();
+        this.accounts.addAll(accounts);
+        accountIds.set(accounts.stream().mapToInt(MockAccount::id).max().orElse(0));
+        threshold = null;
+    }
+
     public LocalDate today() {
         return today;
     }
@@ -360,6 +372,10 @@ public final class Book {
     }
 
     // ---------- transactions
+
+    public int count() {
+        return transactions.size();
+    }
 
     public List<MockTransaction> recent(int limit) {
         return sorted().reversed().stream().limit(limit).toList();

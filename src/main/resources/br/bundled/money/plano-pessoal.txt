@@ -1,0 +1,62 @@
+# Plano de contas pessoal BR (INTENT F8): aplicado ao criar um livro vazio.
+# Uma conta por linha, "Nome | TIPO" (br.bundled.money.business._0_domain.model.AccountType);
+# dois espaços de recuo por nível. As contas de topo são fixas; as financeiras (bancos, cartões) o usuário cria.
+Ativo | ASSET
+  Contas bancárias | ASSET
+  Carteira | CASH
+  Investimentos | ASSET
+Passivo | LIABILITY
+  Cartões de crédito | LIABILITY
+  Empréstimos e financiamentos | LIABILITY
+Patrimônio líquido | EQUITY
+  Saldos de abertura | EQUITY
+Receitas | INCOME
+  Salário | INCOME
+  13º salário | INCOME
+  Férias | INCOME
+  Rendimentos | INCOME
+  Restituição de IR | INCOME
+  Outras receitas | INCOME
+Despesas | EXPENSE
+  Moradia | EXPENSE
+    Aluguel | EXPENSE
+    Condomínio | EXPENSE
+    IPTU | EXPENSE
+    Energia | EXPENSE
+    Água | EXPENSE
+    Gás | EXPENSE
+    Internet e telefone | EXPENSE
+    Manutenção da casa | EXPENSE
+  Alimentação | EXPENSE
+    Mercado | EXPENSE
+    Restaurantes | EXPENSE
+    Delivery | EXPENSE
+  Transporte | EXPENSE
+    Combustível | EXPENSE
+    Aplicativos | EXPENSE
+    Transporte público | EXPENSE
+    Estacionamento e pedágio | EXPENSE
+    Manutenção do veículo | EXPENSE
+    IPVA e licenciamento | EXPENSE
+    Seguro do veículo | EXPENSE
+  Saúde | EXPENSE
+    Plano de saúde | EXPENSE
+    Farmácia | EXPENSE
+    Consultas e exames | EXPENSE
+  Educação | EXPENSE
+    Mensalidade escolar | EXPENSE
+    Cursos | EXPENSE
+    Livros e material | EXPENSE
+  Lazer | EXPENSE
+    Viagens | EXPENSE
+    Assinaturas e streaming | EXPENSE
+    Passeios | EXPENSE
+  Vestuário | EXPENSE
+  Cuidados pessoais | EXPENSE
+  Impostos e tarifas | EXPENSE
+    Imposto de renda | EXPENSE
+    Tarifas bancárias | EXPENSE
+    Juros e multas | EXPENSE
+  Pets | EXPENSE
+  Doações e presentes | EXPENSE
+  Outras despesas | EXPENSE
