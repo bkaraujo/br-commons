@@ -9,6 +9,7 @@ import br.bundled.money.business._0_domain.repository.BalanceRepository;
 import br.bundled.money.business._0_domain.repository.TransactionRepository;
 import br.bundled.money.business._0_domain.service.BalanceService;
 import br.commons.Result;
+import br.commons.cdi.Context;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
@@ -27,17 +28,12 @@ import java.util.stream.Collectors;
 @NullMarked
 public final class Balances implements BalanceService {
 
-    private final AccountRepository accounts;
-    private final TransactionRepository transactions;
-    private final BalanceRepository balances;
-    private final Clock clock;
+    private final AccountRepository accounts = Context.get(AccountRepository.class);
+    private final TransactionRepository transactions = Context.get(TransactionRepository.class);
+    private final BalanceRepository balances = Context.get(BalanceRepository.class);
+    private final Clock clock = Context.get(Clock.class);
 
-    Balances(AccountRepository accounts, TransactionRepository transactions, BalanceRepository balances, Clock clock) {
-        this.accounts = accounts;
-        this.transactions = transactions;
-        this.balances = balances;
-        this.clock = clock;
-    }
+    Balances() {}
 
     @Override
     public Balance balance(Account account) {

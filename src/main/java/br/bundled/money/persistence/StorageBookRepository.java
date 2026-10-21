@@ -3,6 +3,7 @@ package br.bundled.money.persistence;
 import br.bundled.money.business._0_domain.model.Book;
 import br.bundled.money.business._0_domain.repository.BookRepository;
 import br.commons.Result;
+import br.commons.cdi.Context;
 import br.commons.persistence.Storage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -20,12 +21,8 @@ public final class StorageBookRepository implements BookRepository {
 
     record BookRow(@Nullable String threshold) {}
 
-    private final Storage storage;
+    private final Storage storage = Context.get(Storage.class);
     private volatile Book book = Book.OPEN;
-
-    public StorageBookRepository(Storage storage) {
-        this.storage = storage;
-    }
 
     public synchronized Result<Void, String> load() {
         book = Book.OPEN;

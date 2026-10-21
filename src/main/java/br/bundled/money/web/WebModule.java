@@ -3,13 +3,13 @@ package br.bundled.money.web;
 import br.bundled.money.web.account.AccountRoutes;
 import br.bundled.money.web.entry.EntryRoutes;
 import br.bundled.money.web.home.HomeRoutes;
-import br.bundled.money.business._1_application.ApplicationModule;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.seed.Seed;
 import br.bundled.money.web.report.ReportRoutes;
 import br.bundled.money.web.statement.StatementRoutes;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import br.commons.lang.htmx.HtmxScript;
 import br.commons.module.Lifecycle;
 import br.commons.web.filter.RequestLoggingFilter;
@@ -25,25 +25,20 @@ import java.util.List;
 
 /**
  * The web server of br.money on port 9000: static files and the routes of each screen over the use cases (the
- * {@link Book} the screens read). Starting, it loads the seed ({@link Seed}). Open {@code http://localhost:9000}.
+ * {@link Book} the screens read, registered in the {@link Context}). Starting, it loads the seed ({@link Seed}). Open {@code http://localhost:9000}.
  */
 public final class WebModule implements Lifecycle {
 
     /** Read from disk while developing, so the CSS reloads without a rebuild; from the classpath otherwise. */
     private static final Path STATIC_DIR = Path.of("src/main/java/br/bundled/money/web/static");
 
-    private final ApplicationModule app;
     private @Nullable WebServer server;
-
-    public WebModule(ApplicationModule app) {
-        this.app = app;
-    }
 
     @Override
     public Result<Void, BusinessError> initialize() {
-        val seeded = Seed.load(app);
+        val seeded = Seed.load();
         if (seeded instanceof Result.Failure<?, BusinessError>(var error)) return Result.failure(error);
-        val book = new Book(app);
+        Context.set(Book.class, Book::new);
         val developing = Files.isDirectory(STATIC_DIR);
         server = new WebServer(
                 9000,
@@ -55,11 +50,11 @@ public final class WebModule implements Lifecycle {
         );
 
         server.register(
-                new HomeRoutes(book),
-                new AccountRoutes(book),
-                new StatementRoutes(book),
-                new EntryRoutes(book),
-                new ReportRoutes(book)
+                new HomeRoutes(),
+                new AccountRoutes(),
+                new StatementRoutes(),
+                new EntryRoutes(),
+                new ReportRoutes()
         );
 
         return server.initialize();

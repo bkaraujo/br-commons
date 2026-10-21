@@ -8,6 +8,8 @@ import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.persistence.PersistenceModule;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
+import br.commons.persistence.Storage;
 import br.commons.persistence.inmemory.InMemoryStorage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -31,10 +33,12 @@ class ApplicationModuleTest {
     private ApplicationModule app;
 
     private ApplicationModule started() {
-        val persistence = new PersistenceModule(storage);
+        Context.clear();
+        Context.set(Storage.class, () -> storage);
+        Context.set(Clock.class, () -> CLOCK);
+        val persistence = new PersistenceModule();
         assertTrue(persistence.initialize().isSuccess());
-        val module = new ApplicationModule(persistence.accounts(), persistence.transactions(), persistence.balances(),
-                persistence.books(), CLOCK);
+        val module = new ApplicationModule();
         assertTrue(module.initialize().isSuccess());
         return module;
     }

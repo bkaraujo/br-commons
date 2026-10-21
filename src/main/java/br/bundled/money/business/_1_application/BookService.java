@@ -6,6 +6,7 @@ import br.bundled.money.business._0_domain.model.ChartTemplate;
 import br.bundled.money.business._0_domain.repository.BookRepository;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -17,15 +18,11 @@ import java.util.concurrent.locks.Lock;
 @NullMarked
 public final class BookService {
 
-    private final BookRepository books;
-    private final ImportService imports;
-    private final Lock lock;
+    private final BookRepository books = Context.get(BookRepository.class);
+    private final ImportService imports = Context.get(ImportService.class);
+    private final Lock lock = Context.get(BookLock.class);
 
-    BookService(BookRepository books, ImportService imports, Lock lock) {
-        this.books = books;
-        this.imports = imports;
-        this.lock = lock;
-    }
+    BookService() {}
 
     public Book book() {
         return books.find();

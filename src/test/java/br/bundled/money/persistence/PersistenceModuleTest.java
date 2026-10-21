@@ -1,9 +1,12 @@
 package br.bundled.money.persistence;
 
 import br.bundled.money.business._0_domain.model.*;
+import br.commons.cdi.Context;
+import br.commons.persistence.Storage;
 import br.commons.persistence.inmemory.InMemoryStorage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -20,8 +23,14 @@ class PersistenceModuleTest {
 
     private final InMemoryStorage storage = new InMemoryStorage();
 
+    @BeforeEach
+    void setUp() {
+        Context.clear();
+        Context.set(Storage.class, () -> storage);
+    }
+
     private PersistenceModule loaded() {
-        val module = new PersistenceModule(storage);
+        val module = new PersistenceModule();
         assertTrue(module.initialize().isSuccess());
         return module;
     }
@@ -106,6 +115,6 @@ class PersistenceModuleTest {
         module.transactions().save(BookTransaction.of(LocalDate.of(2025, 1, 1), "x",
                 List.of(BookSplit.of(unknown, BigDecimal.ONE), BookSplit.of(known, BigDecimal.ONE.negate())))).getOrThrow();
 
-        assertTrue(new PersistenceModule(storage).initialize().isFailure());
+        assertTrue(new PersistenceModule().initialize().isFailure());
     }
 }

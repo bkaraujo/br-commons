@@ -6,6 +6,7 @@ import br.commons.Result;
 import br.commons.business.BusinessError;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
+import br.commons.cdi.Context;
 import br.commons.lang.htmx.HtmxRequest;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
@@ -29,11 +30,7 @@ import static br.bundled.money.web.ui.Ui.ok;
 @NullMarked
 public final class ReportRoutes implements WebResource {
 
-    private final Book book;
-
-    public ReportRoutes(Book book) {
-        this.book = book;
-    }
+    private final Book book = Context.get(Book.class);
 
     @Override
     public void routes(Router router) {

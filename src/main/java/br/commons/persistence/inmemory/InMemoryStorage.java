@@ -1,5 +1,6 @@
 package br.commons.persistence.inmemory;
 
+import br.commons.Logger;
 import br.commons.Result;
 import br.commons.persistence.Storage;
 import lombok.val;
@@ -18,12 +19,14 @@ public class InMemoryStorage implements Storage {
 
     @Override
     public Result<Optional<byte[]>, String> read(String file, String jsonKey) {
+        Logger.info("Reading %s from %s", jsonKey, file);
         val fileContent = data.get(file);
         return Result.success(fileContent == null ? Optional.empty() : Optional.ofNullable(fileContent.get(jsonKey)));
     }
 
     @Override
     public Result<Void, String> write(String file, String jsonKey, byte[] content) {
+        Logger.trace("Writing %s content to %s", jsonKey, file);
         data.computeIfAbsent(file, k -> new ConcurrentHashMap<>()).put(jsonKey, content);
         return Result.success();
     }
@@ -32,6 +35,7 @@ public class InMemoryStorage implements Storage {
     @Override
     public Result<Void, String> delete(String file, String jsonKey) {
         data.computeIfPresent(file, (_, fields) -> {
+            Logger.trace("Deleting %s from %s", fields, file);
             fields.remove(jsonKey);
             return fields.isEmpty() ? null : fields;
         });
@@ -40,6 +44,7 @@ public class InMemoryStorage implements Storage {
 
     @Override
     public Result<List<String>, String> keys(String file) {
+        Logger.trace("Reading keys from %s", file);
         val fields = data.get(file);
         return Result.success(fields == null ? List.of() : List.copyOf(fields.keySet()));
     }

@@ -7,6 +7,7 @@ import br.bundled.money.web.ui.Ui;
 import br.bundled.money.business._0_domain.model.Transaction;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import br.commons.lang.html.form.Violation;
 import br.commons.lang.htmx.HtmxRequest;
 import br.commons.protocol.http.MediaType;
@@ -30,11 +31,7 @@ import static br.bundled.money.web.ui.Ui.ok;
 @NullMarked
 public final class EntryRoutes implements WebResource {
 
-    private final Book book;
-
-    public EntryRoutes(Book book) {
-        this.book = book;
-    }
+    private final Book book = Context.get(Book.class);
 
     @Override
     public void routes(Router router) {

@@ -4,6 +4,7 @@ import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.business._0_domain.model.Balance;
 import br.bundled.money.business._0_domain.repository.BalanceRepository;
 import br.commons.Result;
+import br.commons.cdi.Context;
 import br.commons.persistence.Storage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -22,12 +23,8 @@ public final class StorageBalanceRepository implements BalanceRepository {
 
     record BalanceRow(String amount) {}
 
-    private final Storage storage;
+    private final Storage storage = Context.get(Storage.class);
     private final Map<UUID, NavigableMap<YearMonth, BigDecimal>> balances = new HashMap<>();
-
-    public StorageBalanceRepository(Storage storage) {
-        this.storage = storage;
-    }
 
     static String file(UUID account) {
         return PREFIX + account + SUFFIX;

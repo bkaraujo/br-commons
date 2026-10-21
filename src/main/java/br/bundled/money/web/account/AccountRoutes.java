@@ -9,6 +9,7 @@ import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import br.commons.lang.html.Html;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.ValidationRule;
@@ -45,11 +46,7 @@ import static br.bundled.money.web.ui.Ui.pathId;
 @NullMarked
 public final class AccountRoutes implements WebResource {
 
-    private final Book book;
-
-    public AccountRoutes(Book book) {
-        this.book = book;
-    }
+    private final Book book = Context.get(Book.class);
 
     @Override
     public void routes(Router router) {

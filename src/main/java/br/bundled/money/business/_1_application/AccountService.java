@@ -8,6 +8,7 @@ import br.bundled.money.business._0_domain.repository.BookRepository;
 import br.bundled.money.business._0_domain.repository.TransactionRepository;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -30,24 +31,15 @@ public final class AccountService {
     /** The description of the opening transaction of an account created with a balance. */
     static final String OPENING = "Saldo inicial";
 
-    private final AccountRepository accounts;
-    private final TransactionRepository transactions;
-    private final BalanceRepository kept;
-    private final BookRepository books;
-    private final Balances balances;
-    private final TransactionService posting;
-    private final Lock lock;
+    private final AccountRepository accounts = Context.get(AccountRepository.class);
+    private final TransactionRepository transactions = Context.get(TransactionRepository.class);
+    private final BalanceRepository kept = Context.get(BalanceRepository.class);
+    private final BookRepository books = Context.get(BookRepository.class);
+    private final Balances balances = Context.get(Balances.class);
+    private final TransactionService posting = Context.get(TransactionService.class);
+    private final Lock lock = Context.get(BookLock.class);
 
-    AccountService(AccountRepository accounts, TransactionRepository transactions, BalanceRepository kept,
-                   BookRepository books, Balances balances, TransactionService posting, Lock lock) {
-        this.accounts = accounts;
-        this.transactions = transactions;
-        this.kept = kept;
-        this.books = books;
-        this.balances = balances;
-        this.posting = posting;
-        this.lock = lock;
-    }
+    AccountService() {}
 
     public List<Account> accounts() {
         return accounts.findAll();

@@ -9,6 +9,7 @@ import br.bundled.money.business._1_application.ApplicationModule;
 import br.bundled.money.business._1_application.SplitInput;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -29,11 +30,7 @@ public final class Book {
 
     private static final String PATH_SEPARATOR = " › ";
 
-    private final ApplicationModule app;
-
-    public Book(ApplicationModule app) {
-        this.app = app;
-    }
+    private final ApplicationModule app = Context.get(ApplicationModule.class);
 
     public LocalDate today() {
         return app.today();

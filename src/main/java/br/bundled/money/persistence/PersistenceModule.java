@@ -6,12 +6,14 @@ import br.bundled.money.business._0_domain.repository.BookRepository;
 import br.bundled.money.business._0_domain.repository.TransactionRepository;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import br.commons.module.Lifecycle;
 import br.commons.persistence.Storage;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * The repositories over one {@link Storage}; {@link #initialize} loads them (accounts before the transactions that
+ * The repositories over the {@link Storage} in the {@link Context}, each registered there by its interface (the
+ * transactions after the accounts they resolve); {@link #initialize} loads them (accounts before the transactions that
  * point to them). A record that cannot be read back stops the startup.
  */
 @NullMarked
@@ -22,11 +24,15 @@ public final class PersistenceModule implements Lifecycle {
     private final StorageBalanceRepository balances;
     private final StorageBookRepository books;
 
-    public PersistenceModule(Storage storage) {
-        accounts = new StorageAccountRepository(storage);
-        transactions = new StorageTransactionRepository(storage, accounts);
-        balances = new StorageBalanceRepository(storage);
-        books = new StorageBookRepository(storage);
+    public PersistenceModule() {
+        accounts = new StorageAccountRepository();
+        Context.set(AccountRepository.class, this::accounts);
+        transactions = new StorageTransactionRepository();
+        Context.set(TransactionRepository.class, this::transactions);
+        balances = new StorageBalanceRepository();
+        Context.set(BalanceRepository.class, this::balances);
+        books = new StorageBookRepository();
+        Context.set(BookRepository.class, this::books);
     }
 
     @Override

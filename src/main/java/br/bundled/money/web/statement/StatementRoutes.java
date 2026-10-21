@@ -8,6 +8,7 @@ import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import br.commons.lang.html.Html;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.Violation;
@@ -51,11 +52,7 @@ public final class StatementRoutes implements WebResource {
     /** A transaction before the closing date (INTENT F9) is neither edited nor deleted. */
     private static final String CLOSED = "Lançamento em período fechado: recue a data-limite para alterá-lo.";
 
-    private final Book book;
-
-    public StatementRoutes(Book book) {
-        this.book = book;
-    }
+    private final Book book = Context.get(Book.class);
 
     @Override
     public void routes(Router router) {

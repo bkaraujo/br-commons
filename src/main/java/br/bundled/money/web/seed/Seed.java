@@ -6,6 +6,7 @@ import br.bundled.money.business._1_application.ApplicationModule;
 import br.bundled.money.business._1_application.ImportService;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -60,7 +61,8 @@ public final class Seed {
      * Loads the book of the GnuCash file named by {@value #GNUCASH_PROPERTY} when it is set (real data stays out of
      * the repository); else the fictitious one, only into a book without transactions.
      */
-    public static Result<?, BusinessError> load(ApplicationModule app) {
+    public static Result<?, BusinessError> load() {
+        val app = Context.get(ApplicationModule.class);
         val gnucash = System.getProperty(GNUCASH_PROPERTY);
         val today = app.today();
         if (gnucash != null && !gnucash.isBlank()) {

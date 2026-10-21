@@ -5,6 +5,7 @@ import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Layout;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
+import br.commons.cdi.Context;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.router.Router;
@@ -25,11 +26,7 @@ import static br.bundled.money.web.ui.Ui.ok;
 @NullMarked
 public final class HomeRoutes implements WebResource {
 
-    private final Book book;
-
-    public HomeRoutes(Book book) {
-        this.book = book;
-    }
+    private final Book book = Context.get(Book.class);
 
     @Override
     public void routes(Router router) {

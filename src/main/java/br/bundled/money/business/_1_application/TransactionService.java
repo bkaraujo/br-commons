@@ -7,6 +7,7 @@ import br.bundled.money.business._0_domain.repository.BookRepository;
 import br.bundled.money.business._0_domain.repository.TransactionRepository;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.cdi.Context;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -26,20 +27,13 @@ import java.util.concurrent.locks.Lock;
 @NullMarked
 public final class TransactionService {
 
-    private final AccountRepository accounts;
-    private final TransactionRepository transactions;
-    private final BookRepository books;
-    private final Balances balances;
-    private final Lock lock;
+    private final AccountRepository accounts = Context.get(AccountRepository.class);
+    private final TransactionRepository transactions = Context.get(TransactionRepository.class);
+    private final BookRepository books = Context.get(BookRepository.class);
+    private final Balances balances = Context.get(Balances.class);
+    private final Lock lock = Context.get(BookLock.class);
 
-    TransactionService(AccountRepository accounts, TransactionRepository transactions, BookRepository books,
-                       Balances balances, Lock lock) {
-        this.accounts = accounts;
-        this.transactions = transactions;
-        this.books = books;
-        this.balances = balances;
-        this.lock = lock;
-    }
+    TransactionService() {}
 
     public Optional<Transaction> find(UUID id) {
         return transactions.findById(id);

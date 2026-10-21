@@ -5,6 +5,7 @@ import br.bundled.money.business._0_domain.model.AccountNature;
 import br.bundled.money.business._0_domain.model.AccountType;
 import br.bundled.money.business._0_domain.repository.AccountRepository;
 import br.commons.Result;
+import br.commons.cdi.Context;
 import br.commons.persistence.Storage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -23,12 +24,8 @@ public final class StorageAccountRepository implements AccountRepository {
 
     private static final Comparator<Account> BY_NAME = Comparator.<Account, String>comparing(Account::name).thenComparing(Comparator.naturalOrder());
 
-    private final Storage storage;
+    private final Storage storage = Context.get(Storage.class);
     private final Map<UUID, Account> accounts = new HashMap<>();
-
-    public StorageAccountRepository(Storage storage) {
-        this.storage = storage;
-    }
 
     /** Reads every account, then links each to its parent; a parent that is not there fails the load. */
     public synchronized Result<Void, String> load() {

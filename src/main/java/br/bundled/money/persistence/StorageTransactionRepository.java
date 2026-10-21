@@ -4,6 +4,7 @@ import br.bundled.money.business._0_domain.model.*;
 import br.bundled.money.business._0_domain.repository.AccountRepository;
 import br.bundled.money.business._0_domain.repository.TransactionRepository;
 import br.commons.Result;
+import br.commons.cdi.Context;
 import br.commons.persistence.Storage;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -35,14 +36,9 @@ public final class StorageTransactionRepository implements TransactionRepository
     private static final Comparator<Transaction> CHRONOLOGICAL = Comparator.comparing(Transaction::date)
             .thenComparingLong(Transaction::createdAt).thenComparing(Comparator.naturalOrder());
 
-    private final Storage storage;
-    private final AccountRepository accounts;
+    private final Storage storage = Context.get(Storage.class);
+    private final AccountRepository accounts = Context.get(AccountRepository.class);
     private final Map<UUID, Transaction> transactions = new HashMap<>();
-
-    public StorageTransactionRepository(Storage storage, AccountRepository accounts) {
-        this.storage = storage;
-        this.accounts = accounts;
-    }
 
     static String file(YearMonth month) {
         return PREFIX + month + SUFFIX;
