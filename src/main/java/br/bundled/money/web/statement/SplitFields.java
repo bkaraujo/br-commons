@@ -1,9 +1,9 @@
 package br.bundled.money.web.statement;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
-import br.bundled.money.web.mock.MockSplit;
-import br.bundled.money.web.mock.MockTransaction;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
+import br.bundled.money.business._1_application.SplitInput;
+import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.web.ui.Forms;
 import br.bundled.money.web.ui.Ui;
 import br.commons.Result;
@@ -51,7 +51,7 @@ final class SplitFields {
     }
 
     /** A checked transaction of splits, signed in the nature of each account. */
-    record Entry(LocalDate date, String description, List<MockSplit> splits) {}
+    record Entry(LocalDate date, String description, List<SplitInput> splits) {}
 
     private SplitFields() {}
 
@@ -72,12 +72,12 @@ final class SplitFields {
     }
 
     /** The lines of a saved transaction: each split in debit terms, what enters or what leaves. */
-    static List<Line> lines(Book book, MockTransaction transaction) {
+    static List<Line> lines(Transaction transaction) {
         return transaction.splits().stream().map(split -> {
-            val debit = book.debit(split);
+            val debit = split.debitAmount();
             val value = debit.abs().toPlainString();
-            return debit.signum() > 0 ? new Line(String.valueOf(split.account()), value, "")
-                    : new Line(String.valueOf(split.account()), "", value);
+            val account = split.account().identity().toString();
+            return debit.signum() > 0 ? new Line(account, value, "") : new Line(account, "", value);
         }).toList();
     }
 
@@ -96,7 +96,7 @@ final class SplitFields {
     static Result<Entry, List<Violation>> read(Function<String, String> value, List<Line> lines, Book book) {
         val head = List.of(StatementFields.DATE, StatementFields.DESCRIPTION);
         val violations = new ArrayList<>(Validation.check(head, name -> List.of(value.apply(name))));
-        val splits = new ArrayList<MockSplit>();
+        val splits = new ArrayList<SplitInput>();
         var balance = BigDecimal.ZERO;
         for (var i = 0; i < lines.size(); i++) {
             val line = lines.get(i);
@@ -108,7 +108,7 @@ final class SplitFields {
                 continue;
             }
             balance = balance.add(debit);
-            splits.add(new MockSplit(account.id(), debit.multiply(BigDecimal.valueOf(account.type().debit))));
+            splits.add(new SplitInput(account.identity(), debit.multiply(BigDecimal.valueOf(account.type().debit))));
         }
         val count = lines.stream().filter(line -> !line.blank()).count();
         if (count < 2) {
@@ -127,9 +127,8 @@ final class SplitFields {
         return Result.success(new Entry(date, value.apply(StatementFields.DESCRIPTION.name()).strip(), splits));
     }
 
-    private static @Nullable MockAccount account(String id, Book book) {
-        val number = Ui.number(id);
-        return number == null ? null : book.account(number).filter(account -> account.parent() != null).orElse(null);
+    private static @Nullable Account account(String id, Book book) {
+        return book.account(Ui.uuid(id)).filter(account -> account.parent() != null).orElse(null);
     }
 
     /** The value in debit terms: what enters positive, what leaves negative; one of them, above zero, 2 decimals. */

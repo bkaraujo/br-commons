@@ -1,0 +1,381 @@
+package br.bundled.money.web.book;
+
+import br.bundled.money.business._0_domain.model.Account;
+import br.bundled.money.business._0_domain.model.AccountType;
+import br.bundled.money.business._0_domain.model.Transaction;
+import br.bundled.money.business._0_domain.model.TransactionSplit;
+import br.bundled.money.business._1_application.AccountInput;
+import br.bundled.money.business._1_application.ApplicationModule;
+import br.bundled.money.business._1_application.SplitInput;
+import br.commons.Result;
+import br.commons.business.BusinessError;
+import lombok.val;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * The book as the screens see it (INTENT §6): a ledger account sums its descendants, each split converted to its
+ * nature; a financial account shows only its own balance. Reads come from the services; changes go to them and
+ * answer their {@code Result}.
+ */
+@NullMarked
+public final class Book {
+
+    private static final String PATH_SEPARATOR = " › ";
+
+    private final ApplicationModule app;
+
+    public Book(ApplicationModule app) {
+        this.app = app;
+    }
+
+    public LocalDate today() {
+        return app.today();
+    }
+
+    /**
+     * The month the screens open on: the one of the latest transaction up to today, else today's. An imported book
+     * can stop months in the past; opening on an empty month would hide it.
+     */
+    public YearMonth month() {
+        val today = today();
+        return transactions().stream().map(Transaction::date).filter(date -> !date.isAfter(today))
+                .max(Comparator.naturalOrder()).map(YearMonth::from).orElseGet(() -> YearMonth.from(today));
+    }
+
+    private List<Transaction> transactions() {
+        return app.transactions().all();
+    }
+
+    // ---------- closing (INTENT F9)
+
+    public @Nullable LocalDate threshold() {
+        return app.books().book().threshold();
+    }
+
+    public boolean closed(LocalDate date) {
+        return app.books().book().closed(date);
+    }
+
+    public boolean closed(Transaction transaction) {
+        return closed(transaction.date());
+    }
+
+    /** Whether the account has a transaction in the closed period: moving its splits away would change it. */
+    public boolean closedUses(Account account) {
+        return app.transactions().all().stream().anyMatch(transaction -> closed(transaction) && touches(transaction, Set.of(account)));
+    }
+
+    public Result<?, BusinessError> close(@Nullable LocalDate date) {
+        return app.books().close(date);
+    }
+
+    /** Starts over from the personal chart of accounts (INTENT F8). */
+    public Result<?, BusinessError> startEmpty() {
+        return app.books().startEmpty();
+    }
+
+    // ---------- accounts
+
+    public Optional<Account> account(@Nullable UUID id) {
+        return id == null ? Optional.empty() : app.accounts().account(id);
+    }
+
+    public List<Account> roots() {
+        return app.accounts().accounts().stream().filter(account -> account.parent() == null).toList();
+    }
+
+    public List<Account> children(Account account) {
+        return app.accounts().children(account);
+    }
+
+    /** Every account, depth first, children by name. */
+    public List<Account> tree() {
+        val all = new ArrayList<Account>();
+        roots().forEach(root -> collect(root, all));
+        return all;
+    }
+
+    private void collect(Account account, List<Account> all) {
+        all.add(account);
+        children(account).forEach(child -> collect(child, all));
+    }
+
+    public int depth(Account account) {
+        val parent = account.parent();
+        return parent == null ? 0 : 1 + depth(parent);
+    }
+
+    /** {@code Despesas › Alimentação › Mercado}. */
+    public String path(Account account) {
+        val parent = account.parent();
+        return parent == null ? account.name() : path(parent) + PATH_SEPARATOR + account.name();
+    }
+
+    public List<Account> financial() {
+        return tree().stream().filter(Account::financial).toList();
+    }
+
+    /**
+     * The financial accounts the screens offer ("Minhas contas", the quick entry): stocks and funds have no UI in the
+     * MVP (INTENT §5).
+     */
+    public List<Account> moneyAccounts() {
+        return financial().stream()
+                .filter(account -> account.type() != AccountType.STOCK && account.type() != AccountType.MUTUAL).toList();
+    }
+
+    /** A category of the quick entry: income or expense. */
+    public static boolean category(Account account) {
+        return account.type() == AccountType.INCOME || account.type() == AccountType.EXPENSE;
+    }
+
+    /** Income and expense accounts without children, the ones a quick entry can use. */
+    public List<Account> categories() {
+        return tree().stream().filter(Book::category).filter(account -> children(account).isEmpty()).toList();
+    }
+
+    public Optional<Account> root(AccountType type) {
+        return roots().stream().filter(account -> account.type() == type).findFirst();
+    }
+
+    public Set<Account> subtree(Account account) {
+        val all = new HashSet<Account>();
+        all.add(account);
+        children(account).forEach(child -> all.addAll(subtree(child)));
+        return all;
+    }
+
+    /** The accounts a balance or a ledger of {@code account} covers: itself when financial, its subtree otherwise. */
+    private Set<Account> scope(Account account) {
+        return account.financial() ? Set.of(account) : subtree(account);
+    }
+
+    /** The parents an account of {@code type} may have (the same family); when editing, never itself or a descendant. */
+    public List<Account> parents(AccountType type, @Nullable Account editing) {
+        val excluded = editing == null ? Set.<Account>of() : subtree(editing);
+        return tree().stream().filter(account -> !excluded.contains(account))
+                .filter(account -> account.type().family() == type.family()).toList();
+    }
+
+    /** How many transactions touch the account itself. */
+    public long uses(Account account) {
+        return app.accounts().uses(account);
+    }
+
+    /** Whether the type is fixed: the account has transactions, or subaccounts that must stay in its family. */
+    public boolean fixedType(Account account) {
+        return uses(account) > 0 || !children(account).isEmpty();
+    }
+
+    /** Where the transactions of a deleted account may go: any account but the top level and the account itself. */
+    public List<Account> targets(Account account) {
+        return tree().stream().filter(candidate -> candidate.parent() != null && !candidate.equals(account)).toList();
+    }
+
+    public Result<Account, BusinessError> create(AccountInput input) {
+        return app.accounts().create(input, today());
+    }
+
+    public Result<Account, BusinessError> update(Account account, AccountInput input) {
+        return app.accounts().update(account.identity(), input);
+    }
+
+    public Result<Void, BusinessError> remove(Account account, @Nullable Account target) {
+        return app.accounts().remove(account.identity(), target == null ? null : target.identity());
+    }
+
+    // ---------- balances
+
+    /**
+     * The balance of the account's own splits at the end of {@code day}, in its nature: the month before from the
+     * balances kept, plus what moved in the month up to the day.
+     */
+    private BigDecimal own(Account account, LocalDate day) {
+        val month = YearMonth.from(day);
+        val before = app.balances().own(account, month.minusMonths(1));
+        return app.transactions().statement(account, month).stream().filter(transaction -> !transaction.date().isAfter(day))
+                .map(transaction -> amountIn(transaction, Set.of(account), account.type().debit))
+                .reduce(before, BigDecimal::add);
+    }
+
+    /** Balance at the end of {@code day}, in the nature of the account (see {@link #scope}). */
+    public BigDecimal balance(Account account, LocalDate day) {
+        val debit = account.type().debit;
+        return scope(account).stream()
+                .map(each -> own(each, day).multiply(BigDecimal.valueOf((long) each.type().debit * debit)))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public BigDecimal balance(Account account) {
+        return balance(account, today());
+    }
+
+    /** {@link #balance} of every account at the end of {@code day}. */
+    public Map<Account, BigDecimal> balances(LocalDate day) {
+        val own = new HashMap<Account, BigDecimal>();
+        val all = tree();
+        all.forEach(account -> own.put(account, own(account, day).multiply(BigDecimal.valueOf(account.type().debit))));
+        val balances = new HashMap<Account, BigDecimal>();
+        for (val account : all) {
+            val debit = (account.financial() ? Set.of(account) : subtree(account)).stream()
+                    .map(each -> own.getOrDefault(each, BigDecimal.ZERO)).reduce(BigDecimal.ZERO, BigDecimal::add);
+            balances.put(account, debit.multiply(BigDecimal.valueOf(account.type().debit)));
+        }
+        return balances;
+    }
+
+    public Map<Account, BigDecimal> balances() {
+        return balances(today());
+    }
+
+    /** {@link #balance} converted to the nature of {@code type}: an account of the other nature is negative. */
+    public BigDecimal balanceAs(Account account, LocalDate day, AccountType type) {
+        return balance(account, day).multiply(BigDecimal.valueOf((long) account.type().debit * type.debit));
+    }
+
+    /** What moved in the account during the month (see {@link #scope}). */
+    public BigDecimal flow(Account account, YearMonth month) {
+        val accounts = scope(account);
+        return app.transactions().month(month).stream()
+                .map(transaction -> amountIn(transaction, accounts, account.type().debit))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * What the categories of {@code type} (income or expense) took in during the month, in its nature, counting only
+     * the transactions that touch one of {@code accounts}: a transfer between them adds nothing.
+     */
+    public BigDecimal categoryFlow(Set<Account> accounts, YearMonth month, AccountType type) {
+        val categories = app.accounts().accounts().stream().filter(account -> account.type() == type)
+                .collect(Collectors.toSet());
+        return app.transactions().month(month).stream().filter(transaction -> touches(transaction, accounts))
+                .map(transaction -> amountIn(transaction, categories, type.debit)).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** The month of an account: each transaction with the running balance, starting from the month's opening. */
+    public List<LedgerLine> ledger(Account account, YearMonth month) {
+        val accounts = scope(account);
+        val debit = account.type().debit;
+        var balance = balance(account, month.atDay(1).minusDays(1));
+        val lines = new ArrayList<LedgerLine>();
+        for (val transaction : app.transactions().month(month)) {
+            if (!touches(transaction, accounts)) continue;
+            val amount = amountIn(transaction, accounts, debit);
+            balance = balance.add(amount);
+            lines.add(new LedgerLine(transaction, amount, balance, counterpart(transaction, accounts)));
+        }
+        return lines;
+    }
+
+    // ---------- transactions
+
+    public int count() {
+        return transactions().size();
+    }
+
+    public List<Transaction> recent(int limit) {
+        return transactions().reversed().stream().limit(limit).toList();
+    }
+
+    public Optional<Transaction> transaction(@Nullable UUID id) {
+        return id == null ? Optional.empty() : app.transactions().find(id);
+    }
+
+    /** The effect of a transaction on the net worth: income positive, expense negative, transfers zero. */
+    public BigDecimal effect(Transaction transaction) {
+        return transaction.splits().stream().filter(split -> split.account().financial())
+                .map(TransactionSplit::debitAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** The categories of a transaction, or the financial accounts of a transfer. */
+    public String label(Transaction transaction) {
+        val categories = transaction.splits().stream().map(TransactionSplit::account)
+                .filter(account -> !account.financial()).map(Account::name).toList();
+        return categories.isEmpty() ? "Transferência" : String.join(", ", categories);
+    }
+
+    /** The value of a transaction: the sum of its increasing debit splits. */
+    public BigDecimal value(Transaction transaction) {
+        return transaction.splits().stream().map(TransactionSplit::debitAmount)
+                .filter(amount -> amount.signum() > 0).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Whether the simple editor fits ({@link #from}, {@link #to}): one account gives, one receives. Any other (an
+     * imported paycheck with its deductions) goes to the editor of splits.
+     */
+    public boolean simple(Transaction transaction) {
+        val signs = transaction.splits().stream().map(split -> split.debitAmount().signum()).toList();
+        return signs.size() == 2 && signs.contains(1) && signs.contains(-1);
+    }
+
+    /** The account the value of a simple transaction leaves: the split that decreases in debit terms. */
+    public Account from(Transaction transaction) {
+        return transaction.splits().stream().filter(split -> split.debitAmount().signum() < 0)
+                .findFirst().orElseThrow().account();
+    }
+
+    /** The account the value of a simple transaction goes to. */
+    public Account to(Transaction transaction) {
+        return transaction.splits().stream().filter(split -> split.debitAmount().signum() > 0)
+                .findFirst().orElseThrow().account();
+    }
+
+    /** {@code value} from {@code from} to {@code to} (see {@code TransactionService.transfer}). */
+    public Result<Transaction, BusinessError> move(LocalDate date, String description, Account from, Account to,
+                                                   BigDecimal value) {
+        return app.transactions().transfer(date, description, from.identity(), to.identity(), value);
+    }
+
+    /** Expense: the account pays the category. Income: the category pays the account. */
+    public Result<Transaction, BusinessError> quick(LocalDate date, String description, Account account, Account category,
+                                                    BigDecimal value) {
+        val expense = category.type() == AccountType.EXPENSE;
+        return move(date, description, expense ? account : category, expense ? category : account, value);
+    }
+
+    /** A complete transaction (INTENT F2). */
+    public Result<Transaction, BusinessError> enter(LocalDate date, String description, List<SplitInput> splits) {
+        return app.transactions().post(date, description, splits);
+    }
+
+    /** The transaction rewritten as {@code value} from {@code from} to {@code to}. */
+    public Result<Transaction, BusinessError> revise(Transaction transaction, LocalDate date, String description,
+                                                     Account from, Account to, BigDecimal value) {
+        return rewrite(transaction, date, description, List.of(
+                new SplitInput(to.identity(), value.multiply(BigDecimal.valueOf(to.type().debit))),
+                new SplitInput(from.identity(), value.negate().multiply(BigDecimal.valueOf(from.type().debit)))));
+    }
+
+    public Result<Transaction, BusinessError> rewrite(Transaction transaction, LocalDate date, String description,
+                                                      List<SplitInput> splits) {
+        return app.transactions().revise(transaction.identity(), date, description, splits);
+    }
+
+    public Result<Void, BusinessError> discard(Transaction transaction) {
+        return app.transactions().discard(transaction.identity());
+    }
+
+    private static boolean touches(Transaction transaction, Set<Account> accounts) {
+        return transaction.splits().stream().anyMatch(split -> accounts.contains(split.account()));
+    }
+
+    /** Σ of the splits in {@code accounts}, each converted to the nature {@code debit} (amount × its debit × debit). */
+    private static BigDecimal amountIn(Transaction transaction, Set<Account> accounts, int debit) {
+        return transaction.splits().stream().filter(split -> accounts.contains(split.account()))
+                .map(split -> split.amount().multiply(BigDecimal.valueOf((long) split.account().type().debit * debit)))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static String counterpart(Transaction transaction, Set<Account> accounts) {
+        return transaction.splits().stream().filter(split -> !accounts.contains(split.account()))
+                .map(split -> split.account().name()).collect(Collectors.joining(", "));
+    }
+}

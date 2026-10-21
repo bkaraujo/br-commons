@@ -1,8 +1,8 @@
 package br.bundled.money.web.report;
 
 import br.bundled.money.business._0_domain.model.AccountType;
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Ledger;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.ButtonType;
@@ -114,28 +114,28 @@ final class ReportViews {
      */
     private static Node group(Book book, AccountType type, LocalDate day) {
         return book.root(type).map(root -> {
-            val subtree = book.subtree(root.id());
+            val subtree = book.subtree(root);
             return fragment(
-                tr(cls("group"), th(text(Text.data(root.name()))), td(cls("num"), Ui.amount(book.balance(root.id(), day), false))),
-                each(book.tree().stream().filter(account -> account.id() != root.id() && subtree.contains(account.id()))
+                tr(cls("group"), th(text(Text.data(root.name()))), td(cls("num"), Ui.amount(book.balance(root, day), false))),
+                each(book.tree().stream().filter(account -> !account.equals(root) && subtree.contains(account))
                                 .toList(),
                         child -> tr(cls("item depth-" + Math.min(book.depth(child), 3)),
-                        td(a(href("/accounts/" + child.id()), text(Text.data(child.name())))),
-                        td(cls("num"), book.children(child.id()).isEmpty() || child.financial()
-                                ? Ui.amount(book.balanceAs(child.id(), day, type), false) : fragment()))));
+                        td(a(href("/accounts/" + child.identity()), text(Text.data(child.name())))),
+                        td(cls("num"), book.children(child).isEmpty() || child.financial()
+                                ? Ui.amount(book.balanceAs(child, day, type), false) : fragment()))));
         }).orElseGet(() -> fragment());
     }
 
     private static BigDecimal total(Book book, AccountType type, LocalDate day) {
-        return book.root(type).map(root -> book.balance(root.id(), day)).orElse(BigDecimal.ZERO);
+        return book.root(type).map(root -> book.balance(root, day)).orElse(BigDecimal.ZERO);
     }
 
     // ---------- income statement
 
     /** Income and expenses of the month; each expense with a bar of its share of the total. */
     private static Node incomeStatement(Book book, YearMonth month) {
-        val income = book.root(AccountType.INCOME).map(root -> book.flow(root.id(), month)).orElse(BigDecimal.ZERO);
-        val expense = book.root(AccountType.EXPENSE).map(root -> book.flow(root.id(), month)).orElse(BigDecimal.ZERO);
+        val income = book.root(AccountType.INCOME).map(root -> book.flow(root, month)).orElse(BigDecimal.ZERO);
+        val expense = book.root(AccountType.EXPENSE).map(root -> book.flow(root, month)).orElse(BigDecimal.ZERO);
         val result = income.subtract(expense);
         return article(
                 cls("report card"),
@@ -155,15 +155,15 @@ final class ReportViews {
     private static Node flows(Book book, AccountType type, YearMonth month, BigDecimal total) {
         return book.root(type).map(root -> fragment(
                 tr(cls("group"), th(text(Text.data(root.name()))), td(cls("num"), Ui.amount(total, false))),
-                each(book.children(root.id()).stream().filter(child -> book.flow(child.id(), month).signum() != 0).toList(),
+                each(book.children(root).stream().filter(child -> book.flow(child, month).signum() != 0).toList(),
                         child -> share(book, child, month, total)))
         ).orElseGet(() -> fragment());
     }
 
-    private static Node share(Book book, MockAccount account, YearMonth month, BigDecimal total) {
-        val flow = book.flow(account.id(), month);
+    private static Node share(Book book, Account account, YearMonth month, BigDecimal total) {
+        val flow = book.flow(account, month);
         return tr(cls("item"),
-                td(a(href("/accounts/" + account.id() + "?month=" + month), text(Text.data(account.name()))),
+                td(a(href("/accounts/" + account.identity() + "?month=" + month), text(Text.data(account.name()))),
                         meter(min("0"), max(total.toPlainString()), value(flow.toPlainString()),
                                 title(Text.data(Ui.money(flow))))),
                 td(cls("num"), Ui.amount(flow, false)));

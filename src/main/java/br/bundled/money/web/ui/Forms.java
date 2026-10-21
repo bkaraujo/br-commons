@@ -1,7 +1,7 @@
 package br.bundled.money.web.ui;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
 import br.commons.lang.html.core.Content;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.Field;
@@ -51,11 +51,11 @@ public final class Forms {
         };
     }
 
-    /** The id chosen in {@code field} when it is an account {@code usable}; otherwise a violation and {@code null}. */
-    public static @Nullable Integer account(Field field, Function<String, String> value, Book book,
-                                            Predicate<MockAccount> usable, List<Violation> violations) {
-        val id = Ui.number(value.apply(field.name()));
-        if (id != null && book.account(id).filter(usable).isPresent()) return id;
+    /** The account chosen in {@code field} when it is {@code usable}; otherwise a violation and {@code null}. */
+    public static @Nullable Account account(Field field, Function<String, String> value, Book book,
+                                            Predicate<Account> usable, List<Violation> violations) {
+        val found = book.account(Ui.uuid(value.apply(field.name()))).filter(usable);
+        if (found.isPresent()) return found.get();
         violations.add(new Violation(field.name(), ValidationRule.INVALID));
         return null;
     }

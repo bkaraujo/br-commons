@@ -1,8 +1,7 @@
 package br.bundled.money.web.entry;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
-import br.bundled.money.web.mock.QuickEntry;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Forms;
 import br.commons.Result;
 import br.commons.lang.html.form.*;
@@ -43,8 +42,8 @@ final class EntryFields {
             return new Result.Failure<>(fields);
         }
         val violations = new ArrayList<Violation>();
-        val category = Forms.account(CATEGORY, value, book, MockAccount::category, violations);
-        val account = Forms.account(ACCOUNT, value, book, MockAccount::financial, violations);
+        val category = Forms.account(CATEGORY, value, book, Book::category, violations);
+        val account = Forms.account(ACCOUNT, value, book, Account::financial, violations);
         val date = LocalDate.parse(value.apply(DATE.name()));
         Forms.open(DATE, date, book, violations);
         if (category == null || account == null || !violations.isEmpty()) {
@@ -71,8 +70,8 @@ final class EntryFields {
     }
 
     /** An empty form with the date and the account of the previous entry: several entries in a row go faster. */
-    static Map<String, String> blank(LocalDate date, @Nullable Integer account) {
+    static Map<String, String> blank(LocalDate date, @Nullable Account account) {
         return account == null ? Map.of(DATE.name(), date.toString())
-                : Map.of(DATE.name(), date.toString(), ACCOUNT.name(), String.valueOf(account));
+                : Map.of(DATE.name(), date.toString(), ACCOUNT.name(), account.identity().toString());
     }
 }

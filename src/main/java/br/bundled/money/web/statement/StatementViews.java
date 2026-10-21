@@ -1,9 +1,9 @@
 package br.bundled.money.web.statement;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.LedgerLine;
-import br.bundled.money.web.mock.MockAccount;
-import br.bundled.money.web.mock.MockTransaction;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.web.book.LedgerLine;
+import br.bundled.money.business._0_domain.model.Account;
+import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.web.ui.Forms;
 import br.bundled.money.web.ui.Ledger;
 import br.bundled.money.web.ui.Ui;
@@ -53,7 +53,7 @@ final class StatementViews {
 
     private StatementViews() {}
 
-    static Node screen(Book book, MockAccount account, YearMonth month) {
+    static Node screen(Book book, Account account, YearMonth month) {
         return section(
                 cls("statement"),
                 accounts(book, account, false),
@@ -62,17 +62,17 @@ final class StatementViews {
     }
 
     /** The list; {@code oob}: sent beside the panel after a change, to update the balances. */
-    static Node accounts(Book book, MockAccount account, boolean oob) {
+    static Node accounts(Book book, Account account, boolean oob) {
         val balances = book.balances();
         return nav(id("statement-accounts"), cls("statement-accounts card"), ariaLabel(message("Contas")),
                 hxOnHtmx("before-request", MARK), oob ? hxSwapOob() : fragment(),
                 h3(text(message("Contas"))),
-                ul(each(book.tree(), item -> li(accountLink(book, item, balances.getOrDefault(item.id(), BigDecimal.ZERO),
-                        item.id() == account.id())))));
+                ul(each(book.tree(), item -> li(accountLink(book, item, balances.getOrDefault(item, BigDecimal.ZERO),
+                        item.equals(account))))));
     }
 
-    private static Node accountLink(Book book, MockAccount account, BigDecimal balance, boolean current) {
-        val url = "/statement?account=" + account.id();
+    private static Node accountLink(Book book, Account account, BigDecimal balance, boolean current) {
+        val url = "/statement?account=" + account.identity();
         val depth = book.depth(account);
         return a(href(url), hxGet(url), hxTarget("#statement-panel"), hxSwap(HxSwap.OUTER_HTML),
                 hxInclude("#statement-month"), hxPushUrl(true),
@@ -82,8 +82,8 @@ final class StatementViews {
     }
 
     /** The month of the account: navigation, summary and the transactions dated in the month. */
-    static Node panel(Book book, MockAccount account, YearMonth month, Node editor) {
-        val lines = book.ledger(account.id(), month);
+    static Node panel(Book book, Account account, YearMonth month, Node editor) {
+        val lines = book.ledger(account, month);
         return div(
                 id("statement-panel"), cls("statement-panel"),
                 input(type("hidden"), id("statement-month"), name("month"), value(month.toString())),
@@ -94,11 +94,11 @@ final class StatementViews {
                                 h2(text(Text.data(book.path(account))))),
                         div(cls("buttons"),
                                 button(type(ButtonType.BUTTON),
-                                        hxGet("/statement/transactions/new?account=" + account.id() + "&month=" + month),
+                                        hxGet("/statement/transactions/new?account=" + account.identity() + "&month=" + month),
                                         hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
                                         text(message("+ Novo lançamento"))),
                                 Ledger.monthNav(month, YearMonth.from(book.today()),
-                                        shown -> "/statement?account=" + account.id() + "&month=" + shown, "#statement-panel"))),
+                                        shown -> "/statement?account=" + account.identity() + "&month=" + shown, "#statement-panel"))),
                 Ledger.summary(book, account, month, lines),
                 div(cls("ledger-scroll"), table(
                         cls("records ledger-table"),
@@ -112,12 +112,12 @@ final class StatementViews {
     }
 
     /** A line dated after today is planned: still counted, shown apart. */
-    private static Node line(Book book, LedgerLine line, MockAccount account, YearMonth month) {
+    private static Node line(Book book, LedgerLine line, Account account, YearMonth month) {
         val transaction = line.transaction();
         val planned = transaction.date().isAfter(book.today());
         val closed = book.closed(transaction);
-        val path = "/statement/transactions/" + transaction.id();
-        val context = "?account=" + account.id() + "&month=" + month;
+        val path = "/statement/transactions/" + transaction.identity();
+        val context = "?account=" + account.identity() + "&month=" + month;
         return tr(
                 cls(planned ? "planned" : ""),
                 td(time(datetime(transaction.date().toString()), text(Text.data(Ui.day(transaction.date())))),
@@ -150,14 +150,14 @@ final class StatementViews {
      * Creating ({@code transaction == null}) or editing: the value from one account to another. The hidden account
      * and month re-render the panel; "Dividir" takes the values to the form of splits.
      */
-    static Node transactionForm(Book book, @Nullable MockTransaction transaction, Map<String, String> values,
-                                List<Violation> errors, MockAccount account, YearMonth month) {
+    static Node transactionForm(Book book, @Nullable Transaction transaction, Map<String, String> values,
+                                List<Violation> errors, Account account, YearMonth month) {
         val title = transaction == null ? "Novo lançamento" : "Editar lançamento";
         val accounts = options(book);
         return form(
                 id("transaction-form"), cls("transaction-form card"), role("dialog"), ariaLabel(message(title)),
                 method(FormMethod.POST), transaction == null ? action("/statement/transactions") : fragment(),
-                transaction == null ? hxPost("/statement/transactions") : hxPut("/statement/transactions/" + transaction.id()),
+                transaction == null ? hxPost("/statement/transactions") : hxPut("/statement/transactions/" + transaction.identity()),
                 hxTarget("#statement-panel"), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(message(title))),
                 context(account, month), editing(transaction),
@@ -182,8 +182,8 @@ final class StatementViews {
      * The complete transaction (INTENT F2): a line per split, the account and the value that enters or leaves it.
      * Lines are added and removed by the server ({@link #SPLIT}); {@code splits.js} shows the totals as they are typed.
      */
-    static Node splitForm(Book book, @Nullable MockTransaction transaction, Map<String, String> values,
-                          List<SplitFields.Line> lines, List<Violation> errors, MockAccount account, YearMonth month) {
+    static Node splitForm(Book book, @Nullable Transaction transaction, Map<String, String> values,
+                          List<SplitFields.Line> lines, List<Violation> errors, Account account, YearMonth month) {
         val title = transaction == null ? "Novo lançamento" : "Editar lançamento";
         val accounts = options(book);
         val in = sum(lines, SplitFields.Line::in);
@@ -191,7 +191,7 @@ final class StatementViews {
         return form(
                 id("transaction-form"), cls("transaction-form split-form card"), role("dialog"), ariaLabel(message(title)),
                 method(FormMethod.POST), transaction == null ? action("/statement/transactions") : fragment(),
-                transaction == null ? hxPost("/statement/transactions") : hxPut("/statement/transactions/" + transaction.id()),
+                transaction == null ? hxPost("/statement/transactions") : hxPut("/statement/transactions/" + transaction.identity()),
                 hxTarget("#statement-panel"), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(message(title))),
                 context(account, month), editing(transaction),
@@ -256,18 +256,18 @@ final class StatementViews {
     }
 
     /** The transaction being edited, so "Dividir" keeps saving it. */
-    private static Node editing(@Nullable MockTransaction transaction) {
+    private static Node editing(@Nullable Transaction transaction) {
         return transaction == null ? fragment()
-                : input(type("hidden"), name(StatementFields.EDITING), value(String.valueOf(transaction.id())));
+                : input(type("hidden"), name(StatementFields.EDITING), value(transaction.identity().toString()));
     }
 
     // ---------- delete
 
-    static Node deletePanel(Book book, MockTransaction transaction, MockAccount account, YearMonth month) {
+    static Node deletePanel(Book book, Transaction transaction, Account account, YearMonth month) {
         val label = message("Excluir \"" + transaction.description() + "\"");
         return form(
                 cls("delete-panel card"), role("dialog"), ariaLabel(label),
-                hxDelete("/statement/transactions/" + transaction.id()), hxTarget("#statement-panel"),
+                hxDelete("/statement/transactions/" + transaction.identity()), hxTarget("#statement-panel"),
                 hxSwap(HxSwap.OUTER_HTML),
                 h3(text(label)),
                 context(account, month),
@@ -279,8 +279,8 @@ final class StatementViews {
         );
     }
 
-    private static Node context(MockAccount account, YearMonth month) {
-        return fragment(input(type("hidden"), name("account"), value(String.valueOf(account.id()))),
+    private static Node context(Account account, YearMonth month) {
+        return fragment(input(type("hidden"), name("account"), value(account.identity().toString())),
                 input(type("hidden"), name("month"), value(month.toString())));
     }
 
@@ -294,7 +294,7 @@ final class StatementViews {
         val options = new ArrayList<Option>();
         options.add(new Option("", message("Escolha…")));
         book.tree().stream().filter(account -> account.parent() != null)
-                .forEach(account -> options.add(new Option(String.valueOf(account.id()), Text.data(book.path(account)))));
+                .forEach(account -> options.add(new Option(account.identity().toString(), Text.data(book.path(account)))));
         return options;
     }
 

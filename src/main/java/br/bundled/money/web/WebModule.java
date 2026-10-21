@@ -3,7 +3,9 @@ package br.bundled.money.web;
 import br.bundled.money.web.account.AccountRoutes;
 import br.bundled.money.web.entry.EntryRoutes;
 import br.bundled.money.web.home.HomeRoutes;
-import br.bundled.money.web.mock.Seed;
+import br.bundled.money.business._1_application.ApplicationModule;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.web.seed.Seed;
 import br.bundled.money.web.report.ReportRoutes;
 import br.bundled.money.web.statement.StatementRoutes;
 import br.commons.Result;
@@ -19,24 +21,29 @@ import org.jspecify.annotations.Nullable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 
 /**
- * The web server of br.money on port 9000: static files and the routes of each screen over the mock book. Open
- * {@code http://localhost:9000}.
+ * The web server of br.money on port 9000: static files and the routes of each screen over the use cases (the
+ * {@link Book} the screens read). Starting, it loads the seed ({@link Seed}). Open {@code http://localhost:9000}.
  */
 public final class WebModule implements Lifecycle {
 
     /** Read from disk while developing, so the CSS reloads without a rebuild; from the classpath otherwise. */
     private static final Path STATIC_DIR = Path.of("src/main/java/br/bundled/money/web/static");
 
+    private final ApplicationModule app;
     private @Nullable WebServer server;
+
+    public WebModule(ApplicationModule app) {
+        this.app = app;
+    }
 
     @Override
     public Result<Void, BusinessError> initialize() {
-        val book = Seed.book(LocalDate.now(ZoneId.of("America/Sao_Paulo")));
+        val seeded = Seed.load(app);
+        if (seeded instanceof Result.Failure<?, BusinessError>(var error)) return Result.failure(error);
+        val book = new Book(app);
         val developing = Files.isDirectory(STATIC_DIR);
         server = new WebServer(
                 9000,

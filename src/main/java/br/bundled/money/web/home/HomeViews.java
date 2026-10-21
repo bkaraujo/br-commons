@@ -1,8 +1,8 @@
 package br.bundled.money.web.home;
 
 import br.bundled.money.business._0_domain.model.AccountType;
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.FormMethod;
@@ -39,7 +39,7 @@ final class HomeViews {
 
     private HomeViews() {}
 
-    static Node screen(Book book, Set<Integer> selected) {
+    static Node screen(Book book, Set<Account> selected) {
         return section(
                 id("home"), cls("home statement"),
                 accounts(book, selected),
@@ -50,24 +50,24 @@ final class HomeViews {
     }
 
     /** Without htmx the form goes to the home itself, with the checked accounts. */
-    private static Node accounts(Book book, Set<Integer> selected) {
+    private static Node accounts(Book book, Set<Account> selected) {
         return form(id("home-accounts"), cls("statement-accounts card"), ariaLabel(message("Contas")),
                 method(FormMethod.GET), action(Screen.HOME.path()),
                 hxGet("/home/chart"), hxTrigger("change"), hxTarget("#home-chart"), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(message("Minhas contas"))),
                 input(type("hidden"), name(FILTERED), value("1")),
-                ul(each(book.moneyAccounts(), account -> li(option(account, selected.contains(account.id()))))));
+                ul(each(book.moneyAccounts(), account -> li(option(account, selected.contains(account))))));
     }
 
     /** A checkbox with the name. */
-    private static Node option(MockAccount account, boolean checked) {
+    private static Node option(Account account, boolean checked) {
         return label(cls("account-option"),
-                input(type("checkbox"), name(ACCOUNT + account.id()), value("1"), checked ? checked() : (Content) fragment()),
+                input(type("checkbox"), name(ACCOUNT + account.identity()), value("1"), checked ? checked() : (Content) fragment()),
                 span(text(Text.data(account.name()))));
     }
 
     /** Income and expenses of the last 12 months of the checked accounts, the current one last. */
-    static Node chart(Book book, Set<Integer> selected) {
+    static Node chart(Book book, Set<Account> selected) {
         val current = book.month();
         val months = IntStream.range(0, MONTHS).mapToObj(back -> current.minusMonths(MONTHS - 1 - back)).toList();
         return div(
@@ -86,7 +86,7 @@ final class HomeViews {
     }
 
     /** A month, newest first; the chart reads its {@code data-*} and sorts them by time. */
-    private static Node row(Book book, Set<Integer> selected, YearMonth month) {
+    private static Node row(Book book, Set<Account> selected, YearMonth month) {
         val income = book.categoryFlow(selected, month, AccountType.INCOME);
         val expense = book.categoryFlow(selected, month, AccountType.EXPENSE);
         return tr(data("label", Ui.shortMonth(month)), data("income", income.toPlainString()),

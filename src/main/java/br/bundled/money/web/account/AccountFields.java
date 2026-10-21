@@ -1,9 +1,9 @@
 package br.bundled.money.web.account;
 
 import br.bundled.money.business._0_domain.model.AccountType;
-import br.bundled.money.web.mock.AccountInput;
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.business._1_application.AccountInput;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Forms;
 import br.bundled.money.web.ui.Ui;
 import br.commons.Result;
@@ -46,7 +46,7 @@ final class AccountFields {
     }
 
     /** The checked values, or every violation found. {@code current} is the account being edited. */
-    static Result<AccountInput, List<Violation>> read(Function<String, String> value, Book book, @Nullable MockAccount current) {
+    static Result<AccountInput, List<Violation>> read(Function<String, String> value, Book book, @Nullable Account current) {
         val violations = new ArrayList<>(Validation.check(ALL, name -> List.of(value.apply(name))));
         val type = typeOf(value, book, current);
         if (type == null) invalid(violations, TYPE);
@@ -57,34 +57,34 @@ final class AccountFields {
         if (!violations.isEmpty() || type == null || parent == null) {
             return new Result.Failure<>(List.copyOf(violations));
         }
-        return Result.success(new AccountInput(name, type, parent.id(), opening(value, type, current)));
+        return Result.success(new AccountInput(name, type, parent.identity(), opening(value, type, current)));
     }
 
     /** The types with an opening balance. */
     static final Set<AccountType> FINANCIAL = EnumSet.of(AccountType.BANK, AccountType.CASH, AccountType.CREDIT);
 
     /** The opening balance: only on creation of a financial account. */
-    private static @Nullable BigDecimal opening(Function<String, String> value, AccountType type, @Nullable MockAccount current) {
+    private static @Nullable BigDecimal opening(Function<String, String> value, AccountType type, @Nullable Account current) {
         return current == null && FINANCIAL.contains(type) ? decimal(value.apply(OPENING.name())) : null;
     }
 
     /** With transactions or subaccounts the type is fixed; otherwise the one chosen, if offered. */
-    private static @Nullable AccountType typeOf(Function<String, String> value, Book book, @Nullable MockAccount current) {
-        if (current != null && book.fixedType(current.id())) return current.type();
+    private static @Nullable AccountType typeOf(Function<String, String> value, Book book, @Nullable Account current) {
+        if (current != null && book.fixedType(current)) return current.type();
         return TYPES.stream().filter(candidate -> candidate.name().equals(value.apply(TYPE.name()))).findFirst().orElse(null);
     }
 
-    private static @Nullable MockAccount parentOf(Function<String, String> value, Book book, @Nullable AccountType type,
-                                                  @Nullable MockAccount current) {
+    private static @Nullable Account parentOf(Function<String, String> value, Book book, @Nullable AccountType type,
+                                                  @Nullable Account current) {
         if (type == null) return null;
-        return Optional.ofNullable(Ui.number(value.apply(PARENT.name()))).flatMap(book::account)
+        return book.account(Ui.uuid(value.apply(PARENT.name())))
                 .filter(found -> book.parents(type, current).contains(found)).orElse(null);
     }
 
     /** Another account under {@code parent} already has this name. */
-    private static boolean taken(Book book, @Nullable MockAccount parent, String name, @Nullable MockAccount current) {
+    private static boolean taken(Book book, @Nullable Account parent, String name, @Nullable Account current) {
         if (parent == null) return false;
-        return book.children(parent.id()).stream().filter(sibling -> current == null || sibling.id() != current.id())
+        return book.children(parent).stream().filter(sibling -> !sibling.equals(current))
                 .anyMatch(sibling -> sibling.name().equalsIgnoreCase(name));
     }
 
@@ -109,11 +109,12 @@ final class AccountFields {
             TARGET.name(), "Escolha a conta de destino.");
 
     /** The values of an account, by field name, as the form shows them. */
-    static Map<String, String> values(MockAccount account) {
+    static Map<String, String> values(Account account) {
         val values = new HashMap<String, String>();
         values.put(NAME.name(), account.name());
         values.put(TYPE.name(), account.type().name());
-        values.put(PARENT.name(), account.parent() == null ? "" : String.valueOf(account.parent()));
+        val parent = account.parent();
+        values.put(PARENT.name(), parent == null ? "" : parent.identity().toString());
         return values;
     }
 

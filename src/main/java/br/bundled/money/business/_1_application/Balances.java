@@ -100,6 +100,13 @@ public final class Balances implements BalanceService {
         return Result.success();
     }
 
+    /** Recalculates every account from the first transaction of the book. */
+    Result<Void, String> rebuild() {
+        return transactions.findAll().stream().findFirst()
+                .map(first -> refresh(accounts.findAll(), YearMonth.from(first.date())))
+                .orElseGet(Result::success);
+    }
+
     /** What the transaction moved in the account's own splits, in its nature. */
     private static BigDecimal moved(Transaction transaction, Account account) {
         return transaction.splits().stream().filter(split -> split.account().equals(account))

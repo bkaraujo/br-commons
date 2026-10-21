@@ -45,6 +45,16 @@ public final class TransactionService {
         return transactions.findById(id);
     }
 
+    /** Every transaction, by date. */
+    public List<Transaction> all() {
+        return transactions.findAll();
+    }
+
+    /** The transactions dated in the month, by date. */
+    public List<Transaction> month(YearMonth period) {
+        return transactions.findByPeriod(period);
+    }
+
     /** The transactions with a split in the account itself during the month, by date. */
     public List<Transaction> statement(Account account, YearMonth period) {
         return transactions.findByAccountPeriod(account, period);

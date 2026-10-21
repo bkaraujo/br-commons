@@ -102,19 +102,18 @@ web
 - Mobile-first: toda tela utilizável em tela estreita (INTENT §7).
 - Textos de UI em pt-BR via `Ui.message(...)`.
 
-### 4.1 Mockup
+### 4.1 Livro da web e seed
 
-A web ainda usa dados em memória em `web/mock` (seed fictício); a troca
-para `_1_application` é o próximo passo. Regras:
-
-- `mock` é o único lugar com dados fictícios; features o tratam como se fosse
-  a camada de aplicação, para a troca futura ser só de dependência.
-- `mock` respeita as regras do domínio (sinal, balanceamento) usando
-  `AccountType` real.
-- Nada de `mock` vaza para `_0_domain`.
-- Dados reais: `-Dbr.commons.money.seed.gnucash=<arquivo .gnucash>` faz o
-  `Seed` ler o livro GnuCash (`GnuCashSeed`) na inicialização. Dado real
-  nunca entra no repositório (nem em código, nem em recurso).
+- `web/book/Book`: o que as telas leem e escrevem, sobre os serviços de
+  `_1_application`, em tipos do domínio (`Account`, `Transaction`); só
+  cálculo de tela (árvore, caminho, saldo do dia, razão com saldo corrente).
+  Escritas devolvem o `Result` do serviço; a rota mostra `error.render()`.
+- Ids nas URLs e forms são o `UUID` da entidade (`Ui.pathId`, `Ui.uuid`).
+- `web/seed`: dados de desenvolvimento carregados por `ImportService` no
+  `WebModule.initialize`. `-Dbr.commons.money.seed.gnucash=<arquivo .gnucash>`
+  lê o livro GnuCash (`GnuCashSeed`); sem ela, livro sem lançamentos recebe o
+  fictício. Único lugar com dado falso; dado real nunca entra no repositório
+  (nem em código, nem em recurso).
 
 ## 5. Convenções gerais
 

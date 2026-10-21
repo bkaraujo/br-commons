@@ -1,7 +1,7 @@
 package br.bundled.money.web.home;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Layout;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
@@ -44,10 +44,10 @@ public final class HomeRoutes implements WebResource {
     }
 
     /** The checked financial accounts; all of them before the first change. */
-    private Set<Integer> selected(WebRequest request) {
+    private Set<Account> selected(WebRequest request) {
         val filtered = request.parameter(HomeViews.FILTERED) != null;
-        return book.moneyAccounts().stream().map(MockAccount::id)
-                .filter(id -> !filtered || request.parameter(HomeViews.ACCOUNT + id) != null)
+        return book.moneyAccounts().stream()
+                .filter(account -> !filtered || request.parameter(HomeViews.ACCOUNT + account.identity()) != null)
                 .collect(Collectors.toSet());
     }
 }

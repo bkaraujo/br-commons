@@ -26,6 +26,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 import static br.commons.lang.Html5.*;
@@ -149,10 +150,19 @@ public final class Ui {
         return WebResponse.html(status, html).header("Vary", "HX-Request, HX-Boosted");
     }
 
-    /** The {@code {id}} of the route; {@code -1} (matches nothing) when it is not a number. */
-    public static int pathId(WebRequest request) {
-        val id = number(request.pathParam("id").getOrElse(""));
-        return id == null ? -1 : id;
+    /** The {@code {id}} of the route; {@code null} (matches nothing) when it is not an id. */
+    public static @Nullable UUID pathId(WebRequest request) {
+        return uuid(request.pathParam("id").getOrElse(""));
+    }
+
+    /** An id, or {@code null} for anything else (absent, empty, not an id). */
+    public static @Nullable UUID uuid(@Nullable String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return UUID.fromString(value.strip());
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     /** A positive number, or {@code null} for anything else (absent, empty, not a number). */

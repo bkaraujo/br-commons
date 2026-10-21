@@ -1,6 +1,6 @@
 package br.bundled.money.web.ui;
 
-import br.bundled.money.web.mock.Book;
+import br.bundled.money.web.book.Book;
 import br.commons.lang.html.core.Node;
 import br.commons.locale.i18n.Text;
 import lombok.val;

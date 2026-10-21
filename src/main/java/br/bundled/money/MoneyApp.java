@@ -11,10 +11,7 @@ import lombok.val;
 import java.time.Clock;
 import java.time.ZoneId;
 
-/**
- * The persistence (in memory for now), the use cases over it and the web. The web still runs on its own mock book
- * ({@code web/mock}) until it moves to the use cases.
- */
+/** The persistence (in memory for now), the use cases over it and the web over the use cases. */
 public class MoneyApp extends Application {
 
     static void main() {
@@ -23,10 +20,12 @@ public class MoneyApp extends Application {
 
     public MoneyApp() {
         val persistence = new PersistenceModule(new InMemoryStorage());
-        val application = Module.of(new ApplicationModule(persistence.accounts(), persistence.transactions(),
-                persistence.balances(), persistence.books(), Clock.system(ZoneId.of("America/Sao_Paulo"))));
+        val app = new ApplicationModule(persistence.accounts(), persistence.transactions(), persistence.balances(),
+                persistence.books(), Clock.system(ZoneId.of("America/Sao_Paulo")));
+        val application = Module.of(app);
         application.attach(Module.of(persistence));
-        attach(application);
-        attach(Module.of(new WebModule()));
+        val web = Module.of(new WebModule(app));
+        web.attach(application);
+        attach(web);
     }
 }

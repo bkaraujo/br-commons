@@ -1,11 +1,12 @@
 package br.bundled.money.web.entry;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.QuickEntry;
+import br.bundled.money.web.book.Book;
 import br.bundled.money.web.ui.Layout;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
+import br.bundled.money.business._0_domain.model.Transaction;
 import br.commons.Result;
+import br.commons.business.BusinessError;
 import br.commons.lang.html.form.Violation;
 import br.commons.lang.htmx.HtmxRequest;
 import br.commons.protocol.http.MediaType;
@@ -42,7 +43,7 @@ public final class EntryRoutes implements WebResource {
     }
 
     private HTTPResponse blank(WebRequest request) {
-        val view = EntryViews.screen(book, EntryFields.blank(book.today(), null), List.of(), null);
+        val view = EntryViews.screen(book, EntryFields.blank(book.today(), null), List.of(), null, null);
         return Ui.partial(request) ? ok(view.render()) : Layout.page(request, Screen.ENTRY, view);
     }
 
@@ -51,12 +52,16 @@ public final class EntryRoutes implements WebResource {
         val htmx = HtmxRequest.of(request).isHtmx();
         return switch (EntryFields.read(form::value, book)) {
             case Result.Success<QuickEntry, List<Violation>>(var entry) -> {
-                val saved = book.quick(entry);
-                yield htmx ? ok(EntryViews.screen(book, EntryFields.blank(entry.date(), entry.account()), List.of(), saved)
-                        .render()) : WebResponse.redirect(Screen.HOME.path());
+                val saved = book.quick(entry.date(), entry.description(), entry.account(), entry.category(), entry.amount());
+                if (saved instanceof Result.Failure<Transaction, BusinessError>(var error)) {
+                    val view = EntryViews.screen(book, EntryFields.values(form::value), List.of(), null, error.render());
+                    yield htmx ? ok(view.render()) : Layout.page(request, Screen.ENTRY, view);
+                }
+                yield htmx ? ok(EntryViews.screen(book, EntryFields.blank(entry.date(), entry.account()), List.of(),
+                        saved.getOrThrow(), null).render()) : WebResponse.redirect(Screen.HOME.path());
             }
             case Result.Failure<QuickEntry, List<Violation>>(var errors) -> {
-                val view = EntryViews.screen(book, EntryFields.values(form::value), errors, null);
+                val view = EntryViews.screen(book, EntryFields.values(form::value), errors, null, null);
                 yield htmx ? ok(view.render()) : Layout.page(request, Screen.ENTRY, view);
             }
         };

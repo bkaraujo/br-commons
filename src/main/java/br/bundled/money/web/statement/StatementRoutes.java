@@ -1,12 +1,13 @@
 package br.bundled.money.web.statement;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
-import br.bundled.money.web.mock.MockTransaction;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
+import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.web.ui.Layout;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.Result;
+import br.commons.business.BusinessError;
 import br.commons.lang.html.Html;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.Violation;
@@ -96,7 +97,7 @@ public final class StatementRoutes implements WebResource {
                     val values = StatementFields.values(book, transaction);
                     return ok((book.simple(transaction)
                             ? StatementViews.transactionForm(book, transaction, values, List.of(), account, month)
-                            : StatementViews.splitForm(book, transaction, values, SplitFields.lines(book, transaction),
+                            : StatementViews.splitForm(book, transaction, values, SplitFields.lines(transaction),
                                     List.of(), account, month)).render());
                 })
                 .orElseGet(() -> ok(""));
@@ -120,9 +121,8 @@ public final class StatementRoutes implements WebResource {
     }
 
     /** The transaction being edited ({@link StatementFields#EDITING}), while it can still be changed. */
-    private Optional<MockTransaction> editing(Function<String, @Nullable String> value) {
-        val id = Ui.number(value.apply(StatementFields.EDITING));
-        return id == null ? Optional.empty() : book.transaction(id).filter(transaction -> !book.closed(transaction));
+    private Optional<Transaction> editing(Function<String, @Nullable String> value) {
+        return book.transaction(Ui.uuid(value.apply(StatementFields.EDITING))).filter(transaction -> !book.closed(transaction));
     }
 
     private HTTPResponse confirm(WebRequest request) {
@@ -143,10 +143,10 @@ public final class StatementRoutes implements WebResource {
             val lines = SplitFields.lines(form::all);
             return switch (SplitFields.read(form::value, lines, book)) {
                 case Result.Success<SplitFields.Entry, List<Violation>>(var entry) -> {
-                    book.enter(entry.date(), entry.description(), entry.splits());
+                    val posted = book.enter(entry.date(), entry.description(), entry.splits());
                     yield HtmxRequest.of(request).isHtmx()
-                            ? changed(account, month, "Lançamento \"" + entry.description() + "\" criado.")
-                            : WebResponse.redirect("/statement?account=" + account.id() + "&month=" + month);
+                            ? changed(account, month, outcome(posted, "Lançamento \"" + entry.description() + "\" criado."))
+                            : WebResponse.redirect("/statement?account=" + account.identity() + "&month=" + month);
                 }
                 case Result.Failure<SplitFields.Entry, List<Violation>>(var errors) -> invalid(StatementViews.splitForm(
                         book, null, StatementFields.values(form::value), lines, errors, account, month));
@@ -154,10 +154,10 @@ public final class StatementRoutes implements WebResource {
         }
         return switch (StatementFields.read(form::value, book)) {
             case Result.Success<StatementFields.Revision, List<Violation>>(var revision) -> {
-                book.move(revision.date(), revision.description(), revision.from(), revision.to(), revision.value());
+                val posted = book.move(revision.date(), revision.description(), revision.from(), revision.to(), revision.value());
                 yield HtmxRequest.of(request).isHtmx()
-                        ? changed(account, month, "Lançamento \"" + revision.description() + "\" criado.")
-                        : WebResponse.redirect("/statement?account=" + account.id() + "&month=" + month);
+                        ? changed(account, month, outcome(posted, "Lançamento \"" + revision.description() + "\" criado."))
+                        : WebResponse.redirect("/statement?account=" + account.identity() + "&month=" + month);
             }
             case Result.Failure<StatementFields.Revision, List<Violation>>(var errors) -> invalid(
                     StatementViews.transactionForm(book, null, StatementFields.values(form::value), errors, account, month));
@@ -179,8 +179,8 @@ public final class StatementRoutes implements WebResource {
             val lines = SplitFields.lines(form::all);
             return switch (SplitFields.read(form::value, lines, book)) {
                 case Result.Success<SplitFields.Entry, List<Violation>>(var entry) -> {
-                    book.rewrite(found.get().id(), entry.date(), entry.description(), entry.splits());
-                    yield changed(account, month, "Lançamento \"" + entry.description() + "\" atualizado.");
+                    val revised = book.rewrite(found.get(), entry.date(), entry.description(), entry.splits());
+                    yield changed(account, month, outcome(revised, "Lançamento \"" + entry.description() + "\" atualizado."));
                 }
                 case Result.Failure<SplitFields.Entry, List<Violation>>(var errors) -> invalid(StatementViews.splitForm(
                         book, found.get(), StatementFields.values(form::value), lines, errors, account, month));
@@ -191,9 +191,9 @@ public final class StatementRoutes implements WebResource {
         }
         return switch (StatementFields.read(form::value, book)) {
             case Result.Success<StatementFields.Revision, List<Violation>>(var revision) -> {
-                book.revise(found.get().id(), revision.date(), revision.description(), revision.from(), revision.to(),
-                        revision.value());
-                yield changed(account, month, "Lançamento \"" + revision.description() + "\" atualizado.");
+                val revised = book.revise(found.get(), revision.date(), revision.description(), revision.from(),
+                        revision.to(), revision.value());
+                yield changed(account, month, outcome(revised, "Lançamento \"" + revision.description() + "\" atualizado."));
             }
             case Result.Failure<StatementFields.Revision, List<Violation>>(var errors) -> invalid(
                     StatementViews.transactionForm(book, found.get(), StatementFields.values(form::value), errors,
@@ -213,14 +213,17 @@ public final class StatementRoutes implements WebResource {
         if (found.isPresent() && book.closed(found.get())) {
             return changed(account, month, CLOSED);
         }
-        if (found.isEmpty() || !book.discard(found.get().id())) {
-            return changed(account, month, "O lançamento não existe mais.");
-        }
-        return changed(account, month, "Lançamento \"" + found.get().description() + "\" excluído.");
+        return changed(account, month, found.map(transaction -> outcome(book.discard(transaction),
+                "Lançamento \"" + transaction.description() + "\" excluído.")).orElse("O lançamento não existe mais."));
+    }
+
+    /** {@code done} when the service did it; otherwise the reason it gave (a rule of the domain). */
+    private static String outcome(Result<?, BusinessError> result, String done) {
+        return result instanceof Result.Failure<?, BusinessError>(var error) ? error.render() : done;
     }
 
     /** The panel with a notice in the editor, and the list with the new balances. */
-    private HTTPResponse changed(MockAccount account, YearMonth month, String notice) {
+    private HTTPResponse changed(Account account, YearMonth month, String notice) {
         Node view = Html.fragment(StatementViews.panel(book, account, month, StatementViews.notice(notice)),
                 StatementViews.accounts(book, account, true));
         return ok(view.render());
@@ -232,9 +235,8 @@ public final class StatementRoutes implements WebResource {
         return Ui.monthOf(value.apply("month"), book.month());
     }
 
-    private MockAccount chosen(Function<String, @Nullable String> value) {
+    private Account chosen(Function<String, @Nullable String> value) {
         val fallback = book.financial().isEmpty() ? book.tree().getFirst() : book.financial().getFirst();
-        val id = Ui.number(value.apply("account"));
-        return id == null ? fallback : book.account(id).orElse(fallback);
+        return book.account(Ui.uuid(value.apply("account"))).orElse(fallback);
     }
 }

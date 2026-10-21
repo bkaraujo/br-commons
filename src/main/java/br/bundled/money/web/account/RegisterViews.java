@@ -1,8 +1,8 @@
 package br.bundled.money.web.account;
 
 import br.bundled.money.business._0_domain.model.AccountType;
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Forms;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.ButtonType;
@@ -69,8 +69,8 @@ final class RegisterViews {
                         thead(tr(th(text(message("Conta"))), th(cls("hide-narrow"), text(message("Tipo"))),
                                 th(cls("num"), text(message("Saldo"))), th(ariaLabel(message("Ações"))))),
                         each(branches(book), branch -> {
-                            val rows = each(branch, account -> row(book, account, balances.getOrDefault(account.id(), BigDecimal.ZERO)));
-                            return branch.size() > 1 ? tbody(id(BRANCH + branch.getFirst().id()), cls("branch collapsed"), rows) : tbody(rows);
+                            val rows = each(branch, account -> row(book, account, balances.getOrDefault(account, BigDecimal.ZERO)));
+                            return branch.size() > 1 ? tbody(id(BRANCH + branch.getFirst().identity()), cls("branch collapsed"), rows) : tbody(rows);
                         })
                 )
         );
@@ -81,8 +81,8 @@ final class RegisterViews {
      * branch born collapsed, the group row with the button that opens it ({@code static/money/tree.js}, which
      * remembers the open ones).
      */
-    private static List<List<MockAccount>> branches(Book book) {
-        val branches = new ArrayList<List<MockAccount>>();
+    private static List<List<Account>> branches(Book book) {
+        val branches = new ArrayList<List<Account>>();
         for (val account : book.tree()) {
             if (account.parent() == null) branches.add(new ArrayList<>());
             branches.getLast().add(account);
@@ -91,13 +91,13 @@ final class RegisterViews {
     }
 
     /** A row; the top level (Ativo, Passivo...) is fixed: no actions. */
-    private static Node row(Book book, MockAccount account, BigDecimal balance) {
+    private static Node row(Book book, Account account, BigDecimal balance) {
         val depth = book.depth(account);
-        val path = "/accounts/" + account.id();
+        val path = "/accounts/" + account.identity();
         return tr(
                 cls("depth-" + Math.min(depth, 3) + (depth == 0 ? " group" : "")),
-                td(when(depth == 0 && !book.children(account.id()).isEmpty(), () -> button(
-                                type(ButtonType.BUTTON), cls("toggle"), ariaExpanded(false), ariaControls(BRANCH + account.id()),
+                td(when(depth == 0 && !book.children(account).isEmpty(), () -> button(
+                                type(ButtonType.BUTTON), cls("toggle"), ariaExpanded(false), ariaControls(BRANCH + account.identity()),
                                 ariaLabel(message("Mostrar ou ocultar subcontas")), span(cls("chevron"), ariaHidden(true)))),
                         a(href(path), text(Text.data(account.name())))),
                 td(cls("hide-narrow"), span(cls("badge" + (account.financial() ? " financial" : "")),
@@ -125,18 +125,18 @@ final class RegisterViews {
      * Creating ({@code current == null}) or editing. Changing the type reloads the form ({@code GET /accounts/form})
      * with the parents and the fields of the new type. With transactions or subaccounts the type is fixed.
      */
-    static Node accountForm(Book book, Map<String, String> values, List<Violation> errors, @Nullable MockAccount current) {
-        val locked = current != null && book.fixedType(current.id());
+    static Node accountForm(Book book, Map<String, String> values, List<Violation> errors, @Nullable Account current) {
+        val locked = current != null && book.fixedType(current);
         val type = current != null && locked ? current.type() : AccountFields.type(values);
         val financial = AccountFields.FINANCIAL.contains(type);
         val title = current == null ? "Nova conta" : "Editar " + current.name();
         return form(
                 id("account-form"), cls("account-form card"), role("dialog"), ariaLabel(message(title)),
                 method(FormMethod.POST), action("/accounts"),
-                current == null ? hxPost("/accounts") : hxPut("/accounts/" + current.id()),
+                current == null ? hxPost("/accounts") : hxPut("/accounts/" + current.identity()),
                 hxTarget("#accounts"), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(message(title))),
-                current == null ? fragment() : input(type("hidden"), name("editing"), value(String.valueOf(current.id()))),
+                current == null ? fragment() : input(type("hidden"), name("editing"), value(current.identity().toString())),
                 locked
                         ? div(cls("field"), label(text(message("Tipo"))),
                                 p(cls("fixed"), text(message(Ui.typeLabel(type) + " · fixo: a conta tem lançamentos ou subcontas"))),
@@ -160,14 +160,14 @@ final class RegisterViews {
         return options;
     }
 
-    private static List<Option> parents(Book book, AccountType type, @Nullable MockAccount current) {
+    private static List<Option> parents(Book book, AccountType type, @Nullable Account current) {
         return accounts(book, book.parents(type, current));
     }
 
-    private static List<Option> accounts(Book book, List<MockAccount> accounts) {
+    private static List<Option> accounts(Book book, List<Account> accounts) {
         val options = new ArrayList<Option>();
         options.add(new Option("", message("Escolha…")));
-        accounts.forEach(account -> options.add(new Option(String.valueOf(account.id()), Text.data(book.path(account)))));
+        accounts.forEach(account -> options.add(new Option(account.identity().toString(), Text.data(book.path(account)))));
         return options;
     }
 
@@ -177,29 +177,29 @@ final class RegisterViews {
      * Deleting: an account with subaccounts is refused; one with transactions asks where to move them (INTENT §6);
      * one without just confirms.
      */
-    static Node deletePanel(Book book, MockAccount account, Map<String, String> values, List<Violation> errors) {
-        val uses = book.uses(account.id());
+    static Node deletePanel(Book book, Account account, Map<String, String> values, List<Violation> errors) {
+        val uses = book.uses(account);
         val label = message("Excluir " + book.path(account));
         val title = h3(text(label));
-        if (!book.children(account.id()).isEmpty()) {
+        if (!book.children(account).isEmpty()) {
             return div(cls("delete-panel card"), role("dialog"), ariaLabel(label), title,
                     p(text(message("Esta conta tem subcontas: mova-as (editando a conta-mãe delas) ou exclua-as antes."))),
                     div(cls("buttons"), cancel()));
         }
-        if (book.closedUses(account.id())) {
+        if (book.closedUses(account)) {
             return div(cls("delete-panel card"), role("dialog"), ariaLabel(label), title,
                     p(text(message("Esta conta tem lançamentos em período fechado: recue a data-limite para excluí-la."))),
                     div(cls("buttons"), cancel()));
         }
         return form(
-                cls("delete-panel card"), role("dialog"), ariaLabel(label), hxDelete("/accounts/" + account.id()),
+                cls("delete-panel card"), role("dialog"), ariaLabel(label), hxDelete("/accounts/" + account.identity()),
                 hxTarget("#accounts"),
                 hxSwap(HxSwap.OUTER_HTML),
                 title,
                 uses > 0
                         ? fragment(p(text(message(uses + " lançamento(s) serão movidos para a conta escolhida."))),
                                 labeled(AccountFields.TARGET, "Mover lançamentos para", values, errors,
-                                        accounts(book, book.targets(account.id()))))
+                                        accounts(book, book.targets(account))))
                         : p(text(message("A conta não tem lançamentos."))),
                 div(cls("buttons"),
                         button(type(ButtonType.SUBMIT), cls("danger"), text(message(uses > 0 ? "Mover e excluir" : "Excluir"))),

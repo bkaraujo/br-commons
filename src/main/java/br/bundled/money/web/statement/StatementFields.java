@@ -1,8 +1,8 @@
 package br.bundled.money.web.statement;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.MockAccount;
-import br.bundled.money.web.mock.MockTransaction;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.business._0_domain.model.Account;
+import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.web.ui.Forms;
 import br.commons.Result;
 import br.commons.lang.html.form.*;
@@ -37,7 +37,7 @@ final class StatementFields {
     static final String EDITING = "editing";
 
     /** A checked edit: {@code value} goes from {@code from} to {@code to}. */
-    record Revision(LocalDate date, String description, BigDecimal value, int from, int to) {}
+    record Revision(LocalDate date, String description, BigDecimal value, Account from, Account to) {}
 
     private StatementFields() {}
 
@@ -78,18 +78,18 @@ final class StatementFields {
     }
 
     /** The values of a saved transaction; date and description only when it is not simple. */
-    static Map<String, String> values(Book book, MockTransaction transaction) {
+    static Map<String, String> values(Book book, Transaction transaction) {
         if (!book.simple(transaction)) {
             return Map.of(DATE.name(), transaction.date().toString(), DESCRIPTION.name(), transaction.description());
         }
         return Map.of(DATE.name(), transaction.date().toString(), DESCRIPTION.name(), transaction.description(),
                 AMOUNT.name(), book.value(transaction).toPlainString(),
-                FROM.name(), String.valueOf(book.from(transaction)), TO.name(), String.valueOf(book.to(transaction)));
+                FROM.name(), book.from(transaction).identity().toString(), TO.name(), book.to(transaction).identity().toString());
     }
 
     /** A new transaction: the date given and, below the top level, the account of the statement as the origin. */
-    static Map<String, String> blank(LocalDate date, MockAccount account) {
+    static Map<String, String> blank(LocalDate date, Account account) {
         return account.parent() == null ? Map.of(DATE.name(), date.toString())
-                : Map.of(DATE.name(), date.toString(), FROM.name(), String.valueOf(account.id()));
+                : Map.of(DATE.name(), date.toString(), FROM.name(), account.identity().toString());
     }
 }

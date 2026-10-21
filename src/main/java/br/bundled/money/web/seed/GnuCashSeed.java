@@ -1,6 +1,8 @@
-package br.bundled.money.web.mock;
+package br.bundled.money.web.seed;
 
 import br.bundled.money.business._0_domain.model.AccountType;
+import br.bundled.money.business._0_domain.model.ChartTemplate;
+import br.bundled.money.business._1_application.ImportService;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -55,7 +57,7 @@ final class GnuCashSeed {
 
     private record Transaction(LocalDate date, String description, List<Split> splits) {}
 
-    static Book book(Path file, LocalDate today) {
+    static Seed.Loaded book(Path file, LocalDate today) {
         try (val input = open(file)) {
             val reader = factory().createXMLStreamReader(input);
             val accounts = new ArrayList<Account>();
@@ -88,9 +90,7 @@ final class GnuCashSeed {
                     templates--;
                 }
             }
-            val book = book(accounts, transactions, today);
-            if (thresholdDays > 0) book.close(today.minusDays(thresholdDays));
-            return book;
+            return book(accounts, transactions, thresholdDays > 0 ? today.minusDays(thresholdDays) : null);
         } catch (IOException e) {
             throw new UncheckedIOException("Reading the GnuCash book " + file, e);
         } catch (XMLStreamException e) {
@@ -98,44 +98,43 @@ final class GnuCashSeed {
         }
     }
 
-    private static Book book(List<Account> read, List<Transaction> transactions, LocalDate today) {
+    private static Seed.Loaded book(List<Account> read, List<Transaction> transactions, @Nullable LocalDate threshold) {
         val byGuid = new HashMap<String, Account>();
         read.forEach(account -> byGuid.put(account.guid(), account));
         val parents = new HashSet<String>();
         read.forEach(account -> { if (account.parent() != null) parents.add(account.parent()); });
 
-        // Parents before children: ids in the order of a depth-first walk from the top level.
-        val ids = new HashMap<String, Integer>();
-        val accounts = new ArrayList<MockAccount>();
+        // Parents before children: positions in the order of a depth-first walk from the top level.
+        val positions = new HashMap<String, Integer>();
+        val chart = new ArrayList<ChartTemplate.Entry>();
         val children = new LinkedHashMap<@Nullable String, List<Account>>();
         read.stream().filter(account -> !"ROOT".equals(account.type()))
-                .forEach(account -> children.computeIfAbsent(topParent(account, byGuid), key -> new ArrayList<>()).add(account));
+                .forEach(account -> children.computeIfAbsent(topParent(account, byGuid), _ -> new ArrayList<>()).add(account));
         val pending = new ArrayDeque<>(children.getOrDefault(null, List.of()));
         while (!pending.isEmpty()) {
             val account = pending.pop();
             val parent = topParent(account, byGuid);
             val type = type(account, parent == null ? null : byGuid.get(parent), parents.contains(account.guid()));
-            val id = accounts.size() + 1;
-            ids.put(account.guid(), id);
-            accounts.add(new MockAccount(id, account.name(), type, parent == null ? null : ids.get(parent)));
+            positions.put(account.guid(), chart.size());
+            chart.add(new ChartTemplate.Entry(account.name(), type, parent == null ? null : positions.get(parent)));
             children.getOrDefault(account.guid(), List.of()).reversed().forEach(pending::push);
         }
 
-        val book = new Book(accounts, today);
+        val postings = new ArrayList<ImportService.Posting>();
         transactions.sort(Comparator.comparing(Transaction::date));
         for (val transaction : transactions) {
             val kept = transaction.splits().stream()
-                    .filter(split -> split.value().signum() != 0 && ids.containsKey(split.account())).toList();
+                    .filter(split -> split.value().signum() != 0 && positions.containsKey(split.account())).toList();
             val values = balanced(kept.stream().map(Split::value).toList());
-            val splits = new ArrayList<MockSplit>();
+            val lines = new ArrayList<ImportService.Line>();
             for (var i = 0; i < kept.size(); i++) {
-                int id = Objects.requireNonNull(ids.get(kept.get(i).account()));
-                val debit = accounts.get(id - 1).type().debit;
-                splits.add(new MockSplit(id, values.get(i).multiply(BigDecimal.valueOf(debit))));
+                int position = Objects.requireNonNull(positions.get(kept.get(i).account()));
+                val debit = chart.get(position).type().debit;
+                lines.add(new ImportService.Line(position, values.get(i).multiply(BigDecimal.valueOf(debit))));
             }
-            if (!splits.isEmpty()) book.post(transaction.date(), transaction.description(), splits);
+            if (lines.size() >= 2) postings.add(new ImportService.Posting(transaction.date(), transaction.description(), lines));
         }
-        return book;
+        return new Seed.Loaded(chart, postings, threshold);
     }
 
     /**

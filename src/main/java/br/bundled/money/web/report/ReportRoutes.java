@@ -1,7 +1,9 @@
 package br.bundled.money.web.report;
 
-import br.bundled.money.web.mock.Book;
+import br.bundled.money.web.book.Book;
 import br.bundled.money.web.ui.Layout;
+import br.commons.Result;
+import br.commons.business.BusinessError;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.htmx.HtmxRequest;
@@ -70,8 +72,11 @@ public final class ReportRoutes implements WebResource {
         if (reopens && form.value(ReportViews.CONFIRM).isEmpty()) {
             return ok(ReportViews.closing(book, raw, null).render());
         }
-        book.close(date);
+        val closed = book.close(date);
         if (!HtmxRequest.of(request).isHtmx()) return WebResponse.redirect("/reports");
+        if (closed instanceof Result.Failure<?, BusinessError>(var error)) {
+            return ok(ReportViews.closing(book, null, error.render()).render());
+        }
         return ok(ReportViews.closing(book, null, date == null ? "Período reaberto: nada está fechado."
                 : (reopens ? "Período reaberto a partir de " : "Período fechado antes de ") + Ui.fullDay(date) + ".").render());
     }

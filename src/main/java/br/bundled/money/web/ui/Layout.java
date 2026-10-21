@@ -85,7 +85,7 @@ public final class Layout {
                                 themeSwitch()
                         ),
                         main(id("content"), content),
-                        footer(small(text(message("Mockup · dados em memória"))))
+                        footer(small(text(message("Dados em memória"))))
                 )
         ));
     }

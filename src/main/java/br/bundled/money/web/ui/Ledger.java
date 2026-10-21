@@ -1,8 +1,8 @@
 package br.bundled.money.web.ui;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.LedgerLine;
-import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.web.book.LedgerLine;
+import br.bundled.money.business._0_domain.model.Account;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;
@@ -25,8 +25,8 @@ public final class Ledger {
     private Ledger() {}
 
     /** Opening, increases, reductions and closing of the account in the month of {@code lines}. */
-    public static Node summary(Book book, MockAccount account, YearMonth month, List<LedgerLine> lines) {
-        val opening = book.balance(account.id(), month.atDay(1).minusDays(1));
+    public static Node summary(Book book, Account account, YearMonth month, List<LedgerLine> lines) {
+        val opening = book.balance(account, month.atDay(1).minusDays(1));
         val in = lines.stream().map(LedgerLine::amount).filter(amount -> amount.signum() > 0)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         val out = lines.stream().map(LedgerLine::amount).filter(amount -> amount.signum() < 0)

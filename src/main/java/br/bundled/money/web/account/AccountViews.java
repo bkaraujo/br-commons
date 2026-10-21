@@ -1,8 +1,8 @@
 package br.bundled.money.web.account;
 
-import br.bundled.money.web.mock.Book;
-import br.bundled.money.web.mock.LedgerLine;
-import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.web.book.Book;
+import br.bundled.money.web.book.LedgerLine;
+import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Ledger;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
@@ -15,7 +15,6 @@ import java.time.YearMonth;
 
 import static br.bundled.money.web.ui.Ui.message;
 import static br.commons.lang.Html5.*;
-import static br.commons.lang.Htmx.*;
 
 /** The ledger of one account; the chart of accounts and its register are in {@link RegisterViews}. */
 @NullMarked
@@ -34,8 +33,8 @@ final class AccountViews {
      * The month of an account: navigation, the summary (opening, in, out, closing) and the lines with the running
      * balance. Everything that changes with the month is inside {@code #ledger}.
      */
-    static Node ledger(Book book, MockAccount account, YearMonth month) {
-        val lines = book.ledger(account.id(), month);
+    static Node ledger(Book book, Account account, YearMonth month) {
+        val lines = book.ledger(account, month);
         val back = account.financial() ? Screen.HOME : Screen.ACCOUNTS;
         return section(
                 id("ledger"), cls("ledger"),
@@ -44,7 +43,7 @@ final class AccountViews {
                         div(p(cls("caption"), text(message(Ui.typeLabel(account.type())))),
                                 h2(text(Text.data(book.path(account))))),
                         Ledger.monthNav(month, YearMonth.from(book.today()),
-                                shown -> "/accounts/" + account.id() + "?month=" + shown, "#ledger")),
+                                shown -> "/accounts/" + account.identity() + "?month=" + shown, "#ledger")),
                 Ledger.summary(book, account, month, lines),
                 table(
                         cls("records ledger-table"),
