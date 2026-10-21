@@ -19,33 +19,20 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public final class PersistenceModule implements Lifecycle {
 
-    private final StorageAccountRepository accounts;
-    private final StorageTransactionRepository transactions;
-    private final StorageBalanceRepository balances;
-    private final StorageBookRepository books;
-
     public PersistenceModule() {
-        accounts = new StorageAccountRepository();
-        Context.set(AccountRepository.class, this::accounts);
-        transactions = new StorageTransactionRepository();
-        Context.set(TransactionRepository.class, this::transactions);
-        balances = new StorageBalanceRepository();
-        Context.set(BalanceRepository.class, this::balances);
-        books = new StorageBookRepository();
-        Context.set(BookRepository.class, this::books);
+        Context.set(AccountRepository.class, StorageAccountRepository::new);
+        Context.set(TransactionRepository.class, StorageTransactionRepository::new);
+        Context.set(BalanceRepository.class, StorageBalanceRepository::new);
+        Context.set(BookRepository.class, StorageBookRepository::new);
     }
 
     @Override
     public Result<Void, BusinessError> initialize() {
-        return accounts.load()
-                .flatMap(_ -> transactions.load())
-                .flatMap(_ -> balances.load())
-                .flatMap(_ -> books.load())
+        return ((StorageAccountRepository) Context.get(AccountRepository.class)).load()
+                .flatMap(_ -> ((StorageTransactionRepository) Context.get(TransactionRepository.class)).load())
+                .flatMap(_ -> ((StorageBalanceRepository) Context.get(BalanceRepository.class)).load())
+                .flatMap(_ -> ((StorageBookRepository) Context.get(BookRepository.class)).load())
                 .mapFailure(BusinessError.Infrastructure::new);
     }
 
-    public AccountRepository accounts() { return accounts; }
-    public TransactionRepository transactions() { return transactions; }
-    public BalanceRepository balances() { return balances; }
-    public BookRepository books() { return books; }
 }

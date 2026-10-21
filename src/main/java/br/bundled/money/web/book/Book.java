@@ -5,8 +5,11 @@ import br.bundled.money.business._0_domain.model.AccountType;
 import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.business._0_domain.model.TransactionSplit;
 import br.bundled.money.business._1_application.AccountInput;
-import br.bundled.money.business._1_application.ApplicationModule;
+import br.bundled.money.business._1_application.AccountService;
+import br.bundled.money.business._1_application.Balances;
+import br.bundled.money.business._1_application.BookService;
 import br.bundled.money.business._1_application.SplitInput;
+import br.bundled.money.business._1_application.TransactionService;
 import br.commons.Result;
 import br.commons.business.BusinessError;
 import br.commons.cdi.Context;
@@ -15,6 +18,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
@@ -30,10 +34,14 @@ public final class Book {
 
     private static final String PATH_SEPARATOR = " › ";
 
-    private final ApplicationModule app = Context.get(ApplicationModule.class);
+    private final AccountService accountService = Context.get(AccountService.class);
+    private final TransactionService transactionService = Context.get(TransactionService.class);
+    private final BookService bookService = Context.get(BookService.class);
+    private final Balances balanceService = Context.get(Balances.class);
+    private final Clock clock = Context.get(Clock.class);
 
     public LocalDate today() {
-        return app.today();
+        return LocalDate.now(clock);
     }
 
     /**
@@ -47,17 +55,17 @@ public final class Book {
     }
 
     private List<Transaction> transactions() {
-        return app.transactions().all();
+        return transactionService.all();
     }
 
     // ---------- closing (INTENT F9)
 
     public @Nullable LocalDate threshold() {
-        return app.books().book().threshold();
+        return bookService.book().threshold();
     }
 
     public boolean closed(LocalDate date) {
-        return app.books().book().closed(date);
+        return bookService.book().closed(date);
     }
 
     public boolean closed(Transaction transaction) {
@@ -66,30 +74,30 @@ public final class Book {
 
     /** Whether the account has a transaction in the closed period: moving its splits away would change it. */
     public boolean closedUses(Account account) {
-        return app.transactions().all().stream().anyMatch(transaction -> closed(transaction) && touches(transaction, Set.of(account)));
+        return transactionService.all().stream().anyMatch(transaction -> closed(transaction) && touches(transaction, Set.of(account)));
     }
 
     public Result<?, BusinessError> close(@Nullable LocalDate date) {
-        return app.books().close(date);
+        return bookService.close(date);
     }
 
     /** Starts over from the personal chart of accounts (INTENT F8). */
     public Result<?, BusinessError> startEmpty() {
-        return app.books().startEmpty();
+        return bookService.startEmpty();
     }
 
     // ---------- accounts
 
     public Optional<Account> account(@Nullable UUID id) {
-        return id == null ? Optional.empty() : app.accounts().account(id);
+        return id == null ? Optional.empty() : accountService.account(id);
     }
 
     public List<Account> roots() {
-        return app.accounts().accounts().stream().filter(account -> account.parent() == null).toList();
+        return accountService.accounts().stream().filter(account -> account.parent() == null).toList();
     }
 
     public List<Account> children(Account account) {
-        return app.accounts().children(account);
+        return accountService.children(account);
     }
 
     /** Every account, depth first, children by name. */
@@ -163,7 +171,7 @@ public final class Book {
 
     /** How many transactions touch the account itself. */
     public long uses(Account account) {
-        return app.accounts().uses(account);
+        return accountService.uses(account);
     }
 
     /** Whether the type is fixed: the account has transactions, or subaccounts that must stay in its family. */
@@ -177,15 +185,15 @@ public final class Book {
     }
 
     public Result<Account, BusinessError> create(AccountInput input) {
-        return app.accounts().create(input, today());
+        return accountService.create(input, today());
     }
 
     public Result<Account, BusinessError> update(Account account, AccountInput input) {
-        return app.accounts().update(account.identity(), input);
+        return accountService.update(account.identity(), input);
     }
 
     public Result<Void, BusinessError> remove(Account account, @Nullable Account target) {
-        return app.accounts().remove(account.identity(), target == null ? null : target.identity());
+        return accountService.remove(account.identity(), target == null ? null : target.identity());
     }
 
     // ---------- balances
@@ -196,8 +204,8 @@ public final class Book {
      */
     private BigDecimal own(Account account, LocalDate day) {
         val month = YearMonth.from(day);
-        val before = app.balances().own(account, month.minusMonths(1));
-        return app.transactions().statement(account, month).stream().filter(transaction -> !transaction.date().isAfter(day))
+        val before = balanceService.own(account, month.minusMonths(1));
+        return transactionService.statement(account, month).stream().filter(transaction -> !transaction.date().isAfter(day))
                 .map(transaction -> amountIn(transaction, Set.of(account), account.type().debit))
                 .reduce(before, BigDecimal::add);
     }
@@ -240,7 +248,7 @@ public final class Book {
     /** What moved in the account during the month (see {@link #scope}). */
     public BigDecimal flow(Account account, YearMonth month) {
         val accounts = scope(account);
-        return app.transactions().month(month).stream()
+        return transactionService.month(month).stream()
                 .map(transaction -> amountIn(transaction, accounts, account.type().debit))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -250,9 +258,9 @@ public final class Book {
      * the transactions that touch one of {@code accounts}: a transfer between them adds nothing.
      */
     public BigDecimal categoryFlow(Set<Account> accounts, YearMonth month, AccountType type) {
-        val categories = app.accounts().accounts().stream().filter(account -> account.type() == type)
+        val categories = accountService.accounts().stream().filter(account -> account.type() == type)
                 .collect(Collectors.toSet());
-        return app.transactions().month(month).stream().filter(transaction -> touches(transaction, accounts))
+        return transactionService.month(month).stream().filter(transaction -> touches(transaction, accounts))
                 .map(transaction -> amountIn(transaction, categories, type.debit)).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -262,7 +270,7 @@ public final class Book {
         val debit = account.type().debit;
         var balance = balance(account, month.atDay(1).minusDays(1));
         val lines = new ArrayList<LedgerLine>();
-        for (val transaction : app.transactions().month(month)) {
+        for (val transaction : transactionService.month(month)) {
             if (!touches(transaction, accounts)) continue;
             val amount = amountIn(transaction, accounts, debit);
             balance = balance.add(amount);
@@ -282,7 +290,7 @@ public final class Book {
     }
 
     public Optional<Transaction> transaction(@Nullable UUID id) {
-        return id == null ? Optional.empty() : app.transactions().find(id);
+        return id == null ? Optional.empty() : transactionService.find(id);
     }
 
     /** The effect of a transaction on the net worth: income positive, expense negative, transfers zero. */
@@ -328,7 +336,7 @@ public final class Book {
     /** {@code value} from {@code from} to {@code to} (see {@code TransactionService.transfer}). */
     public Result<Transaction, BusinessError> move(LocalDate date, String description, Account from, Account to,
                                                    BigDecimal value) {
-        return app.transactions().transfer(date, description, from.identity(), to.identity(), value);
+        return transactionService.transfer(date, description, from.identity(), to.identity(), value);
     }
 
     /** Expense: the account pays the category. Income: the category pays the account. */
@@ -340,7 +348,7 @@ public final class Book {
 
     /** A complete transaction (INTENT F2). */
     public Result<Transaction, BusinessError> enter(LocalDate date, String description, List<SplitInput> splits) {
-        return app.transactions().post(date, description, splits);
+        return transactionService.post(date, description, splits);
     }
 
     /** The transaction rewritten as {@code value} from {@code from} to {@code to}. */
@@ -353,11 +361,11 @@ public final class Book {
 
     public Result<Transaction, BusinessError> rewrite(Transaction transaction, LocalDate date, String description,
                                                       List<SplitInput> splits) {
-        return app.transactions().revise(transaction.identity(), date, description, splits);
+        return transactionService.revise(transaction.identity(), date, description, splits);
     }
 
     public Result<Void, BusinessError> discard(Transaction transaction) {
-        return app.transactions().discard(transaction.identity());
+        return transactionService.discard(transaction.identity());
     }
 
     private static boolean touches(Transaction transaction, Set<Account> accounts) {

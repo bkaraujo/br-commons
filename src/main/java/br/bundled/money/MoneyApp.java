@@ -7,10 +7,8 @@ import br.bundled.money.web.WebModule;
 import br.commons.Logger;
 import br.commons.cdi.Context;
 import br.commons.logger.LogLevel;
-import br.commons.module.Module;
 import br.commons.persistence.Storage;
 import br.commons.persistence.inmemory.InMemoryStorage;
-import lombok.val;
 
 import java.time.Clock;
 import java.time.ZoneId;
@@ -29,12 +27,9 @@ public class MoneyApp extends Application {
     public MoneyApp() {
         Context.set(Storage.class, InMemoryStorage::new);
         Context.set(Clock.class, () -> Clock.system(ZoneId.of("America/Sao_Paulo")));
-        Context.set(PersistenceModule.class);
-        Context.set(ApplicationModule.class);
-        val application = Module.of(Context.get(ApplicationModule.class));
-        application.attach(Module.of(Context.get(PersistenceModule.class)));
-        val web = Module.of(new WebModule());
-        web.attach(application);
-        attach(web);
+
+        attach(Context.tryGet(PersistenceModule.class));
+        attach(Context.tryGet(ApplicationModule.class));
+        attach(Context.tryGet(WebModule.class));
     }
 }

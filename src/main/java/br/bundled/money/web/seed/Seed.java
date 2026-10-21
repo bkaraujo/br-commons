@@ -2,8 +2,8 @@ package br.bundled.money.web.seed;
 
 import br.bundled.money.business._0_domain.model.AccountType;
 import br.bundled.money.business._0_domain.model.ChartTemplate;
-import br.bundled.money.business._1_application.ApplicationModule;
 import br.bundled.money.business._1_application.ImportService;
+import br.bundled.money.business._1_application.TransactionService;
 import br.commons.Result;
 import br.commons.business.BusinessError;
 import br.commons.cdi.Context;
@@ -14,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -62,16 +63,16 @@ public final class Seed {
      * the repository); else the fictitious one, only into a book without transactions.
      */
     public static Result<?, BusinessError> load() {
-        val app = Context.get(ApplicationModule.class);
+        val imports = Context.get(ImportService.class);
         val gnucash = System.getProperty(GNUCASH_PROPERTY);
-        val today = app.today();
+        val today = LocalDate.now(Context.get(Clock.class));
         if (gnucash != null && !gnucash.isBlank()) {
             val loaded = GnuCashSeed.book(Path.of(gnucash), today);
-            return app.imports().load(loaded.chart(), loaded.postings(), loaded.threshold());
+            return imports.load(loaded.chart(), loaded.postings(), loaded.threshold());
         }
-        if (!app.transactions().all().isEmpty()) return Result.success();
+        if (!Context.get(TransactionService.class).all().isEmpty()) return Result.success();
         val loaded = fictitious(today);
-        return app.imports().load(loaded.chart(), loaded.postings(), loaded.threshold());
+        return imports.load(loaded.chart(), loaded.postings(), loaded.threshold());
     }
 
     private static Loaded fictitious(LocalDate today) {
