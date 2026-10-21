@@ -1,7 +1,7 @@
 package br.bundled.money.web.home;
 
-import br.bundled.money.web.book.Book;
 import br.bundled.money.business._0_domain.model.Account;
+import br.bundled.money.web.book.Book;
 import br.bundled.money.web.ui.Layout;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;

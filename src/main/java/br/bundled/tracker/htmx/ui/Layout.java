@@ -10,8 +10,8 @@ import java.util.Locale;
 
 import static br.bundled.tracker.htmx.ui.Ui.message;
 import static br.commons.lang.Html5.*;
-import static br.commons.lang.Htmx.hxBoost;
 import static br.commons.lang.Htmx.htmxScript;
+import static br.commons.lang.Htmx.hxBoost;
 
 /**
  * The page around every screen: head, the menu and the theme switch. The menu is boosted ({@code hx-boost}): its

@@ -1,9 +1,9 @@
 package br.bundled.money.web.account;
 
+import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.business._0_domain.model.AccountType;
 import br.bundled.money.business._1_application.AccountInput;
 import br.bundled.money.web.book.Book;
-import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Forms;
 import br.bundled.money.web.ui.Ui;
 import br.commons.Result;

@@ -28,8 +28,8 @@ public class MoneyApp extends Application {
         Context.set(Storage.class, InMemoryStorage::new);
         Context.set(Clock.class, () -> Clock.system(ZoneId.of("America/Sao_Paulo")));
 
-        attach(Context.tryGet(PersistenceModule.class));
-        attach(Context.tryGet(ApplicationModule.class));
-        attach(Context.tryGet(WebModule.class));
+        attach(new PersistenceModule());
+        attach(new ApplicationModule());
+        attach(new WebModule());
     }
 }

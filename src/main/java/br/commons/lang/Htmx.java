@@ -5,11 +5,7 @@ import br.commons.lang.html.core.Attribute;
 import br.commons.lang.html.core.Content;
 import br.commons.lang.html.core.Keyword;
 import br.commons.lang.html.core.Node;
-import br.commons.lang.htmx.HtmxRequest;
-import br.commons.lang.htmx.HtmxScript;
-import br.commons.lang.htmx.HxSwap;
-import br.commons.lang.htmx.HxSync;
-import br.commons.lang.htmx.SwapSpec;
+import br.commons.lang.htmx.*;
 import br.commons.locale.i18n.Text;
 import org.jspecify.annotations.NullMarked;
 

@@ -1,9 +1,9 @@
 package br.bundled.money.web.entry;
 
-import br.bundled.money.web.book.Book;
 import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.business._0_domain.model.TransactionSplit;
+import br.bundled.money.web.book.Book;
 import br.bundled.money.web.ui.Forms;
 import br.bundled.money.web.ui.Recent;
 import br.bundled.money.web.ui.Screen;

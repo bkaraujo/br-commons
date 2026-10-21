@@ -13,7 +13,6 @@ import br.commons.locale.i18n.Text;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.message.HTTPRequest;
 import br.commons.protocol.http.message.HTTPResponse;
-import br.commons.web.WebResponse;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
@@ -22,9 +21,7 @@ import java.util.Locale;
 
 import static br.bundled.money.web.ui.Ui.message;
 import static br.commons.lang.Html5.*;
-import static br.commons.lang.Htmx.hxBoost;
-import static br.commons.lang.Htmx.hxSwapOob;
-import static br.commons.lang.Htmx.htmxScript;
+import static br.commons.lang.Htmx.*;
 
 /**
  * The page around every screen: head, the menu and the theme switch. The body is boosted ({@code hx-boost}): every
@@ -65,7 +62,7 @@ public final class Layout {
                 head(
                         metaCharset("utf-8"),
                         meta(name("viewport"), content("width=device-width, initial-scale=1")),
-                        meta(name("theme-color"), content("#2f7d5b")),
+                        meta(name("theme-color"), content("#4a5a1c")),
                         script(src("/static/money/theme.js")),
                         pageTitle(current),
                         link(rel("stylesheet"), href("/static/money/app.css")),

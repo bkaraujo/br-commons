@@ -1,7 +1,7 @@
 package br.bundled.money.web.ui;
 
-import br.bundled.money.web.book.Book;
 import br.bundled.money.business._0_domain.model.Account;
+import br.bundled.money.web.book.Book;
 import br.commons.lang.html.core.Content;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.Field;

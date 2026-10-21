@@ -1,7 +1,10 @@
 package br.bundled.money.persistence;
 
 import br.bundled.money.business._0_domain.model.*;
-import br.bundled.money.business._0_domain.repository.*;
+import br.bundled.money.business._0_domain.repository.AccountRepository;
+import br.bundled.money.business._0_domain.repository.BalanceRepository;
+import br.bundled.money.business._0_domain.repository.BookRepository;
+import br.bundled.money.business._0_domain.repository.TransactionRepository;
 import br.commons.cdi.Context;
 import br.commons.persistence.Storage;
 import br.commons.persistence.inmemory.InMemoryStorage;

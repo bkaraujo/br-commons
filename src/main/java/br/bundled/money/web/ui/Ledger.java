@@ -1,8 +1,8 @@
 package br.bundled.money.web.ui;
 
+import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.book.LedgerLine;
-import br.bundled.money.business._0_domain.model.Account;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;

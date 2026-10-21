@@ -1,10 +1,10 @@
 package br.bundled.money.web.entry;
 
+import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.ui.Layout;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
-import br.bundled.money.business._0_domain.model.Transaction;
 import br.commons.Result;
 import br.commons.business.BusinessError;
 import br.commons.cdi.Context;
