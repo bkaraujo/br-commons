@@ -2,6 +2,7 @@
 
 Produto definido em [INTENT.md](INTENT.md). Este arquivo é o guia de
 arquitetura: leia antes de criar/mover código no pacote.
+Pendências conhecidas (revisões ainda não resolvidas): [BACKLOG.md](BACKLOG.md).
 
 ## 1. Camadas
 
