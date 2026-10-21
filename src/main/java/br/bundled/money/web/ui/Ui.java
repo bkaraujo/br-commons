@@ -41,6 +41,10 @@ public final class Ui {
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd/MM", BR);
     private static final DateTimeFormatter FULL_DAY = DateTimeFormatter.ofPattern("dd/MM/yyyy", BR);
 
+    /** The months a URL may ask for: the month select lists every one between the book's and the one asked. */
+    private static final YearMonth FIRST_MONTH = YearMonth.of(1900, 1);
+    private static final YearMonth LAST_MONTH = YearMonth.of(2100, 12);
+
     private Ui() {}
 
     public static Text message(String text) {
@@ -79,11 +83,12 @@ public final class Ui {
         return FULL_DAY.format(date);
     }
 
-    /** The month of the query string ({@code 2026-10}), or {@code fallback} when absent or invalid. */
+    /** The month of the query string ({@code 2026-10}), or {@code fallback} when absent, invalid or out of range. */
     public static YearMonth monthOf(@Nullable String value, YearMonth fallback) {
         if (value == null || value.isBlank()) return fallback;
         try {
-            return YearMonth.parse(value);
+            val month = YearMonth.parse(value);
+            return month.isBefore(FIRST_MONTH) || month.isAfter(LAST_MONTH) ? fallback : month;
         } catch (DateTimeParseException ignored) {
             return fallback;
         }
@@ -161,12 +166,12 @@ public final class Ui {
         }
     }
 
-    /** A positive number, or {@code null} for anything else (absent, empty, not a number). */
+    /** A position (zero or more), or {@code null} for anything else (absent, empty, negative, not a number). */
     public static @Nullable Integer number(@Nullable String value) {
         if (value == null || value.isBlank()) return null;
         try {
             val number = Integer.parseInt(value.strip());
-            return number > 0 ? number : null;
+            return number >= 0 ? number : null;
         } catch (NumberFormatException ignored) {
             return null;
         }

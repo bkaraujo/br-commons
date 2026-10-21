@@ -134,7 +134,7 @@ final class RegisterViews {
         val title = current == null ? "Nova conta" : "Editar " + current.name();
         return form(
                 id("account-form"), cls("account-form card"), role("dialog"), ariaLabel(message(title)),
-                method(FormMethod.POST), action("/accounts"),
+                method(FormMethod.POST), action(current == null ? "/accounts" : "/accounts/" + current.identity()),
                 current == null ? hxPost("/accounts") : hxPut("/accounts/" + current.identity()),
                 hxTarget("#accounts"), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(message(title))),

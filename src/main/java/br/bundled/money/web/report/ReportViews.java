@@ -221,7 +221,8 @@ final class ReportViews {
     private static Node share(Book book, Account account, YearMonth month, BigDecimal total) {
         val flow = book.flow(account, month);
         return tr(cls("item"),
-                td(a(href("/accounts/" + account.identity() + "?month=" + month), text(Text.data(account.name()))),
+                td(a(href(Screen.STATEMENT.path() + "?account=" + account.identity() + "&" + Ledger.MONTH + "=" + month),
+                                text(Text.data(account.name()))),
                         meter(min("0"), max(total.toPlainString()), value(flow.toPlainString()),
                                 title(Text.data(Ui.money(flow))))),
                 td(cls("num"), Ui.amount(flow, false)));

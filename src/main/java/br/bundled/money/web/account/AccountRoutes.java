@@ -59,6 +59,8 @@ public final class AccountRoutes implements WebResource {
         router.post("/accounts", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();
         router.get("/accounts/{id}/edit", MediaType.TEXT_HTML, String.class, this::edit).getOrThrow();
         router.put("/accounts/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::update).getOrThrow();
+        // a form without htmx cannot send PUT: it posts to the same path
+        router.post("/accounts/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::update).getOrThrow();
         router.get("/accounts/{id}/delete", MediaType.TEXT_HTML, String.class, this::confirm).getOrThrow();
         router.delete("/accounts/{id}", MediaType.TEXT_HTML, String.class, this::delete).getOrThrow();
     }
@@ -135,19 +137,24 @@ public final class AccountRoutes implements WebResource {
         };
     }
 
+    /** Like {@link #create}, over the account of the path; without htmx: post/redirect/get, or the page with the errors. */
     private HTTPResponse update(WebRequest request) {
+        val htmx = HtmxRequest.of(request).isHtmx();
         val current = below(request);
         if (current.isEmpty()) {
-            return ok("");
+            return htmx ? ok("") : WebResponse.redirect("/accounts");
         }
         val form = request.body(Form.class).getOrThrow();
         return switch (AccountFields.read(form::value, book, current.get())) {
             case Result.Success<AccountInput, List<Violation>>(var input) -> {
                 val updated = book.update(current.get(), input);
-                yield saved(updated, updated.map(account -> "Conta \"" + book.path(account) + "\" atualizada.").getOrElse(""));
+                yield htmx ? saved(updated, updated.map(account -> "Conta \"" + book.path(account) + "\" atualizada.").getOrElse(""))
+                        : WebResponse.redirect("/accounts");
             }
-            case Result.Failure<AccountInput, List<Violation>>(var errors) -> invalid(
-                    RegisterViews.accountForm(book, AccountFields.values(form::value), errors, current.get()), "#account-form");
+            case Result.Failure<AccountInput, List<Violation>>(var errors) -> {
+                val view = RegisterViews.accountForm(book, AccountFields.values(form::value), errors, current.get());
+                yield htmx ? invalid(view, "#account-form") : page(request, view);
+            }
         };
     }
 

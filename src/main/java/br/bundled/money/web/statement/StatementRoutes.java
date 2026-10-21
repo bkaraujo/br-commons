@@ -110,7 +110,7 @@ public final class StatementRoutes implements WebResource {
         val typed = SplitFields.SPLITS.equals(form.value(SplitFields.MODE));
         val lines = new ArrayList<>(typed ? SplitFields.lines(form::all) : SplitFields.lines(values));
         val remove = Ui.number(form.value("remove"));
-        if (remove != null && remove >= 0 && remove < lines.size() && lines.size() > 2) lines.remove((int) remove);
+        if (remove != null && remove < lines.size() && lines.size() > 2) lines.remove((int) remove);
         if (!form.value("add").isEmpty() || lines.size() < 2) lines.add(SplitFields.Line.BLANK);
         val transaction = editing(form::value).orElse(null);
         return ok(StatementViews.splitForm(book, transaction, values, lines, List.of(), chosen(form::value),
@@ -123,9 +123,9 @@ public final class StatementRoutes implements WebResource {
     }
 
     private HTTPResponse confirm(WebRequest request) {
-        return book.transaction(pathId(request))
-                .map(transaction -> book.closed(transaction) ? ok("")
-                        : ok(StatementViews.deletePanel(book, transaction, chosen(request::parameter), month(request::parameter)).render()))
+        return book.transaction(pathId(request)).filter(transaction -> !book.closed(transaction))
+                .map(transaction -> ok(StatementViews.deletePanel(book, transaction, chosen(request::parameter),
+                        month(request::parameter)).render()))
                 .orElseGet(() -> ok(""));
     }
 
