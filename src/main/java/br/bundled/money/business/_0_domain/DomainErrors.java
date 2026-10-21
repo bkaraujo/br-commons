@@ -60,6 +60,12 @@ public final class DomainErrors {
     /** Arg: account name. Removing an account with transactions needs another account, below the top level */
     public static final String ACCOUNT_TARGET = PREFIX + "account.target";
 
+    /** Arg: account name. An opening balance needs an equity account to balance it */
+    public static final String ACCOUNT_OPENING_EQUITY = PREFIX + "account.opening_equity";
+
+    /** Arg: position. A book loaded refers to an account its chart does not have */
+    public static final String IMPORT_ACCOUNT = PREFIX + "import.account";
+
     /** Args: field, file, cause. A record of the storage that cannot be read back */
     public static final String STORAGE_UNREADABLE = PREFIX + "storage.unreadable";
 

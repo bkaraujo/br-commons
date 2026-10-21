@@ -5,6 +5,7 @@ import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.business._0_domain.model.AccountType;
 import br.bundled.money.business._0_domain.model.ChartTemplate;
 import br.bundled.money.business._0_domain.model.Transaction;
+import br.bundled.money.business._0_domain.model.TransactionSplit;
 import br.bundled.money.persistence.PersistenceModule;
 import br.commons.Result;
 import br.commons.business.BusinessError;
@@ -22,6 +23,9 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -32,9 +36,13 @@ class ApplicationModuleTest {
     private static final LocalDate TODAY = LocalDate.of(2025, 11, 20);
     private static final Clock CLOCK = Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
 
+    /** The storage of the test: a restart ({@link #started}) reads back what was written in it. */
+    private Storage storage = new InMemoryStorage();
+
     private void started() {
         Context.clear();
-        Context.set(Storage.class, InMemoryStorage::new);
+        val kept = storage;
+        Context.set(Storage.class, () -> kept);
         Context.set(Clock.class, () -> CLOCK);
         val persistence = new PersistenceModule();
         assertTrue(persistence.initialize().isSuccess());
@@ -45,9 +53,11 @@ class ApplicationModuleTest {
     private static TransactionService transactions() { return Context.get(TransactionService.class); }
     private static BookService books() { return Context.get(BookService.class); }
     private static Balances balances() { return Context.get(Balances.class); }
+    private static ImportService imports() { return Context.get(ImportService.class); }
 
     @BeforeEach
     void setUp() {
+        storage = new InMemoryStorage();
         started();
     }
 
@@ -68,6 +78,11 @@ class ApplicationModuleTest {
         return assertInstanceOf(Result.Failure.class, result).error() instanceof BusinessError error ? error.key() : "";
     }
 
+    private static Set<UUID> splitsIn(Transaction transaction, Account account) {
+        return transaction.splits().stream().filter(split -> split.account().equals(account))
+                .map(TransactionSplit::identity).collect(Collectors.toSet());
+    }
+
     // ---------- F8, accounts
 
     @Test
@@ -83,6 +98,38 @@ class ApplicationModuleTest {
         assertEquals(new BigDecimal("1500.00"), balance(bank, YearMonth.from(TODAY)));
         assertEquals(new BigDecimal("1500.00"), balance(named("Saldos de abertura"), YearMonth.from(TODAY)));
         assertEquals(new BigDecimal("1500.00"), balance(named("Ativo"), YearMonth.from(TODAY)), "the group sums its subtree");
+    }
+
+    @Test
+    void anOpeningBalanceGoesToTheOpeningBalancesAccount() {
+        accounts().create(new AccountInput("Lucros acumulados", AccountType.EQUITY, named("Patrimônio líquido").identity(),
+                null), TODAY).getOrThrow();
+        bank("Nubank", "1500");
+        assertEquals(new BigDecimal("1500.00"), balance(named("Saldos de abertura"), YearMonth.from(TODAY)),
+                "by its name, not the first equity subaccount by name");
+        assertEquals(BigDecimal.ZERO, balance(named("Lucros acumulados"), YearMonth.from(TODAY)));
+    }
+
+    @Test
+    void withoutEquityAnOpeningBalanceIsRefused() {
+        imports().load(List.of(new ChartTemplate.Entry("Ativo", AccountType.ASSET, null),
+                new ChartTemplate.Entry("Contas bancárias", AccountType.ASSET, 0)), List.of(), null).getOrThrow();
+        assertEquals(DomainErrors.ACCOUNT_OPENING_EQUITY, key(accounts().create(new AccountInput("Nubank", AccountType.BANK,
+                named("Contas bancárias").identity(), new BigDecimal("100")), TODAY)));
+        assertEquals(2, accounts().accounts().size(), "the account is not created without its balance");
+    }
+
+    @Test
+    void theOpeningEquityIsFoundByNameWhateverTheAccent() {
+        imports().load(List.of(new ChartTemplate.Entry("Ativos", AccountType.ASSET, null),
+                new ChartTemplate.Entry("Contas", AccountType.ASSET, 0),
+                new ChartTemplate.Entry("Resultados", AccountType.EQUITY, null),
+                new ChartTemplate.Entry("Ajustes", AccountType.EQUITY, 2),
+                new ChartTemplate.Entry("Saldo Inícial", AccountType.EQUITY, 2)), List.of(), null).getOrThrow();
+        accounts().create(new AccountInput("Nubank", AccountType.BANK, named("Contas").identity(), new BigDecimal("100")),
+                TODAY).getOrThrow();
+        assertEquals(new BigDecimal("100.00"), balance(named("Saldo Inícial"), YearMonth.from(TODAY)));
+        assertEquals(BigDecimal.ZERO, balance(named("Ajustes"), YearMonth.from(TODAY)));
     }
 
     @Test
@@ -126,6 +173,28 @@ class ApplicationModuleTest {
         assertEquals(new BigDecimal("100.00"), balance(market, month));
         assertTrue(transactions().statement(inter, month).stream().allMatch(Transaction::balanced));
         assertTrue(accounts().account(nubank.identity()).isEmpty());
+    }
+
+    @Test
+    void removingAnAccountKeepsTheOtherSplitsApart() {
+        val bank = bank("Nubank", "0");
+        val market = named("Mercado");
+        val pharmacy = named("Farmácia");
+        val health = named("Plano de saúde");
+        val posted = transactions().post(TODAY, "Compras", List.of(
+                new SplitInput(market.identity(), new BigDecimal("10")),
+                new SplitInput(market.identity(), new BigDecimal("20")),
+                new SplitInput(pharmacy.identity(), new BigDecimal("15")),
+                new SplitInput(bank.identity(), new BigDecimal("-45")))).getOrThrow();
+        val inMarket = splitsIn(posted, market);
+        val inPharmacy = splitsIn(posted, pharmacy);
+
+        assertTrue(accounts().remove(pharmacy.identity(), health.identity()).isSuccess());
+        val moved = transactions().find(posted.identity()).orElseThrow();
+        assertEquals(4, moved.splits().size());
+        assertEquals(inMarket, splitsIn(moved, market), "the two splits of another account are not merged");
+        assertEquals(inPharmacy, splitsIn(moved, health), "the moved split keeps its identity");
+        assertEquals(new BigDecimal("15.00"), balance(health, YearMonth.from(TODAY)));
     }
 
     // ---------- F2, balances
@@ -186,6 +255,19 @@ class ApplicationModuleTest {
         assertEquals(DomainErrors.TRANSACTION_NOT_FOUND, key(transactions().discard(posted.identity())));
     }
 
+    @Test
+    void revisingKeepsTheIdentityOfTheSplits() {
+        val bank = bank("Nubank", "1000");
+        val market = named("Mercado");
+        val posted = transactions().transfer(TODAY, "Feira", bank.identity(), market.identity(), new BigDecimal("100")).getOrThrow();
+        val before = Set.of(splitsIn(posted, bank), splitsIn(posted, market));
+
+        val revised = transactions().revise(posted.identity(), TODAY, "Feira grande", List.of(
+                new SplitInput(market.identity(), new BigDecimal("150")),
+                new SplitInput(bank.identity(), new BigDecimal("-150")))).getOrThrow();
+        assertEquals(before, Set.of(splitsIn(revised, bank), splitsIn(revised, market)), "the GnuCash GUIDs stay");
+    }
+
     // ---------- F9
 
     @Test
@@ -230,5 +312,21 @@ class ApplicationModuleTest {
         assertTrue(accounts().account(bank.identity()).isEmpty());
         assertNull(books().book().threshold());
         assertEquals(BigDecimal.ZERO, balance(named("Saldos de abertura"), YearMonth.from(TODAY)));
+    }
+
+    @Test
+    void anInvalidImportLeavesTheBookAsItWas() {
+        val bank = bank("Nubank", "1000");
+        val chart = List.of(new ChartTemplate.Entry("Ativo", AccountType.ASSET, null),
+                new ChartTemplate.Entry("Carteira", AccountType.CASH, 0));
+        val unbalanced = new ImportService.Posting(TODAY, "x",
+                List.of(new ImportService.Line(1, BigDecimal.TEN), new ImportService.Line(0, BigDecimal.ONE)));
+        assertEquals(DomainErrors.TRANSACTION_UNBALANCED, key(imports().load(chart, List.of(unbalanced), null)));
+        val outside = new ImportService.Posting(TODAY, "x",
+                List.of(new ImportService.Line(1, BigDecimal.TEN), new ImportService.Line(7, BigDecimal.TEN)));
+        assertEquals(DomainErrors.IMPORT_ACCOUNT, key(imports().load(chart, List.of(outside), null)));
+
+        assertEquals(ChartTemplate.personal().size() + 1, accounts().accounts().size());
+        assertEquals(new BigDecimal("1000.00"), balance(bank, YearMonth.from(TODAY)));
     }
 }

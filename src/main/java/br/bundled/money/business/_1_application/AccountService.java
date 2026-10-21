@@ -15,10 +15,12 @@ import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
+import java.util.regex.Pattern;
 
 /**
  * The chart of accounts (INTENT §6): the top level is fixed; a subaccount is of its parent's family; the type changes
@@ -30,6 +32,12 @@ public final class AccountService {
 
     /** The description of the opening transaction of an account created with a balance. */
     static final String OPENING = "Saldo inicial";
+
+    /**
+     * The names of the opening equity, without accents and in lower case: the personal chart's ("Saldos de abertura"),
+     * the usual Portuguese ones ("Saldo inicial") and GnuCash's in English ("Opening Balances").
+     */
+    private static final Pattern OPENING_EQUITY = Pattern.compile("saldos? (de abertura|inicial|iniciais)|opening balances?");
 
     private final AccountRepository accounts = Context.get(AccountRepository.class);
     private final TransactionRepository transactions = Context.get(TransactionRepository.class);
@@ -60,7 +68,8 @@ public final class AccountService {
 
     /**
      * A new account under {@code input.parent()}; with an opening balance, also its opening transaction dated
-     * {@code today} against the opening equity (the first subaccount of Patrimônio líquido, or itself).
+     * {@code today} against the opening equity ({@link #openingEquity}); without one, the balance is refused. When the
+     * opening transaction cannot be stored, the account is undone: it does not stay without its balance.
      */
     public Result<Account, BusinessError> create(AccountInput input, LocalDate today) {
         return Rules.locked(lock, () -> {
@@ -72,20 +81,30 @@ public final class AccountService {
             if (with) books.find().open(today, today);
             val parent = parent(input);
             if (parent instanceof Result.Failure<Account, BusinessError>(var error)) return Result.failure(error);
+            val equity = with ? openingEquity() : Optional.<Account>empty();
+            if (with && equity.isEmpty()) {
+                return Result.failure(DomainErrors.rule(DomainErrors.ACCOUNT_OPENING_EQUITY, input.name().strip()));
+            }
             val account = new Account();
             account.name(input.name().strip());
             account.type(input.type());
             account.parent(parent.getOrThrow());
             val saved = Rules.stored(accounts.save(account));
-            if (saved.isFailure() || !with) return saved;
-            val equity = openingEquity();
-            if (equity.isEmpty()) return saved;
+            if (saved.isFailure() || equity.isEmpty()) return saved;
             // o saldo na natureza da conta; a contrapartida fecha a soma em débito
             val amount = opening.setScale(2, RoundingMode.UNNECESSARY);
             val counter = amount.negate().multiply(BigDecimal.valueOf((long) input.type().debit * equity.get().type().debit));
-            return posting.post(today, OPENING, List.of(new SplitInput(account.identity(), amount),
-                    new SplitInput(equity.get().identity(), counter))).map(_ -> account);
+            val posted = posting.post(today, OPENING, List.of(new SplitInput(account.identity(), amount),
+                    new SplitInput(equity.get().identity(), counter)));
+            if (posted.isFailure()) undo(account);
+            return posted.map(_ -> account);
         });
+    }
+
+    /** What was written of a new account whose opening failed, removed (best effort: the storage just failed). */
+    private void undo(Account account) {
+        transactions.findByAccount(account).forEach(transactions::delete);
+        kept.delete(account).flatMap(_ -> accounts.delete(account));
     }
 
     /** Name, parent and (while not fixed) type; the opening balance is not changed here. */
@@ -166,23 +185,29 @@ public final class AccountService {
         return Rules.stored(balances.refresh(touched, from));
     }
 
-    /** The splits with the account's moved to the target (converted, merged with the target's), the zero ones dropped. */
+    /**
+     * The splits with the account's moved to the target: converted and added to the target's first split (or, when
+     * the target is not in the transaction, to the account's first, which keeps its identity); a zero sum is dropped.
+     * Every other split stays as it was.
+     */
     private static List<BookSplit> merged(Transaction transaction, Account account, Account target, BigDecimal factor) {
-        val bySplit = new LinkedHashMap<Account, TransactionSplit>();
-        val amounts = new LinkedHashMap<Account, BigDecimal>();
-        for (val split : transaction.splits()) {
-            val moved = split.account().equals(account);
-            val to = moved ? target : split.account();
-            amounts.merge(to, moved ? split.amount().multiply(factor) : split.amount(), BigDecimal::add);
-            // o split que já estava na conta de destino guarda a identidade
-            if (!moved || !bySplit.containsKey(to)) bySplit.put(to, split);
-        }
+        val moved = transaction.splits().stream().filter(split -> split.account().equals(account))
+                .map(split -> split.amount().multiply(factor)).reduce(BigDecimal.ZERO, BigDecimal::add);
+        // o split que já estava na conta de destino guarda a identidade
+        val keeper = transaction.splits().stream().filter(split -> split.account().equals(target)).findFirst()
+                .or(() -> transaction.splits().stream().filter(split -> split.account().equals(account)).findFirst())
+                .orElseThrow();
         val splits = new ArrayList<BookSplit>();
-        amounts.forEach((to, amount) -> {
-            if (amount.signum() == 0) return;
-            val original = Objects.requireNonNull(bySplit.get(to));
-            splits.add(new BookSplit(original.identity(), to, amount, original.createdAt(), System.currentTimeMillis()));
-        });
+        for (val split : transaction.splits()) {
+            if (split.identity().equals(keeper.identity())) {
+                val amount = split.account().equals(target) ? split.amount().add(moved) : moved;
+                if (amount.signum() != 0) {
+                    splits.add(new BookSplit(split.identity(), target, amount, split.createdAt(), System.currentTimeMillis()));
+                }
+            } else if (!split.account().equals(account)) {
+                splits.add(new BookSplit(split.identity(), split.account(), split.amount(), split.createdAt(), split.updatedAt()));
+            }
+        }
         return splits;
     }
 
@@ -199,8 +224,21 @@ public final class AccountService {
         return Result.success(parent.get());
     }
 
+    /**
+     * The equity account named as the opening balances ({@link #OPENING_EQUITY}); else the only subaccount of the
+     * top-level equity; else the top level itself.
+     */
     private Optional<Account> openingEquity() {
-        return accounts.findByType(AccountType.EQUITY).stream().filter(account -> account.parent() == null).findFirst()
-                .map(root -> accounts.findChildren(root).stream().findFirst().orElse(root));
+        val equity = accounts.findByType(AccountType.EQUITY);
+        return equity.stream().filter(account -> OPENING_EQUITY.matcher(plain(account.name())).matches()).findFirst()
+                .or(() -> equity.stream().filter(account -> account.parent() == null).findFirst().map(root -> {
+                    val children = accounts.findChildren(root);
+                    return children.size() == 1 ? children.getFirst() : root;
+                }));
+    }
+
+    /** {@code Saldo Inícial} → {@code saldo inicial}. */
+    private static String plain(String name) {
+        return Normalizer.normalize(name, Normalizer.Form.NFD).replaceAll("\\p{M}", "").strip().toLowerCase(Locale.ROOT);
     }
 }

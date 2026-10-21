@@ -85,7 +85,7 @@ public final class TransactionService {
         });
     }
 
-    /** The transaction rewritten in place, same identity. */
+    /** The transaction rewritten in place, same identity; each split in the same account keeps its identity too. */
     public Result<Transaction, BusinessError> revise(UUID id, LocalDate date, String description, List<SplitInput> splits) {
         return Rules.locked(lock, () -> {
             val found = transactions.findById(id);
@@ -93,7 +93,8 @@ public final class TransactionService {
             books.find().open(found.get().date(), found.get().date());
             val built = splits(splits);
             if (built instanceof Result.Failure<List<BookSplit>, BusinessError>(var error)) return Result.failure(error);
-            return save(Rules.revised(found.get(), date, description.strip(), built.getOrThrow()), found.get());
+            return save(Rules.revised(found.get(), date, description.strip(), keeping(found.get(), built.getOrThrow())),
+                    found.get());
         });
     }
 
@@ -147,6 +148,22 @@ public final class TransactionService {
 
     private static BusinessError missing(UUID account) {
         return DomainErrors.notFound(DomainErrors.ACCOUNT_NOT_FOUND, account);
+    }
+
+    /**
+     * {@code splits} with the identity and creation of the previous splits of the same account, in order: a split
+     * edited stays the same split (its GUID in the GnuCash round-trip); one in a new account is new.
+     */
+    private static List<BookSplit> keeping(Transaction previous, List<BookSplit> splits) {
+        val unused = new ArrayList<>(previous.splits());
+        val kept = new ArrayList<BookSplit>();
+        for (val split : splits) {
+            val same = unused.stream().filter(old -> old.account().equals(split.account())).findFirst();
+            same.ifPresent(unused::remove);
+            kept.add(same.map(old -> new BookSplit(old.identity(), split.account(), split.amount(), old.createdAt(),
+                    System.currentTimeMillis())).orElse(split));
+        }
+        return kept;
     }
 
     private static List<Account> accounts(Transaction transaction) {
