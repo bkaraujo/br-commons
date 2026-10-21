@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -60,5 +61,22 @@ class LocalFileStorageTest {
 
         assertTrue(storage.write("sub/../ok.json", "k", "1".getBytes(StandardCharsets.UTF_8)).isSuccess());
         assertTrue(storage.read("ok.json", "k").get().isPresent());
+    }
+
+    @Test
+    void deleteRemovesTheFieldAndKeysListTheRest() {
+        val storage = new LocalFileStorage(dir.toString(), JsonMapper.builder().build());
+        storage.write("data.json", "a", "1".getBytes(StandardCharsets.UTF_8));
+        storage.write("data.json", "b", "2".getBytes(StandardCharsets.UTF_8));
+
+        assertTrue(storage.delete("data.json", "a").isSuccess());
+        assertTrue(storage.read("data.json", "a").get().isEmpty());
+        assertEquals(List.of("b"), storage.keys("data.json").get());
+        assertTrue(storage.delete("data.json", "missing").isSuccess());
+        assertTrue(storage.delete("other.json", "a").isSuccess());
+        assertFalse(Files.exists(dir.resolve("other.json")), "nothing to remove writes nothing");
+        assertTrue(storage.keys("other.json").get().isEmpty());
+        assertTrue(storage.delete("../evil.json", "a").isFailure());
+        assertTrue(storage.keys("../evil.json").isFailure());
     }
 }

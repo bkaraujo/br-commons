@@ -11,7 +11,7 @@ br.bundled.money
 ├── business
 │   ├── _0_domain             modelo, regras, contratos (repository/service)
 │   └── _1_application        casos de uso; orquestra domínio + repositórios
-├── persistence               implementa os repository do domínio (JDBC)
+├── persistence               implementa os repository do domínio sobre Storage (JSON)
 └── web                       HTMX server-side; borda HTTP
 ```
 
@@ -22,7 +22,7 @@ número menor ou `br.commons`/JDK):
 |-------------------|------------------------------------------|----------------------------------|
 | `_0_domain`       | `br.commons` (`business`, `lang`), JDK   | `_1_application`, `persistence`, `web` |
 | `_1_application`  | `_0_domain`, `br.commons`                | `persistence`, `web`             |
-| `persistence`     | `_0_domain`, `br.commons.persistence.jdbc` | `_1_application`, `web`        |
+| `persistence`     | `_0_domain`, `br.commons.persistence`, `br.commons.lang` | `_1_application`, `web` |
 | `web`             | `_1_application`, `_0_domain` (leitura de tipos), `br.commons.web`, `br.commons.lang.html/htmx` | `persistence` |
 
 - Zero frameworks de mercado: tudo sai de `br.commons`.
@@ -47,6 +47,24 @@ número menor ou `br.commons`/JDK):
 - Um caso de uso por operação do usuário (lançar, importar, fechar período...).
 - Retorna `Result<T, BusinessError>`; não renderiza texto (render só na borda).
 - Não conhece HTTP, HTML nem SQL.
+- `ApplicationModule` (Lifecycle) cria os serviços sobre as interfaces de
+  repositório recebidas; um lock único: um caso de uso altera o livro por vez.
+  Regra do domínio (`BusinessException`) e falha de storage
+  (`BusinessError.Infrastructure`) viram `Failure` (`Rules.locked`/`stored`).
+- Saldos: `Balances` (implementa `BalanceService`) lê o cache do
+  `BalanceRepository` (saldo de fim de mês das próprias splits, por mês com
+  movimento); quem altera transações chama `refresh` a partir do mês alterado.
+- Livro sem contas na inicialização começa do plano pessoal (F8).
+
+## 3.1 Persistência (`persistence`)
+
+- Repositórios sobre `br.commons.persistence.Storage` (JSON via
+  `br.commons.lang.Json`, linhas = records): `InMemoryStorage` hoje,
+  `LocalFileStorage` sem mudar código. Layout no javadoc do pacote.
+- `PersistenceModule.initialize` carrega tudo (contas antes das transações);
+  leitura vem do cache, escrita é write-through. Registro ilegível para o start.
+- Contas são instâncias vivas referenciadas pelas splits: alterar no lugar e
+  `save`, nunca substituir por cópia.
 
 ## 4. Web (`web`)
 
@@ -86,8 +104,8 @@ web
 
 ### 4.1 Mockup
 
-Enquanto `_1_application`/`persistence` não existem, a web usa dados em
-memória em `web/mock` (seed fictício). Regras:
+A web ainda usa dados em memória em `web/mock` (seed fictício); a troca
+para `_1_application` é o próximo passo. Regras:
 
 - `mock` é o único lugar com dados fictícios; features o tratam como se fosse
   a camada de aplicação, para a troca futura ser só de dependência.

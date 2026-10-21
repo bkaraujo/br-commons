@@ -6,7 +6,7 @@ um `Storage` chave-valor em arquivo JSON.
 
 | Subpacote / tipo               | Papel                                              |
 |--------------------------------|----------------------------------------------------|
-| `Storage`                      | `read/write(file, jsonKey)`, `exists`, `listFiles` |
+| `Storage`                      | `read/write/delete(file, jsonKey)`, `keys(file)`, `exists`, `listFiles` |
 | `inmemory/InMemoryStorage`     | `Storage` em memória (testes); `clear()`           |
 | `json/LocalFileStorage`        | `Storage` em arquivos JSON (Jackson)               |
 | `json/Repository`, `EntityDiff`| Contrato (sem implementação na lib); diff para log |
@@ -181,6 +181,9 @@ tx.query(sql, params, fn);  tx.execute(sql, params);   // Result<..., String>
   `ATOMIC_MOVE`. Outro processo escrevendo o mesmo arquivo ainda corre.
 - `read`/`write` devolvem `Result`; nome que sai da raiz (`..`, caminho
   absoluto) → `Failure` sem tocar o disco; `exists` → `false`.
+- `delete` = mesmo read-modify-write com lock; campo ou arquivo ausente →
+  sucesso sem tocar o disco. `keys(file)`: nomes dos campos; arquivo ausente →
+  lista vazia. (`InMemoryStorage`: remover o último campo remove o arquivo.)
 - `listFiles(prefix, suffix)`: só a raiz (sem recursão); erro de IO →
   `UncheckedIOException`.
 - `EntityDiff.of(mapper, antes, depois)`: diff textual para auditoria/log.

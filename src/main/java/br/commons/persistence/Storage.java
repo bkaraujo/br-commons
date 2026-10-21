@@ -18,6 +18,12 @@ public interface Storage {
 
     Result<Void, String> write(String file, String jsonKey, byte[] content);
 
+    /** Removes the field; a field or file that does not exist is already removed (success). */
+    Result<Void, String> delete(String file, String jsonKey);
+
+    /** The fields of the file, in no particular order; empty when the file does not exist. */
+    Result<List<String>, String> keys(String file);
+
     /** {@code false} also for a name the storage refuses. */
     boolean exists(String file);
 

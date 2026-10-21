@@ -88,6 +88,39 @@ public final class LocalFileStorage implements Storage {
         }
     }
 
+    /** A read-modify-write as {@link #write}; nothing to remove leaves the file untouched. */
+    @Override
+    public Result<Void, String> delete(String file, String jsonKey) {
+        return resolve(file).flatMap(path ->
+                Threads.locked(LOCKS.computeIfAbsent(path, _ -> new ReentrantLock()), () -> remove(path, file, jsonKey)));
+    }
+
+    private Result<Void, String> remove(Path path, String file, String jsonKey) {
+        if (!Files.exists(path)) return Result.success();
+        try {
+            val rootNode = (ObjectNode) mapper.readTree(path.toFile());
+            if (rootNode.remove(jsonKey) == null) return Result.success();
+            val temporary = path.resolveSibling(path.getFileName() + ".tmp");
+            mapper.writerWithDefaultPrettyPrinter().writeValue(temporary.toFile(), rootNode);
+            Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            return Result.success();
+        } catch (IOException | JacksonException e) {
+            return Result.failure(Errors.get().fieldDeleteFailed(jsonKey, file, String.valueOf(e.getMessage())).value());
+        }
+    }
+
+    @Override
+    public Result<List<String>, String> keys(String file) {
+        return resolve(file).flatMap(path -> {
+            if (!Files.exists(path)) return Result.success(List.of());
+            try {
+                return Result.success(List.copyOf(mapper.readTree(path.toFile()).propertyNames()));
+            } catch (JacksonException e) {
+                return Result.failure(Errors.get().fileReadFailed(file, String.valueOf(e.getMessage())).value());
+            }
+        });
+    }
+
     @Override
     public boolean exists(String file) {
         return resolve(file).map(Files::exists).getOrElse(false);

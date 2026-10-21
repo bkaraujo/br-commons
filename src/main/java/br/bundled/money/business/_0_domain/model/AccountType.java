@@ -26,4 +26,17 @@ public enum AccountType {
         this.debit = -credit;
     }
 
+    /**
+     * The family of the hierarchy (INTENT §6): a subaccount is of its parent's family. Assets (BANK, CASH, STOCK,
+     * MUTUAL, ASSET, RECEIVABLE) answer {@link #ASSET}; liabilities (CREDIT, LIABILITY, PAYABLE) {@link #LIABILITY};
+     * any other type is its own family.
+     */
+    public AccountType family() {
+        return switch (this) {
+            case BANK, CASH, STOCK, MUTUAL, ASSET, RECEIVABLE -> ASSET;
+            case CREDIT, LIABILITY, PAYABLE -> LIABILITY;
+            default -> this;
+        };
+    }
+
 }

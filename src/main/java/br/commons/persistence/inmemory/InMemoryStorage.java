@@ -28,6 +28,22 @@ public class InMemoryStorage implements Storage {
         return Result.success();
     }
 
+    /** The last field removed takes the file with it, as if it had never been written. */
+    @Override
+    public Result<Void, String> delete(String file, String jsonKey) {
+        data.computeIfPresent(file, (_, fields) -> {
+            fields.remove(jsonKey);
+            return fields.isEmpty() ? null : fields;
+        });
+        return Result.success();
+    }
+
+    @Override
+    public Result<List<String>, String> keys(String file) {
+        val fields = data.get(file);
+        return Result.success(fields == null ? List.of() : List.copyOf(fields.keySet()));
+    }
+
     @Override
     public boolean exists(String file) {
         return data.containsKey(file);

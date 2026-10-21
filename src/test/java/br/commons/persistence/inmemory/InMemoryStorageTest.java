@@ -4,6 +4,8 @@ import lombok.val;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class InMemoryStorageTest {
@@ -111,6 +113,34 @@ class InMemoryStorageTest {
         assertFalse(storage.exists("file1"));
         assertFalse(storage.exists("file2"));
         assertTrue(storage.listFiles(null, null).isEmpty());
+    }
+
+    // ── delete / keys ─────────────────────────────────────────────────────────
+
+    @Test
+    void delete_removesOnlyThatKey() {
+        storage.write("file1", "a", "1".getBytes());
+        storage.write("file1", "b", "2".getBytes());
+        assertTrue(storage.delete("file1", "a").isSuccess());
+        assertTrue(storage.read("file1", "a").get().isEmpty());
+        assertEquals(List.of("b"), storage.keys("file1").get());
+    }
+
+    @Test
+    void delete_lastKey_removesTheFile() {
+        storage.write("file1", "a", "1".getBytes());
+        storage.delete("file1", "a");
+        assertFalse(storage.exists("file1"));
+    }
+
+    @Test
+    void delete_missing_isSuccess() {
+        assertTrue(storage.delete("nonexistent", "k").isSuccess());
+    }
+
+    @Test
+    void keys_missingFile_isEmpty() {
+        assertTrue(storage.keys("nonexistent").get().isEmpty());
     }
 
     // ── multiple keys per file ────────────────────────────────────────────────

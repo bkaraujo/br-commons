@@ -27,6 +27,8 @@ public interface ErrorMessages {
     // persistence.json
     Text fieldReadFailed(Object field, Object file, Object cause);
     Text fieldWriteFailed(Object field, Object file, Object cause);
+    Text fieldDeleteFailed(Object field, Object file, Object cause);
+    Text fileReadFailed(Object file, Object cause);
     Text listFilesFailed(Object directory);
     Text fileOutsideStorage(Object file);
     Text invalidFileName(Object file);
