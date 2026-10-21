@@ -12,15 +12,18 @@ import org.jspecify.annotations.NullMarked;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static br.bundled.money.web.ui.Ui.message;
 import static br.commons.lang.Html5.*;
 import static br.commons.lang.Htmx.*;
 
-/** What the ledger and the statement share: the month's summary, the columns and the month navigation. */
+/** What the ledger, the statement and the reports share: the month's summary, the columns and the month navigation. */
 @NullMarked
 public final class Ledger {
+
+    /** The query parameter of the month navigation ({@code month=2026-10}). */
+    public static final String MONTH = "month";
 
     private Ledger() {}
 
@@ -44,15 +47,36 @@ public final class Ledger {
                 th(cls("num"), text(message("Valor"))), th(cls("num hide-narrow"), text(message("Saldo"))), fragment(extra)));
     }
 
-    /** Previous, next and (away from it) the current month; each loads into {@code target} and pushes its URL. */
-    public static Node monthNav(YearMonth month, YearMonth current, Function<YearMonth, String> url, String target) {
+    /**
+     * Previous, the month picked from a list, next and (away from it) the current month; each loads {@code path} with
+     * {@link #MONTH} into {@code target} and pushes its URL. {@code path} may carry other parameters
+     * ({@code /statement?account=…}).
+     */
+    public static Node monthNav(Book book, YearMonth month, String path, String target) {
+        val current = YearMonth.from(book.today());
+        val separator = path.contains("?") ? "&" : "?";
         return nav(
                 cls("month-nav"),
-                monthLink(url.apply(month.minusMonths(1)), target, "←", "Mês anterior"),
-                h3(text(Text.data(Ui.month(month)))),
-                monthLink(url.apply(month.plusMonths(1)), target, "→", "Próximo mês"),
-                when(!month.equals(current), () -> monthLink(url.apply(current), target, "Hoje", "Mês atual"))
+                monthLink(path + separator + MONTH + "=" + month.minusMonths(1), target, "←", "Mês anterior"),
+                monthSelect(book, month, current, path, target),
+                monthLink(path + separator + MONTH + "=" + month.plusMonths(1), target, "→", "Próximo mês"),
+                when(!month.equals(current), () -> monthLink(path + separator + MONTH + "=" + current, target, "Hoje", "Mês atual"))
         );
+    }
+
+    /**
+     * The months from the book's first to a year past the current one, the latest first ({@code combo.js} filters them
+     * while typing); picking one sends {@link #MONTH} along with {@code path}.
+     */
+    private static Node monthSelect(Book book, YearMonth month, YearMonth current, String path, String target) {
+        val first = book.firstMonth().isBefore(month) ? book.firstMonth() : month;
+        val last = (current.isAfter(month) ? current : month).plusMonths(12);
+        val months = Stream.iterate(last, shown -> !shown.isBefore(first), shown -> shown.minusMonths(1)).toList();
+        return select(name(MONTH), ariaLabel(message("Mês")), hxGet(path), hxTarget(target), hxSwap(HxSwap.OUTER_HTML),
+                hxPushUrl(true),
+                each(months, shown -> shown.equals(month)
+                        ? option(value(shown.toString()), selected(), text(Text.data(Ui.month(shown))))
+                        : option(value(shown.toString()), text(Text.data(Ui.month(shown))))));
     }
 
     private static Node monthLink(String url, String target, String content, String label) {

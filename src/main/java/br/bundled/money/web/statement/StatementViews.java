@@ -9,6 +9,7 @@ import br.bundled.money.web.ui.Ledger;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.FormMethod;
+import br.commons.lang.html.Html;
 import br.commons.lang.html.core.Content;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.Field;
@@ -97,8 +98,7 @@ final class StatementViews {
                                         hxGet("/statement/transactions/new?account=" + account.identity() + "&month=" + month),
                                         hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
                                         text(message("+ Novo lançamento"))),
-                                Ledger.monthNav(month, YearMonth.from(book.today()),
-                                        shown -> "/statement?account=" + account.identity() + "&month=" + shown, "#statement-panel"))),
+                                Ledger.monthNav(book, month, "/statement?account=" + account.identity(), "#statement-panel"))),
                 Ledger.summary(book, account, month, lines),
                 div(cls("ledger-scroll"), table(
                         cls("records ledger-table"),
@@ -227,7 +227,7 @@ final class StatementViews {
                 td(select(DIALECT, SplitFields.ACCOUNT, accounts, Set.of(line.account()),
                         id("split-account-" + index), ariaLabel(message("Conta"))),
                         error.map(violation -> (Node) small(cls("error"), role("alert"),
-                                text(message(SplitFields.message(violation))))).orElseGet(() -> fragment())),
+                                text(message(SplitFields.message(violation))))).orElseGet(Html::fragment)),
                 td(cls("num"), input(DIALECT, SplitFields.IN, line.in(), inputmode(InputMode.DECIMAL),
                         ariaLabel(message("Entra (R$)")))),
                 td(cls("num"), input(DIALECT, SplitFields.OUT, line.out(), inputmode(InputMode.DECIMAL),

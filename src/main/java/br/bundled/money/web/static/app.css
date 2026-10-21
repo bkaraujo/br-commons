@@ -49,9 +49,10 @@ html {
     scrollbar-gutter: stable;
 }
 
+/* Largura que cabe a evolução (conta + doze meses + total + média) sem rolagem lateral. */
 body {
     margin: 0 auto;
-    max-width: 87.625rem;
+    max-width: 120rem;
     padding: 1.25rem 1rem calc(var(--footer-height) + 1.25rem);
     background: var(--bg);
     color: var(--text);
@@ -634,7 +635,8 @@ button:hover {
     display: none;
 }
 
-.tree .toggle {
+.tree .toggle,
+.outline .toggle {
     display: inline-grid;
     place-items: center;
     width: 1.5rem;
@@ -649,12 +651,14 @@ button:hover {
     cursor: pointer;
 }
 
-.tree .toggle:hover {
+.tree .toggle:hover,
+.outline .toggle:hover {
     background: var(--soft);
     color: var(--text);
 }
 
-.tree .chevron {
+.tree .chevron,
+.outline .chevron {
     width: .45rem;
     height: .45rem;
     border-right: 2px solid currentColor;
@@ -663,8 +667,25 @@ button:hover {
     transition: transform .15s ease;
 }
 
-.tree .branch.collapsed .chevron {
+.tree .branch.collapsed .chevron,
+.outline [aria-expanded="false"] .chevron {
     transform: rotate(-45deg);
+}
+
+/* Linhas recolhíveis em qualquer nível (outline.js): a filha só aparece com as mães abertas; a mãe inteira alterna. */
+.outline tr[data-parent]:not(.shown) {
+    display: none;
+}
+
+.outline tr:has(.toggle) {
+    cursor: pointer;
+}
+
+/* sem botão, o nome alinha com o das irmãs que têm */
+.outline td:first-child:not(:has(.toggle))::before {
+    display: inline-block;
+    width: 1.4rem;
+    content: "";
 }
 
 .depth-1 td:first-child {
@@ -927,14 +948,16 @@ tr:hover .actions button,
     gap: .6rem;
 }
 
-.month-nav h3 {
-    min-width: 9.5rem;
-    margin: 0;
-    color: var(--text);
-    font-size: .95rem;
-    letter-spacing: 0;
+.month-nav select,
+.month-nav .combo {
+    width: 12.5rem;
+}
+
+/* o mês escolhido no centro, como um título; a lista abre com todos os meses */
+.month-nav .combo input {
+    background: var(--card);
+    font-weight: 600;
     text-align: center;
-    text-transform: none;
 }
 
 .month-nav a {
@@ -1134,11 +1157,56 @@ tr:hover .actions button,
 
 /* ---------- relatórios */
 
-.report-grid {
+/* Um relatório por página: a largura de leitura de uma tabela de duas colunas. */
+.reports {
+    max-width: 48rem;
+}
+
+.reports .back {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.reports .back:hover {
+    color: var(--accent-hover);
+}
+
+/* A lista dos relatórios: cada linha é um link inteiro, nome e o que mostra. */
+.report-list ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.report-list li + li {
+    border-top: 1px solid var(--line);
+}
+
+.report-list a {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25rem;
-    align-items: start;
+    grid-template-columns: 1fr auto;
+    column-gap: 1rem;
+    padding: 1rem 1.25rem;
+    color: inherit;
+    text-decoration: none;
+}
+
+.report-list a::after {
+    content: "›";
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    color: var(--muted);
+    font-size: 1.4rem;
+}
+
+.report-list a:hover .report-name {
+    color: var(--accent);
+}
+
+.report-name {
+    font-weight: 600;
 }
 
 .report {
@@ -1213,6 +1281,65 @@ tr:hover .actions button,
     margin-top: .2rem;
 }
 
+/* Evolução: doze meses lado a lado; a tabela rola na horizontal com a conta fixa à esquerda. */
+.reports:has(.evolution) {
+    max-width: none;
+}
+
+.scroller {
+    overflow-x: auto;
+}
+
+.evolution th,
+.evolution td {
+    padding-right: .5rem;
+    white-space: nowrap;
+}
+
+.evolution th.num {
+    text-align: right;
+}
+
+.evolution td.num {
+    padding-left: .75rem;
+}
+
+.evolution th:first-child,
+.evolution td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--card);
+}
+
+/* cada valor do mês leva ao extrato da conta naquele mês */
+.evolution td.num a {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.evolution td.num a:hover .money {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.evolution tbody tr:hover > td {
+    background: var(--soft);
+}
+
+.evolution .total {
+    border-left: 1px solid var(--line);
+    font-weight: 600;
+}
+
+.evolution .share {
+    display: block;
+    color: var(--muted);
+    font-size: .75rem;
+    font-weight: 400;
+}
+
 .totals-row th,
 .totals-row td {
     padding-top: .8rem;
@@ -1281,10 +1408,6 @@ tr:hover .actions button,
 
     .summary {
         grid-template-columns: 1fr 1fr;
-    }
-
-    .report-grid {
-        grid-template-columns: 1fr;
     }
 
     .statement {

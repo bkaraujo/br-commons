@@ -20,7 +20,7 @@ import java.time.ZoneId;
 public class MoneyApp extends Application {
 
     static void main() {
-        Logger.level(LogLevel.VERBOSE);
+        Logger.level(LogLevel.DEBUG);
         new MoneyApp().run();
     }
 

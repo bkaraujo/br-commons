@@ -53,6 +53,12 @@ public final class Book {
         return transactionService.all();
     }
 
+    /** The month of the earliest transaction, else today's: where the month lists start. */
+    public YearMonth firstMonth() {
+        return transactions().stream().map(Transaction::date).min(Comparator.naturalOrder()).map(YearMonth::from)
+                .orElseGet(() -> YearMonth.from(today()));
+    }
+
     // ---------- closing (INTENT F9)
 
     public @Nullable LocalDate threshold() {
@@ -225,15 +231,8 @@ public final class Book {
     /** {@link #balance} of every account at the end of {@code day}. */
     public Map<Account, BigDecimal> balances(LocalDate day) {
         val own = new HashMap<Account, BigDecimal>();
-        val all = tree();
-        all.forEach(account -> own.put(account, own(account, day).multiply(BigDecimal.valueOf(account.type().debit))));
-        val balances = new HashMap<Account, BigDecimal>();
-        for (val account : all) {
-            val debit = (account.financial() ? Set.of(account) : subtree(account)).stream()
-                    .map(each -> own.getOrDefault(each, BigDecimal.ZERO)).reduce(BigDecimal.ZERO, BigDecimal::add);
-            balances.put(account, debit.multiply(BigDecimal.valueOf(account.type().debit)));
-        }
-        return balances;
+        tree().forEach(account -> own.put(account, own(account, day).multiply(BigDecimal.valueOf(account.type().debit))));
+        return inNature(own);
     }
 
     public Map<Account, BigDecimal> balances() {
@@ -251,6 +250,25 @@ public final class Book {
         return transactionService.month(month).stream()
                 .map(transaction -> amountIn(transaction, accounts, account.type().debit))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** {@link #flow} of every account during the month, in one pass over its transactions. */
+    public Map<Account, BigDecimal> flows(YearMonth month) {
+        val own = new HashMap<Account, BigDecimal>();
+        transactionService.month(month).forEach(transaction -> transaction.splits()
+                .forEach(split -> own.merge(split.account(), split.debitAmount(), BigDecimal::add)));
+        return inNature(own);
+    }
+
+    /** Each account's {@link #scope} summed from {@code debits} (own amounts in debit terms), in its nature. */
+    private Map<Account, BigDecimal> inNature(Map<Account, BigDecimal> debits) {
+        val result = new HashMap<Account, BigDecimal>();
+        for (val account : tree()) {
+            val debit = scope(account).stream().map(each -> debits.getOrDefault(each, BigDecimal.ZERO))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            result.put(account, debit.multiply(BigDecimal.valueOf(account.type().debit)));
+        }
+        return result;
     }
 
     /**
