@@ -55,7 +55,7 @@ public final class ProjectRoutes implements WebResource {
 
     private HTTPResponse list(WebRequest request) {
         if (Ui.partial(request)) return ok(ProjectViews.screen(projects, entries, Map.of(), List.of()).render());
-        return page(request, Map.of(), List.of());
+        return page(Map.of(), List.of());
     }
 
     /** Valid: the whole screen with the new project in its place. Invalid: the form with its errors. */
@@ -71,7 +71,7 @@ public final class ProjectRoutes implements WebResource {
             case Result.Failure<ProjectInput, List<Violation>>(var errors) -> htmx
                     ? HtmxResponse.of(ok(ProjectViews.projectForm(ProjectFields.values(form::value), errors).render()))
                             .retarget("#project-form").reswap(HxSwap.OUTER_HTML).response()
-                    : page(request, ProjectFields.values(form::value), errors);
+                    : page(ProjectFields.values(form::value), errors);
         };
     }
 
@@ -123,7 +123,7 @@ public final class ProjectRoutes implements WebResource {
         return entries.ofProject(project.id());
     }
 
-    private HTTPResponse page(WebRequest request, Map<String, String> form, List<Violation> errors) {
+    private HTTPResponse page(Map<String, String> form, List<Violation> errors) {
         return ok(Layout.page(Screen.PROJECTS,
                 ProjectViews.screen(projects, entries, form, errors)));
     }

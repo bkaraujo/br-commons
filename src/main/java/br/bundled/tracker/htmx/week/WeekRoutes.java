@@ -57,7 +57,7 @@ public final class WeekRoutes implements WebResource {
         val filter = WeekFilter.parse(request.parameter("week"), request.parameter("person"), state.today());
         val response = Ui.partial(request)
                 ? ok(WeekViews.weekContent(state, filter, blank(filter), List.of()).render())
-                : page(request, filter, blank(filter), List.of());
+                : page(filter, blank(filter), List.of());
         return response.header("Vary", "HX-Request");
     }
 
@@ -79,7 +79,7 @@ public final class WeekRoutes implements WebResource {
                 yield htmx
                         ? HtmxResponse.of(ok(WeekViews.entryForm(EntryFields.values(form::value), errors, state, filter)
                                 .render())).retarget("#entry-form").reswap(HxSwap.OUTER_HTML).response()
-                        : page(request, filter, EntryFields.values(form::value), errors);
+                        : page(filter, EntryFields.values(form::value), errors);
             }
         };
     }
@@ -132,7 +132,7 @@ public final class WeekRoutes implements WebResource {
         return HtmxResponse.of(ok(body)).pushUrl(filter.url()).response();
     }
 
-    private HTTPResponse page(WebRequest request, WeekFilter filter, Map<String, String> form, List<Violation> errors) {
+    private HTTPResponse page(WeekFilter filter, Map<String, String> form, List<Violation> errors) {
         return ok(Layout.page(Screen.WEEK,
                 WeekViews.screen(state, filter, form, errors)));
     }

@@ -32,7 +32,7 @@ public final class EntryStore {
     }
 
     public Optional<Entry> update(int id, EntryInput input) {
-        return Optional.ofNullable(entries.computeIfPresent(id, (key, old) -> Entry.of(id, input)));
+        return Optional.ofNullable(entries.computeIfPresent(id, (_, _) -> Entry.of(id, input)));
     }
 
     public Optional<Entry> remove(int id) {

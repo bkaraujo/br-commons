@@ -42,7 +42,7 @@ public final class TrackerPage implements WebResource {
     public void routes(Router router) {
         for (val screen : SCREENS) {
             router.get(screen.getFirst(), MediaType.TEXT_HTML, String.class,
-                    request -> WebResponse.html(HTTPStatus.OK, skeleton())).getOrThrow();
+                    _ -> WebResponse.html(HTTPStatus.OK, skeleton())).getOrThrow();
         }
     }
 

@@ -37,7 +37,7 @@ public final class TasksApi implements WebResource {
 
     @Override
     public void routes(Router router) {
-        router.get("/api/tasks", MediaType.APPLICATION_JSON, List.class, request -> WebResponse.ok(store.all()))
+        router.get("/api/tasks", MediaType.APPLICATION_JSON, List.class, _ -> WebResponse.ok(store.all()))
                 .getOrThrow();
         router.post("/api/tasks", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, NewTask.class, Object.class,
                 this::create).getOrThrow();

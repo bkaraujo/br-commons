@@ -18,7 +18,7 @@ public final class TaskFields {
     private TaskFields() {}
 
     public static List<Violation> check(String title) {
-        return Validation.check(List.of(TITLE), name -> List.of(title));
+        return Validation.check(List.of(TITLE), _ -> List.of(title));
     }
 
     /** What to tell the person; a real app takes it from a bundle. */

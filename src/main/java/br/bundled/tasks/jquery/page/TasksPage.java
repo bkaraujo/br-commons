@@ -29,7 +29,7 @@ public final class TasksPage implements WebResource {
 
     @Override
     public void routes(Router router) {
-        router.get("/", MediaType.TEXT_HTML, String.class, request -> WebResponse.html(HTTPStatus.OK, skeleton()))
+        router.get("/", MediaType.TEXT_HTML, String.class, _ -> WebResponse.html(HTTPStatus.OK, skeleton()))
                 .getOrThrow();
     }
 

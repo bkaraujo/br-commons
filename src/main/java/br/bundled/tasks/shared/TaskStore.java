@@ -27,12 +27,12 @@ public final class TaskStore {
     }
 
     public synchronized Optional<Task> markDone(int id, boolean done) {
-        return Optional.ofNullable(tasks.computeIfPresent(id, (key, task) -> task.withDone(done)));
+        return Optional.ofNullable(tasks.computeIfPresent(id, (_, task) -> task.withDone(done)));
     }
 
     /** Marks an open task done, or a done one open. */
     public synchronized Optional<Task> toggle(int id) {
-        return Optional.ofNullable(tasks.computeIfPresent(id, (key, task) -> task.withDone(!task.done())));
+        return Optional.ofNullable(tasks.computeIfPresent(id, (_, task) -> task.withDone(!task.done())));
     }
 
     /** Whether there was a task with the id. */

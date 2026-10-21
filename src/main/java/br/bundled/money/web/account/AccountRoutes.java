@@ -52,7 +52,7 @@ public final class AccountRoutes implements WebResource {
         router.get("/accounts", MediaType.TEXT_HTML, String.class, this::tree).getOrThrow();
         router.get("/accounts/new", MediaType.TEXT_HTML, String.class, this::blank).getOrThrow();
         router.get("/accounts/form", MediaType.TEXT_HTML, String.class, this::reform).getOrThrow();
-        router.get("/accounts/editor", MediaType.TEXT_HTML, String.class, request -> ok("")).getOrThrow();
+        router.get("/accounts/editor", MediaType.TEXT_HTML, String.class, _ -> ok("")).getOrThrow();
         router.get(RegisterViews.EMPTY, MediaType.TEXT_HTML, String.class, this::confirmEmpty).getOrThrow();
         router.post(RegisterViews.EMPTY, MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::empty)
                 .getOrThrow();

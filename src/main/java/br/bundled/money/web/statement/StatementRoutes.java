@@ -57,7 +57,7 @@ public final class StatementRoutes implements WebResource {
     @Override
     public void routes(Router router) {
         router.get("/statement", MediaType.TEXT_HTML, String.class, this::statement).getOrThrow();
-        router.get("/statement/editor", MediaType.TEXT_HTML, String.class, request -> ok("")).getOrThrow();
+        router.get("/statement/editor", MediaType.TEXT_HTML, String.class, _ -> ok("")).getOrThrow();
         router.get("/statement/transactions/new", MediaType.TEXT_HTML, String.class, this::blank).getOrThrow();
         router.get(StatementViews.SPLIT, MediaType.TEXT_HTML, String.class, this::split).getOrThrow();
         router.post("/statement/transactions", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();

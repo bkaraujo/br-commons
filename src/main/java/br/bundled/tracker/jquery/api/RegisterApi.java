@@ -89,7 +89,7 @@ public final class RegisterApi<T extends Registered, I> implements WebResource {
     @Override
     public void routes(Router router) {
         router.get(path, MediaType.APPLICATION_JSON, List.class,
-                request -> WebResponse.ok(registry.all().stream().map(this::view).toList())).getOrThrow();
+                _ -> WebResponse.ok(registry.all().stream().map(this::view).toList())).getOrThrow();
         router.post(path, MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,
                 this::create).getOrThrow();
         router.put(path + "/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,

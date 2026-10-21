@@ -28,7 +28,7 @@ public final class Registry<T extends Registered> {
     }
 
     public Optional<T> update(int id, UnaryOperator<T> change) {
-        return Optional.ofNullable(items.computeIfPresent(id, (key, item) -> change.apply(item)));
+        return Optional.ofNullable(items.computeIfPresent(id, (_, item) -> change.apply(item)));
     }
 
     public Optional<T> remove(int id) {
