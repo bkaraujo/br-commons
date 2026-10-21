@@ -33,6 +33,9 @@ final class StatementFields {
 
     static final List<Field> ALL = List.of(DATE, DESCRIPTION, AMOUNT, FROM, TO);
 
+    /** The hidden id of the transaction being edited, carried to the form of splits. */
+    static final String EDITING = "editing";
+
     /** A checked edit: {@code value} goes from {@code from} to {@code to}. */
     record Revision(LocalDate date, String description, BigDecimal value, int from, int to) {}
 
@@ -74,8 +77,11 @@ final class StatementFields {
         return values;
     }
 
-    /** The values of a saved transaction. */
+    /** The values of a saved transaction; date and description only when it is not simple. */
     static Map<String, String> values(Book book, MockTransaction transaction) {
+        if (!book.simple(transaction)) {
+            return Map.of(DATE.name(), transaction.date().toString(), DESCRIPTION.name(), transaction.description());
+        }
         return Map.of(DATE.name(), transaction.date().toString(), DESCRIPTION.name(), transaction.description(),
                 AMOUNT.name(), book.value(transaction).toPlainString(),
                 FROM.name(), String.valueOf(book.from(transaction)), TO.name(), String.valueOf(book.to(transaction)));

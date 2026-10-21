@@ -33,7 +33,8 @@ import static br.commons.lang.Htmx.htmxScript;
  * (retargeted there) and the menu out of band, so the scripts in the {@code <head>} load once. On narrow screens the
  * menu becomes a bar at the bottom, in reach of the thumb. The header's real height goes to {@code --top-height}
  * ({@code static/money/header.js}). Every {@code <select>} gets a live filter in the browser
- * ({@code static/money/combo.js}); the home's chart is drawn from its table ({@code static/money/chart.js}).
+ * ({@code static/money/combo.js}); the home's chart is drawn from its table ({@code static/money/chart.js}); the form of splits sums its
+ * columns while typing ({@code static/money/splits.js}).
  */
 @NullMarked
 public final class Layout {
@@ -72,7 +73,8 @@ public final class Layout {
                         script(src("/static/money/combo.js"), defer()),
                         script(src("/static/money/chart.js"), defer()),
                         script(src("/static/money/header.js"), defer()),
-                        script(src("/static/money/tree.js"), defer())
+                        script(src("/static/money/tree.js"), defer()),
+                        script(src("/static/money/splits.js"), defer())
                 ),
                 body(
                         hxBoost(true),

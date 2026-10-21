@@ -2,6 +2,7 @@ package br.bundled.money.web.statement;
 
 import br.bundled.money.web.mock.Book;
 import br.bundled.money.web.mock.MockAccount;
+import br.bundled.money.web.mock.MockTransaction;
 import br.bundled.money.web.ui.Layout;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
@@ -24,7 +25,10 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static br.bundled.money.web.ui.Ui.ok;
@@ -36,7 +40,9 @@ import static br.bundled.money.web.ui.Ui.pathId;
  * ({@code #statement-editor}) receives the form ({@code /statement/transactions/new},
  * {@code /statement/transactions/{id}/edit}) or the confirmation ({@code /statement/transactions/{id}/delete});
  * creating, saving and deleting answer with the panel of the account and month sent along, plus the list out of
- * band; invalid, the form with its errors. Literal routes come before {@code {id}}.
+ * band; invalid, the form with its errors. The simple form or the form of splits (marked by {@link SplitFields#MODE}),
+ * re-rendered by {@code /statement/transactions/split} as lines are added or removed. Literal routes come before
+ * {@code {id}}.
  */
 @NullMarked
 public final class StatementRoutes implements WebResource {
@@ -55,6 +61,7 @@ public final class StatementRoutes implements WebResource {
         router.get("/statement", MediaType.TEXT_HTML, String.class, this::statement).getOrThrow();
         router.get("/statement/editor", MediaType.TEXT_HTML, String.class, request -> ok("")).getOrThrow();
         router.get("/statement/transactions/new", MediaType.TEXT_HTML, String.class, this::blank).getOrThrow();
+        router.get(StatementViews.SPLIT, MediaType.TEXT_HTML, String.class, this::split).getOrThrow();
         router.post("/statement/transactions", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();
         router.get("/statement/transactions/{id}/edit", MediaType.TEXT_HTML, String.class, this::edit).getOrThrow();
         router.put("/statement/transactions/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::update).getOrThrow();
@@ -80,13 +87,42 @@ public final class StatementRoutes implements WebResource {
                 month).render());
     }
 
+    /** A simple transaction in the simple form; any other in the form of splits. */
     private HTTPResponse edit(WebRequest request) {
-        return book.transaction(pathId(request))
-                .map(transaction -> book.editable(transaction) && !book.closed(transaction)
-                        ? ok(StatementViews.transactionForm(book, transaction, StatementFields.values(book, transaction),
-                                List.of(), chosen(request::parameter), month(request::parameter)).render())
-                        : ok(""))
+        val account = chosen(request::parameter);
+        val month = month(request::parameter);
+        return book.transaction(pathId(request)).filter(transaction -> !book.closed(transaction))
+                .map(transaction -> {
+                    val values = StatementFields.values(book, transaction);
+                    return ok((book.simple(transaction)
+                            ? StatementViews.transactionForm(book, transaction, values, List.of(), account, month)
+                            : StatementViews.splitForm(book, transaction, values, SplitFields.lines(book, transaction),
+                                    List.of(), account, month)).render());
+                })
                 .orElseGet(() -> ok(""));
+    }
+
+    /**
+     * The form of splits from the values sent along (htmx sends the form in the query string): the lines typed, or
+     * the simple form turned into lines; {@code add} appends a blank line, {@code remove} drops one (two stay).
+     */
+    private HTTPResponse split(WebRequest request) {
+        val form = Form.parse(Objects.requireNonNullElse(request.uri().getRawQuery(), ""));
+        val values = StatementFields.values(form::value);
+        val typed = SplitFields.SPLITS.equals(form.value(SplitFields.MODE));
+        val lines = new ArrayList<>(typed ? SplitFields.lines(form::all) : SplitFields.lines(values));
+        val remove = Ui.number(form.value("remove"));
+        if (remove != null && remove >= 0 && remove < lines.size() && lines.size() > 2) lines.remove((int) remove);
+        if (!form.value("add").isEmpty() || lines.size() < 2) lines.add(SplitFields.Line.BLANK);
+        val transaction = editing(form::value).orElse(null);
+        return ok(StatementViews.splitForm(book, transaction, values, lines, List.of(), chosen(form::value),
+                month(form::value)).render());
+    }
+
+    /** The transaction being edited ({@link StatementFields#EDITING}), while it can still be changed. */
+    private Optional<MockTransaction> editing(Function<String, @Nullable String> value) {
+        val id = Ui.number(value.apply(StatementFields.EDITING));
+        return id == null ? Optional.empty() : book.transaction(id).filter(transaction -> !book.closed(transaction));
     }
 
     private HTTPResponse confirm(WebRequest request) {
@@ -103,6 +139,19 @@ public final class StatementRoutes implements WebResource {
         val form = request.body(Form.class).getOrThrow();
         val account = chosen(form::value);
         val month = month(form::value);
+        if (SplitFields.SPLITS.equals(form.value(SplitFields.MODE))) {
+            val lines = SplitFields.lines(form::all);
+            return switch (SplitFields.read(form::value, lines, book)) {
+                case Result.Success<SplitFields.Entry, List<Violation>>(var entry) -> {
+                    book.enter(entry.date(), entry.description(), entry.splits());
+                    yield HtmxRequest.of(request).isHtmx()
+                            ? changed(account, month, "Lançamento \"" + entry.description() + "\" criado.")
+                            : WebResponse.redirect("/statement?account=" + account.id() + "&month=" + month);
+                }
+                case Result.Failure<SplitFields.Entry, List<Violation>>(var errors) -> invalid(StatementViews.splitForm(
+                        book, null, StatementFields.values(form::value), lines, errors, account, month));
+            };
+        }
         return switch (StatementFields.read(form::value, book)) {
             case Result.Success<StatementFields.Revision, List<Violation>>(var revision) -> {
                 book.move(revision.date(), revision.description(), revision.from(), revision.to(), revision.value());
@@ -126,8 +175,19 @@ public final class StatementRoutes implements WebResource {
         if (book.closed(found.get())) {
             return changed(account, month, CLOSED);
         }
-        if (!book.editable(found.get())) {
-            return changed(account, month, "Lançamento com mais de duas contas: não é editável aqui.");
+        if (SplitFields.SPLITS.equals(form.value(SplitFields.MODE))) {
+            val lines = SplitFields.lines(form::all);
+            return switch (SplitFields.read(form::value, lines, book)) {
+                case Result.Success<SplitFields.Entry, List<Violation>>(var entry) -> {
+                    book.rewrite(found.get().id(), entry.date(), entry.description(), entry.splits());
+                    yield changed(account, month, "Lançamento \"" + entry.description() + "\" atualizado.");
+                }
+                case Result.Failure<SplitFields.Entry, List<Violation>>(var errors) -> invalid(StatementViews.splitForm(
+                        book, found.get(), StatementFields.values(form::value), lines, errors, account, month));
+            };
+        }
+        if (!book.simple(found.get())) {
+            return changed(account, month, "Lançamento com mais de duas contas: use a divisão em várias contas.");
         }
         return switch (StatementFields.read(form::value, book)) {
             case Result.Success<StatementFields.Revision, List<Violation>>(var revision) -> {

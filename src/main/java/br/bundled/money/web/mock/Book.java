@@ -399,10 +399,17 @@ public final class Book {
      * {@code from}, each converted to the sign of its account nature (amount = debit value × type.debit).
      */
     public MockTransaction move(LocalDate date, String description, int from, int to, BigDecimal value) {
+        return enter(date, description, splits(from, to, value));
+    }
+
+    /**
+     * A complete transaction (INTENT F2): any number of splits, signed in the nature of each account (see
+     * {@link MockSplit}). It must balance, {@code Σ amount × type.debit = 0}, and be dated in the open period.
+     */
+    public MockTransaction enter(LocalDate date, String description, List<MockSplit> splits) {
         open(date);
-        val transaction = new MockTransaction(transactionIds.incrementAndGet(), date, description, splits(from, to, value));
-        transactions.add(transaction);
-        return transaction;
+        balance(splits);
+        return post(date, description, splits);
     }
 
     /**
@@ -427,36 +434,54 @@ public final class Book {
     }
 
     /**
-     * Whether the editor can rewrite it ({@link #from}, {@link #to}, {@link #revise}): one account gives, one receives.
-     * A transaction with more splits (an imported paycheck with its deductions) is shown and deleted, not edited.
+     * Whether the simple editor fits ({@link #from}, {@link #to}, {@link #revise}): one account gives, one receives.
+     * Any other (an imported paycheck with its deductions) goes to the editor of splits ({@link #rewrite}).
      */
-    public boolean editable(MockTransaction transaction) {
-        val signs = transaction.splits().stream()
-                .map(split -> split.amount().signum() * type(split.account()).debit).toList();
+    public boolean simple(MockTransaction transaction) {
+        val signs = transaction.splits().stream().map(split -> debit(split).signum()).toList();
         return signs.size() == 2 && signs.contains(1) && signs.contains(-1);
     }
 
-    /** The account the value of a two-split transaction leaves: the split that decreases in debit terms. */
+    /** The account the value of a simple transaction leaves: the split that decreases in debit terms. */
     public int from(MockTransaction transaction) {
-        return transaction.splits().stream().filter(split -> split.amount().signum() * type(split.account()).debit < 0)
+        return transaction.splits().stream().filter(split -> debit(split).signum() < 0)
                 .findFirst().orElseThrow().account();
     }
 
-    /** The account the value of a two-split transaction goes to. */
+    /** The account the value of a simple transaction goes to. */
     public int to(MockTransaction transaction) {
-        return transaction.splits().stream().filter(split -> split.amount().signum() * type(split.account()).debit > 0)
+        return transaction.splits().stream().filter(split -> debit(split).signum() > 0)
                 .findFirst().orElseThrow().account();
+    }
+
+    /** The split in debit terms (GnuCash's sign): positive is what enters the account, negative what leaves it. */
+    public BigDecimal debit(MockSplit split) {
+        return split.amount().multiply(BigDecimal.valueOf(type(split.account()).debit));
     }
 
     /** The transaction rewritten in place, same id: the splits rebuilt as {@link #move} does. */
     public Optional<MockTransaction> revise(int id, LocalDate date, String description, int from, int to, BigDecimal value) {
+        return rewrite(id, date, description, splits(from, to, value));
+    }
+
+    /** The transaction rewritten in place, same id, with the splits given (see {@link #enter}). */
+    public Optional<MockTransaction> rewrite(int id, LocalDate date, String description, List<MockSplit> splits) {
         val index = indexOf(id);
         if (index < 0) return Optional.empty();
         open(transactions.get(index).date());
         open(date);
-        val revised = new MockTransaction(id, date, description, splits(from, to, value));
+        balance(splits);
+        val revised = new MockTransaction(id, date, description, List.copyOf(splits));
         transactions.set(index, revised);
         return Optional.of(revised);
+    }
+
+    /** At least two splits summing zero in debit terms; the screens check before, this is the rule itself. */
+    private void balance(List<MockSplit> splits) {
+        val total = splits.stream().map(this::debit).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (splits.size() < 2 || total.signum() != 0) {
+            throw new IllegalArgumentException("Unbalanced transaction: " + splits);
+        }
     }
 
     public boolean discard(int id) {

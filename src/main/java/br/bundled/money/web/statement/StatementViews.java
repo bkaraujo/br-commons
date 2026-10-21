@@ -23,9 +23,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.IntStream;
 
 import static br.bundled.money.web.ui.Ui.message;
 import static br.commons.lang.Html5.*;
@@ -36,7 +36,9 @@ import static br.commons.lang.Htmx.*;
  * ({@code #statement-panel}) with the chosen account's month. The list loads only the panel; it marks the chosen
  * account itself, so its scroll is kept. The month travels to the list links in {@code #statement-month}.
  * "Novo lançamento" creates and each line edits or deletes its transaction in {@code #statement-editor}, a modal
- * dialog; saving or deleting answers with the panel and, out of band, the list with the new balances.
+ * dialog; saving or deleting answers with the panel and, out of band, the list with the new balances. A transaction
+ * from one account to another uses the simple form; "Dividir em várias contas" turns it into the form of splits
+ * (INTENT F2), where any other one is edited.
  */
 @NullMarked
 final class StatementViews {
@@ -125,14 +127,12 @@ final class StatementViews {
                         small(cls("sub"), text(Text.data(line.counterpart())))),
                 td(cls("num"), Ui.amount(line.amount(), true)),
                 td(cls("num hide-narrow"), Ui.amount(line.balance(), false)),
-                // fechado (antes da data-limite) é imutável: sem ações; com mais de duas contas (importado) só exclui,
-                // o editor reescreve como de uma conta para outra
+                // fechado (antes da data-limite) é imutável: sem ações
                 td(cls("actions"), when(!closed, () -> fragment(
-                        when(book.editable(transaction), () -> button(
-                                type(ButtonType.BUTTON), cls("link icon-button"), hxGet(path + "/edit" + context),
+                        button(type(ButtonType.BUTTON), cls("link icon-button"), hxGet(path + "/edit" + context),
                                 hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
                                 title(message("Editar")), ariaLabel(message("Editar " + transaction.description())),
-                                span(cls("glyph glyph-edit"), ariaHidden(true)))),
+                                span(cls("glyph glyph-edit"), ariaHidden(true))),
                         button(type(ButtonType.BUTTON), cls("link danger icon-button"), hxGet(path + "/delete" + context),
                                 hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
                                 title(message("Excluir")), ariaLabel(message("Excluir " + transaction.description())),
@@ -148,7 +148,7 @@ final class StatementViews {
 
     /**
      * Creating ({@code transaction == null}) or editing: the value from one account to another. The hidden account
-     * and month re-render the panel.
+     * and month re-render the panel; "Dividir" takes the values to the form of splits.
      */
     static Node transactionForm(Book book, @Nullable MockTransaction transaction, Map<String, String> values,
                                 List<Violation> errors, MockAccount account, YearMonth month) {
@@ -160,7 +160,7 @@ final class StatementViews {
                 transaction == null ? hxPost("/statement/transactions") : hxPut("/statement/transactions/" + transaction.id()),
                 hxTarget("#statement-panel"), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(message(title))),
-                context(account, month),
+                context(account, month), editing(transaction),
                 labeled(StatementFields.DATE, "Data", values, errors, null),
                 labeled(StatementFields.AMOUNT, "Valor (R$)", values, errors, null, inputmode(InputMode.DECIMAL)),
                 div(cls("wide"), labeled(StatementFields.DESCRIPTION, "Descrição", values, errors, null)),
@@ -168,8 +168,97 @@ final class StatementViews {
                 labeled(StatementFields.TO, "Para (entra em)", values, errors, accounts),
                 div(cls("buttons wide"),
                         button(type(ButtonType.SUBMIT), text(message("Salvar"))),
-                        cancel())
+                        cancel(),
+                        button(type(ButtonType.BUTTON), cls("link split-toggle"), hxGet(SPLIT), hxInclude("closest form"),
+                                hxTarget("#transaction-form"), hxSwap(HxSwap.OUTER_HTML),
+                                text(message("Dividir em várias contas"))))
         );
+    }
+
+    /** Re-renders the form of splits from the values sent along: {@code ?add=1} adds a line, {@code ?remove=2} one. */
+    static final String SPLIT = "/statement/transactions/split";
+
+    /**
+     * The complete transaction (INTENT F2): a line per split, the account and the value that enters or leaves it.
+     * Lines are added and removed by the server ({@link #SPLIT}); {@code splits.js} shows the totals as they are typed.
+     */
+    static Node splitForm(Book book, @Nullable MockTransaction transaction, Map<String, String> values,
+                          List<SplitFields.Line> lines, List<Violation> errors, MockAccount account, YearMonth month) {
+        val title = transaction == null ? "Novo lançamento" : "Editar lançamento";
+        val accounts = options(book);
+        val in = sum(lines, SplitFields.Line::in);
+        val out = sum(lines, SplitFields.Line::out);
+        return form(
+                id("transaction-form"), cls("transaction-form split-form card"), role("dialog"), ariaLabel(message(title)),
+                method(FormMethod.POST), transaction == null ? action("/statement/transactions") : fragment(),
+                transaction == null ? hxPost("/statement/transactions") : hxPut("/statement/transactions/" + transaction.id()),
+                hxTarget("#statement-panel"), hxSwap(HxSwap.OUTER_HTML),
+                h3(text(message(title))),
+                context(account, month), editing(transaction),
+                input(type("hidden"), name(SplitFields.MODE), value(SplitFields.SPLITS)),
+                labeled(StatementFields.DATE, "Data", values, errors, null),
+                div(cls("wide"), labeled(StatementFields.DESCRIPTION, "Descrição", values, errors, null)),
+                div(cls("wide split-lines"), table(
+                        cls("splits"),
+                        thead(tr(th(text(message("Conta"))), th(cls("num"), text(message("Entra (R$)"))),
+                                th(cls("num"), text(message("Sai (R$)"))), th(ariaLabel(message("Ações"))))),
+                        tbody(each(indexes(lines), index -> splitLine(lines.get(index), index, lines.size() > 2,
+                                accounts, errors))),
+                        tfoot(tr(th(text(message("Total"))),
+                                td(cls("num"), output(cls("split-sum-in"), text(Text.data(Ui.money(in))))),
+                                td(cls("num"), output(cls("split-sum-out"), text(Text.data(Ui.money(out))))),
+                                td()))),
+                        p(cls("split-balance" + (in.compareTo(out) == 0 ? "" : " neg")), role("status"),
+                                text(Text.data(difference(in, out)))),
+                        Ui.errorOf(SplitFields.TOTAL_FIELD, errors, SplitFields::message)),
+                div(cls("buttons wide"),
+                        button(type(ButtonType.SUBMIT), text(message("Salvar"))),
+                        cancel(),
+                        button(type(ButtonType.BUTTON), cls("link"), hxGet(SPLIT + "?add=1"), hxInclude("closest form"),
+                                hxTarget("#transaction-form"), hxSwap(HxSwap.OUTER_HTML),
+                                text(message("+ Linha"))))
+        );
+    }
+
+    private static Node splitLine(SplitFields.Line line, int index, boolean removable, List<Option> accounts,
+                                  List<Violation> errors) {
+        val error = errors.stream().filter(violation -> violation.field().equals(SplitFields.line(index))).findFirst();
+        return tr(
+                td(select(DIALECT, SplitFields.ACCOUNT, accounts, Set.of(line.account()),
+                        id("split-account-" + index), ariaLabel(message("Conta"))),
+                        error.map(violation -> (Node) small(cls("error"), role("alert"),
+                                text(message(SplitFields.message(violation))))).orElseGet(() -> fragment())),
+                td(cls("num"), input(DIALECT, SplitFields.IN, line.in(), inputmode(InputMode.DECIMAL),
+                        ariaLabel(message("Entra (R$)")))),
+                td(cls("num"), input(DIALECT, SplitFields.OUT, line.out(), inputmode(InputMode.DECIMAL),
+                        ariaLabel(message("Sai (R$)")))),
+                td(cls("actions"), when(removable, () -> button(
+                        type(ButtonType.BUTTON), cls("link danger icon-button"), hxGet(SPLIT + "?remove=" + index),
+                        hxInclude("closest form"), hxTarget("#transaction-form"), hxSwap(HxSwap.OUTER_HTML),
+                        title(message("Remover linha")), ariaLabel(message("Remover linha")),
+                        span(cls("glyph glyph-delete"), ariaHidden(true)))))
+        );
+    }
+
+    private static List<Integer> indexes(List<?> list) {
+        return IntStream.range(0, list.size()).boxed().toList();
+    }
+
+    /** Σ of a column, the values that are not a number left out (the server says what is wrong on saving). */
+    private static BigDecimal sum(List<SplitFields.Line> lines, Function<SplitFields.Line, String> column) {
+        return lines.stream().map(line -> SplitFields.amount(column.apply(line))).filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** As {@code splits.js} writes it while typing. */
+    private static String difference(BigDecimal in, BigDecimal out) {
+        return in.compareTo(out) == 0 ? "Balanceado." : "Diferença: " + Ui.money(in.subtract(out).abs()) + ".";
+    }
+
+    /** The transaction being edited, so "Dividir" keeps saving it. */
+    private static Node editing(@Nullable MockTransaction transaction) {
+        return transaction == null ? fragment()
+                : input(type("hidden"), name(StatementFields.EDITING), value(String.valueOf(transaction.id())));
     }
 
     // ---------- delete

@@ -750,6 +750,59 @@ body:has(.modal > .card) {
     align-items: center;
 }
 
+/* lançamento em várias contas (splits): tabela Conta | Entra | Sai, totais e diferença abaixo */
+.modal > .split-form {
+    width: min(100%, 52rem);
+}
+
+.splits {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.splits th,
+.splits td {
+    padding: .3rem .35rem;
+    vertical-align: top;
+    text-align: left;
+}
+
+.splits th.num,
+.splits td.num {
+    width: 9rem;
+    text-align: right;
+}
+
+.splits th:last-child,
+.splits td:last-child {
+    width: 2.75rem;
+}
+
+.splits .actions button {
+    opacity: 1;
+}
+
+.splits td.num input {
+    width: 100%;
+    text-align: right;
+}
+
+.splits tfoot th,
+.splits tfoot td {
+    border-top: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+}
+
+.split-balance {
+    margin: .5rem 0 0;
+    color: var(--muted);
+}
+
+.split-balance.neg {
+    color: var(--neg);
+}
+
 .delete-panel .field {
     max-width: 28rem;
     margin-bottom: 1rem;
@@ -1263,6 +1316,11 @@ tr:hover .actions button,
     .account-form,
     .transaction-form {
         grid-template-columns: 1fr;
+    }
+
+    .splits th.num,
+    .splits td.num {
+        width: 6.5rem;
     }
 
     .actions button {
