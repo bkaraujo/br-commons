@@ -4,6 +4,7 @@ import br.bundled.money.business._0_domain.model.AccountType;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Ledger;
+import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.FormMethod;
@@ -120,7 +121,7 @@ final class ReportViews {
                 each(book.tree().stream().filter(account -> !account.equals(root) && subtree.contains(account))
                                 .toList(),
                         child -> tr(cls("item depth-" + Math.min(book.depth(child), 3)),
-                        td(a(href("/accounts/" + child.identity()), text(Text.data(child.name())))),
+                        td(a(href(Screen.STATEMENT.path() + "?account=" + child.identity()), text(Text.data(child.name())))),
                         td(cls("num"), book.children(child).isEmpty() || child.financial()
                                 ? Ui.amount(book.balanceAs(child, day, type), false) : fragment()))));
         }).orElseGet(() -> fragment());

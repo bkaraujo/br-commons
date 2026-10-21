@@ -4,6 +4,7 @@ import br.bundled.money.business._0_domain.model.AccountType;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.web.ui.Forms;
+import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.FormMethod;
@@ -99,7 +100,8 @@ final class RegisterViews {
                 td(when(depth == 0 && !book.children(account).isEmpty(), () -> button(
                                 type(ButtonType.BUTTON), cls("toggle"), ariaExpanded(false), ariaControls(BRANCH + account.identity()),
                                 ariaLabel(message("Mostrar ou ocultar subcontas")), span(cls("chevron"), ariaHidden(true)))),
-                        a(href(path), text(Text.data(account.name())))),
+                        a(href(Screen.STATEMENT.path() + "?account=" + account.identity()),
+                                text(Text.data(account.name())))),
                 td(cls("hide-narrow"), span(cls("badge" + (account.financial() ? " financial" : "")),
                         text(message(Ui.typeLabel(account.type()))))),
                 td(cls("num"), Ui.amount(balance, false)),

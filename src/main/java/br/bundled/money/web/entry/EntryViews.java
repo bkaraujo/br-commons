@@ -6,6 +6,7 @@ import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.business._0_domain.model.TransactionSplit;
 import br.bundled.money.web.ui.Forms;
 import br.bundled.money.web.ui.Recent;
+import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.FormMethod;
@@ -66,7 +67,7 @@ final class EntryViews {
         val account = saved.splits().stream().map(TransactionSplit::account).filter(Account::financial).findFirst();
         return p(cls("notice"), role("status"),
                 text(message("Lançado: " + saved.description() + " · " + Ui.money(book.value(saved)) + ". ")),
-                account.map(found -> (Node) a(href("/accounts/" + found.identity()),
+                account.map(found -> (Node) a(href(Screen.STATEMENT.path() + "?account=" + found.identity()),
                         text(message("Ver em " + found.name())))).orElseGet(() -> fragment()));
     }
 

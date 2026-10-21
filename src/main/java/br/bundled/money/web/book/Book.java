@@ -136,6 +136,11 @@ public final class Book {
                 .filter(account -> account.type() != AccountType.STOCK && account.type() != AccountType.MUTUAL).toList();
     }
 
+    /** A credit card: a financial account of type {@link AccountType#CREDIT}. */
+    public static boolean card(Account account) {
+        return account.type() == AccountType.CREDIT;
+    }
+
     /** A category of the quick entry: income or expense. */
     public static boolean category(Account account) {
         return account.type() == AccountType.INCOME || account.type() == AccountType.EXPENSE;

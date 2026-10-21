@@ -17,7 +17,6 @@ import br.commons.lang.html.form.Violation;
 import br.commons.lang.htmx.HtmxRequest;
 import br.commons.lang.htmx.HtmxResponse;
 import br.commons.lang.htmx.HxSwap;
-import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
@@ -35,13 +34,13 @@ import static br.bundled.money.web.ui.Ui.ok;
 import static br.bundled.money.web.ui.Ui.pathId;
 
 /**
- * The chart of accounts, its register and the ledger. {@code GET /accounts}: the tree. The editor
+ * The chart of accounts and its register. {@code GET /accounts}: the tree. The editor
  * ({@code #account-editor}) receives the form ({@code /accounts/new}, {@code /accounts/{id}/edit}, re-rendered by
  * {@code /accounts/form} when the type changes) or the delete panel ({@code /accounts/{id}/delete}). Saving and
  * deleting answer with the whole {@code #accounts}; invalid, the form or the panel with its errors; refused by the
  * services (a rule of the domain), the tree with the reason. {@code /accounts/empty}: the empty book from the personal
- * chart of accounts (INTENT F8), confirmed first. {@code GET /accounts/{id}?month=2026-10}: the ledger. Literal routes
- * come before {@code {id}}: the first match wins.
+ * chart of accounts (INTENT F8), confirmed first. An account's transactions are in the statement
+ * ({@code /statement?account=}). Literal routes come before {@code {id}}: the first match wins.
  */
 @NullMarked
 public final class AccountRoutes implements WebResource {
@@ -58,7 +57,6 @@ public final class AccountRoutes implements WebResource {
         router.post(RegisterViews.EMPTY, MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::empty)
                 .getOrThrow();
         router.post("/accounts", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();
-        router.get("/accounts/{id}", MediaType.TEXT_HTML, String.class, this::ledger).getOrThrow();
         router.get("/accounts/{id}/edit", MediaType.TEXT_HTML, String.class, this::edit).getOrThrow();
         router.put("/accounts/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::update).getOrThrow();
         router.get("/accounts/{id}/delete", MediaType.TEXT_HTML, String.class, this::confirm).getOrThrow();
@@ -205,18 +203,5 @@ public final class AccountRoutes implements WebResource {
 
     private HTTPResponse page(WebRequest request, Node editor) {
         return Layout.page(request, Screen.ACCOUNTS, RegisterViews.screen(book, editor));
-    }
-
-    // ---------- ledger
-
-    private HTTPResponse ledger(WebRequest request) {
-        val account = book.account(pathId(request));
-        if (account.isEmpty()) {
-            return Layout.page(request, HTTPStatus.NOT_FOUND, Screen.ACCOUNTS, AccountViews.missing());
-        }
-        val month = Ui.monthOf(request.parameter("month"), book.month());
-        val view = AccountViews.ledger(book, account.get(), month);
-        val screen = account.get().financial() ? Screen.HOME : Screen.ACCOUNTS;
-        return Ui.partial(request) ? ok(view.render()) : Layout.page(request, screen, view);
     }
 }

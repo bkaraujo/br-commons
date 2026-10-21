@@ -14,6 +14,7 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
 import java.time.YearMonth;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.IntStream;
 
@@ -49,14 +50,30 @@ final class HomeViews {
         );
     }
 
-    /** Without htmx the form goes to the home itself, with the checked accounts. */
+    /**
+     * The accounts and the credit cards in separate cards, only to show they are of different kinds; an empty one
+     * is left out.
+     */
     private static Node accounts(Book book, Set<Account> selected) {
-        return form(id("home-accounts"), cls("statement-accounts card"), ariaLabel(message("Contas")),
-                method(FormMethod.GET), action(Screen.HOME.path()),
-                hxGet("/home/chart"), hxTrigger("change"), hxTarget("#home-chart"), hxSwap(HxSwap.OUTER_HTML),
-                h3(text(message("Minhas contas"))),
+        val accounts = book.moneyAccounts();
+        return div(cls("home-accounts"),
+                group("home-accounts", "Contas", accounts.stream().filter(account -> !Book.card(account)).toList(),
+                        selected),
+                group("home-cards", "Cartões", accounts.stream().filter(Book::card).toList(), selected));
+    }
+
+    /**
+     * A titled form of checkable accounts. A change sends the checkboxes of both forms, so the chart sees every
+     * checked account; without htmx the form goes to the home itself.
+     */
+    private static Node group(String id, String title, List<Account> accounts, Set<Account> selected) {
+        return accounts.isEmpty() ? fragment() : form(id(id), cls("statement-accounts card"),
+                ariaLabel(message(title)), method(FormMethod.GET), action(Screen.HOME.path()),
+                hxGet("/home/chart"), hxTrigger("change"), hxInclude("#home-accounts, #home-cards"),
+                hxTarget("#home-chart"), hxSwap(HxSwap.OUTER_HTML),
+                h3(text(message(title))),
                 input(type("hidden"), name(FILTERED), value("1")),
-                ul(each(book.moneyAccounts(), account -> li(option(account, selected.contains(account))))));
+                ul(each(accounts, account -> li(option(account, selected.contains(account))))));
     }
 
     /** A checkbox with the name. */
