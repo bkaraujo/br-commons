@@ -976,11 +976,9 @@ tr:hover .actions button,
     font-size: 1.1rem;
 }
 
-.ledger-table td:nth-child(2) {
-    display: grid;
-}
-
+/* a linha de baixo (contrapartida, previsto) em bloco: a célula continua table-cell e a borda da linha não quebra */
 .sub {
+    display: block;
     color: var(--muted);
     font-size: .8rem;
 }
@@ -1095,10 +1093,6 @@ tr:hover .actions button,
 .ledger-table tr.planned td {
     color: var(--muted);
     font-style: italic;
-}
-
-.ledger-table tr.planned td:first-child {
-    display: grid;
 }
 
 /* ---------- lançamento rápido */
