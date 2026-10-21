@@ -17,6 +17,7 @@ import br.commons.lang.html.form.Violation;
 import br.commons.lang.htmx.HtmxRequest;
 import br.commons.lang.htmx.HtmxResponse;
 import br.commons.lang.htmx.HxSwap;
+import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
@@ -114,7 +115,7 @@ public final class AccountRoutes implements WebResource {
     /** The book starts over from the template; without htmx: post/redirect/get. */
     private HTTPResponse empty(WebRequest request) {
         val started = book.startEmpty();
-        if (!HtmxRequest.of(request).isHtmx()) return WebResponse.redirect("/accounts");
+        if (!HtmxRequest.of(request).isHtmx()) return redirected(request, started);
         return saved(started, "Livro vazio criado com o plano de contas pessoal.");
     }
 
@@ -128,7 +129,7 @@ public final class AccountRoutes implements WebResource {
             case Result.Success<AccountInput, List<Violation>>(var input) -> {
                 val created = book.create(input);
                 yield htmx ? saved(created, created.map(account -> "Conta \"" + book.path(account) + "\" criada.").getOrElse(""))
-                        : WebResponse.redirect("/accounts");
+                        : redirected(request, created);
             }
             case Result.Failure<AccountInput, List<Violation>>(var errors) -> {
                 val view = RegisterViews.accountForm(book, AccountFields.values(form::value), errors, null);
@@ -149,7 +150,7 @@ public final class AccountRoutes implements WebResource {
             case Result.Success<AccountInput, List<Violation>>(var input) -> {
                 val updated = book.update(current.get(), input);
                 yield htmx ? saved(updated, updated.map(account -> "Conta \"" + book.path(account) + "\" atualizada.").getOrElse(""))
-                        : WebResponse.redirect("/accounts");
+                        : redirected(request, updated);
             }
             case Result.Failure<AccountInput, List<Violation>>(var errors) -> {
                 val view = RegisterViews.accountForm(book, AccountFields.values(form::value), errors, current.get());
@@ -201,6 +202,14 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse saved(Result<?, BusinessError> result, String notice) {
         val text = result instanceof Result.Failure<?, BusinessError>(var error) ? error.render() : notice;
         return ok(RegisterViews.screen(book, RegisterViews.notice(text)).render());
+    }
+
+    /** Without htmx: post/redirect/get when the service did it; the page with the reason (422) when it refused. */
+    private HTTPResponse redirected(WebRequest request, Result<?, BusinessError> result) {
+        return result instanceof Result.Failure<?, BusinessError>(var error)
+                ? Layout.page(request, HTTPStatus.UNPROCESSABLE_CONTENT, Screen.ACCOUNTS,
+                        RegisterViews.screen(book, RegisterViews.notice(error.render())))
+                : WebResponse.redirect("/accounts");
     }
 
     private static HTTPResponse invalid(Node view, String target) {

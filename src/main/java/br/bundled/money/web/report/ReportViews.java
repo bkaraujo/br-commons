@@ -88,9 +88,9 @@ final class ReportViews {
         return monthly(book, from, EVOLUTION, evolutionTable(book, from));
     }
 
-    /** The closing card on its own page; the card swaps itself, so there is no month to navigate. */
-    static Node closingPage(Book book) {
-        return section(id("reports"), cls("reports"), div(cls("ledger-head"), back()), closing(book, null, null));
+    /** The closing card ({@link #closing}) on its own page; the card swaps itself, so there is no month to navigate. */
+    static Node closingPage(Node card) {
+        return section(id("reports"), cls("reports"), div(cls("ledger-head"), back()), card);
     }
 
     /** A report of a month: the way back to the list, the month navigation of {@code path} and the report. */

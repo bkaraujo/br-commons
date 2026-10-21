@@ -4,6 +4,7 @@ import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.ui.Layout;
+import br.bundled.money.web.ui.Ledger;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.Result;
@@ -15,6 +16,7 @@ import br.commons.lang.html.form.Violation;
 import br.commons.lang.htmx.HtmxRequest;
 import br.commons.lang.htmx.HtmxResponse;
 import br.commons.lang.htmx.HxSwap;
+import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
@@ -71,7 +73,7 @@ public final class StatementRoutes implements WebResource {
         val month = month(request::parameter);
         val account = chosen(request::parameter);
         return Ui.partial(request) ? ok(StatementViews.panel(book, account, month, Html.fragment()).render())
-                : Layout.page(request, Screen.STATEMENT, StatementViews.screen(book, account, month));
+                : Layout.page(request, Screen.STATEMENT, StatementViews.screen(book, account, month, Html.fragment()));
     }
 
     // ---------- editor
@@ -131,7 +133,7 @@ public final class StatementRoutes implements WebResource {
 
     // ---------- update, delete
 
-    /** Without htmx: post/redirect/get to the statement of the account and month. */
+    /** Without htmx: post/redirect/get to the statement of the account and month ({@link #after}). */
     private HTTPResponse create(WebRequest request) {
         val form = request.body(Form.class).getOrThrow();
         val account = chosen(form::value);
@@ -141,9 +143,7 @@ public final class StatementRoutes implements WebResource {
             return switch (SplitFields.read(form::value, lines, book)) {
                 case Result.Success<SplitFields.Entry, List<Violation>>(var entry) -> {
                     val posted = book.enter(entry.date(), entry.description(), entry.splits());
-                    yield HtmxRequest.of(request).isHtmx()
-                            ? changed(account, month, outcome(posted, "Lançamento \"" + entry.description() + "\" criado."))
-                            : WebResponse.redirect("/statement?account=" + account.identity() + "&month=" + month);
+                    yield after(request, account, month, posted, "Lançamento \"" + entry.description() + "\" criado.");
                 }
                 case Result.Failure<SplitFields.Entry, List<Violation>>(var errors) -> invalid(StatementViews.splitForm(
                         book, null, StatementFields.values(form::value), lines, errors, account, month));
@@ -152,9 +152,7 @@ public final class StatementRoutes implements WebResource {
         return switch (StatementFields.read(form::value, book)) {
             case Result.Success<StatementFields.Revision, List<Violation>>(var revision) -> {
                 val posted = book.move(revision.date(), revision.description(), revision.from(), revision.to(), revision.value());
-                yield HtmxRequest.of(request).isHtmx()
-                        ? changed(account, month, outcome(posted, "Lançamento \"" + revision.description() + "\" criado."))
-                        : WebResponse.redirect("/statement?account=" + account.identity() + "&month=" + month);
+                yield after(request, account, month, posted, "Lançamento \"" + revision.description() + "\" criado.");
             }
             case Result.Failure<StatementFields.Revision, List<Violation>>(var errors) -> invalid(
                     StatementViews.transactionForm(book, null, StatementFields.values(form::value), errors, account, month));
@@ -217,6 +215,20 @@ public final class StatementRoutes implements WebResource {
     /** {@code done} when the service did it; otherwise the reason it gave (a rule of the domain). */
     private static String outcome(Result<?, BusinessError> result, String done) {
         return result instanceof Result.Failure<?, BusinessError>(var error) ? error.render() : done;
+    }
+
+    /**
+     * After a change: with htmx, the panel with the outcome ({@link #changed}); without, post/redirect/get to the
+     * statement when the service did it, or the whole page with the reason (422) when it refused.
+     */
+    private HTTPResponse after(WebRequest request, Account account, YearMonth month, Result<?, BusinessError> result,
+                               String done) {
+        if (HtmxRequest.of(request).isHtmx()) return changed(account, month, outcome(result, done));
+        if (result instanceof Result.Failure<?, BusinessError>(var error)) {
+            return Layout.page(request, HTTPStatus.UNPROCESSABLE_CONTENT, Screen.STATEMENT,
+                    StatementViews.screen(book, account, month, StatementViews.notice(error.render())));
+        }
+        return WebResponse.redirect("/statement?account=" + account.identity() + "&" + Ledger.MONTH + "=" + month);
     }
 
     /** The panel with a notice in the editor, and the list with the new balances. */

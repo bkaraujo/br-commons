@@ -54,11 +54,12 @@ final class StatementViews {
 
     private StatementViews() {}
 
-    static Node screen(Book book, Account account, YearMonth month) {
+    /** The list and the panel of the account's month, {@code editor} in its editor (a notice, a form or nothing). */
+    static Node screen(Book book, Account account, YearMonth month, Node editor) {
         return section(
                 cls("statement"),
                 accounts(book, account, false),
-                panel(book, account, month, fragment())
+                panel(book, account, month, editor)
         );
     }
 

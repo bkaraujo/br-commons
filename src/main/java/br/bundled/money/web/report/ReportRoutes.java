@@ -10,6 +10,7 @@ import br.commons.business.BusinessError;
 import br.commons.cdi.Context;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.htmx.HtmxRequest;
+import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
@@ -65,13 +66,13 @@ public final class ReportRoutes implements WebResource {
 
     /** The closing page, or only the card as it is (the cancel of a reopening). */
     private HTTPResponse closing(WebRequest request) {
-        return Ui.partial(request) ? ok(ReportViews.closing(book, null, null).render())
-                : Layout.page(request, Screen.REPORTS, ReportViews.closingPage(book));
+        val card = ReportViews.closing(book, null, null);
+        return Ui.partial(request) ? ok(card.render()) : Layout.page(request, Screen.REPORTS, ReportViews.closingPage(card));
     }
 
     /**
      * Sets the closing date; empty, nothing is closed. Moving it back (or clearing it) reopens transactions, so it asks
-     * for the confirmation first. Without htmx: post/redirect/get.
+     * for the confirmation first. Without htmx: post/redirect/get when done; otherwise the card on its page ({@link #card}).
      */
     private HTTPResponse close(WebRequest request) {
         val form = request.body(Form.class).getOrThrow();
@@ -80,19 +81,26 @@ public final class ReportRoutes implements WebResource {
         try {
             date = raw.isEmpty() ? null : LocalDate.parse(raw);
         } catch (DateTimeParseException e) {
-            return ok(ReportViews.closing(book, null, "Data inválida.").render());
+            return card(request, ReportViews.closing(book, null, "Data inválida."), true);
         }
         val current = book.threshold();
         val reopens = current != null && (date == null || date.isBefore(current));
         if (reopens && form.value(ReportViews.CONFIRM).isEmpty()) {
-            return ok(ReportViews.closing(book, raw, null).render());
+            return card(request, ReportViews.closing(book, raw, null), false);
         }
         val closed = book.close(date);
-        if (!HtmxRequest.of(request).isHtmx()) return WebResponse.redirect(ReportViews.CLOSING);
         if (closed instanceof Result.Failure<?, BusinessError>(var error)) {
-            return ok(ReportViews.closing(book, null, error.render()).render());
+            return card(request, ReportViews.closing(book, null, error.render()), true);
         }
+        if (!HtmxRequest.of(request).isHtmx()) return WebResponse.redirect(ReportViews.CLOSING);
         return ok(ReportViews.closing(book, null, date == null ? "Período reaberto: nada está fechado."
                 : (reopens ? "Período reaberto a partir de " : "Período fechado antes de ") + Ui.fullDay(date) + ".").render());
+    }
+
+    /** The closing card: alone for htmx; without, on its page ({@code refused}: 422). */
+    private HTTPResponse card(WebRequest request, Node card, boolean refused) {
+        return HtmxRequest.of(request).isHtmx() ? ok(card.render())
+                : Layout.page(request, refused ? HTTPStatus.UNPROCESSABLE_CONTENT : HTTPStatus.OK, Screen.REPORTS,
+                        ReportViews.closingPage(card));
     }
 }
