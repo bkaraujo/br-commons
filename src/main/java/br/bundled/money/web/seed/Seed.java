@@ -67,8 +67,8 @@ public final class Seed {
         val gnucash = System.getProperty(GNUCASH_PROPERTY);
         val today = LocalDate.now(Context.get(Clock.class));
         if (gnucash != null && !gnucash.isBlank()) {
-            val loaded = GnuCashSeed.book(Path.of(gnucash), today);
-            return imports.load(loaded.chart(), loaded.postings(), loaded.threshold());
+            return GnuCashSeed.book(Path.of(gnucash), today)
+                    .flatMap(loaded -> imports.load(loaded.chart(), loaded.postings(), loaded.threshold()));
         }
         if (!Context.get(TransactionService.class).all().isEmpty()) return Result.success();
         val loaded = fictitious(today);
@@ -103,8 +103,8 @@ public final class Seed {
         val destination = position(chart, to);
         val scaled = value.setScale(2, RoundingMode.HALF_UP);
         return new ImportService.Posting(date, description, List.of(
-                new ImportService.Line(destination, scaled.multiply(BigDecimal.valueOf(chart.get(destination).type().debit))),
-                new ImportService.Line(origin, scaled.negate().multiply(BigDecimal.valueOf(chart.get(origin).type().debit)))));
+                new ImportService.Line(destination, chart.get(destination).type().debited(scaled)),
+                new ImportService.Line(origin, chart.get(origin).type().credited(scaled))));
     }
 
     /** The balance of the account at the end of {@code day}, in its nature, from the postings so far. */

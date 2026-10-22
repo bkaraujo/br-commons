@@ -1,22 +1,23 @@
 package br.bundled.money.web.ui;
 
+import br.commons.web.ui.FontAwesome;
 import org.jspecify.annotations.NullMarked;
 
 /** The screens of the menu. */
 @NullMarked
 public enum Screen {
 
-    HOME("/", "Minhas contas", "◎"),
-    ACCOUNTS("/accounts", "Plano de contas", "☰"),
-    STATEMENT("/statement", "Extrato", "≡"),
-    ENTRY("/entries/new", "Lançar", "+"),
-    REPORTS("/reports", "Relatórios", "▤");
+    HOME("/", "Minhas contas", FontAwesome.Solid.WALLET),
+    STATEMENT("/statement", "Extrato", FontAwesome.Solid.LIST),
+    ENTRY("/entries/new", "Lançar", FontAwesome.Solid.PLUS),
+    ACCOUNTS("/accounts", "Plano de contas", FontAwesome.Solid.SITEMAP),
+    REPORTS("/reports", "Relatórios", FontAwesome.Solid.CHART_PIE);
 
     private final String path;
     private final String label;
-    private final String icon;
+    private final FontAwesome.Icon icon;
 
-    Screen(String path, String label, String icon) {
+    Screen(String path, String label, FontAwesome.Icon icon) {
         this.path = path;
         this.label = label;
         this.icon = icon;
@@ -30,7 +31,7 @@ public enum Screen {
         return label;
     }
 
-    public String icon() {
+    public FontAwesome.Icon icon() {
         return icon;
     }
 }

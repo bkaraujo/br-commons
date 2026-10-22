@@ -63,7 +63,7 @@ public final class Balances implements BalanceService {
     }
 
     /** The account and every descendant. */
-    List<Account> subtree(Account account) {
+    public List<Account> subtree(Account account) {
         val all = new ArrayList<Account>();
         val pending = new ArrayDeque<>(List.of(account));
         while (!pending.isEmpty()) {

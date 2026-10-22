@@ -76,13 +76,15 @@ public final class TransactionService {
         return Rules.locked(lock, () -> {
             val origin = accounts.findById(from);
             val destination = accounts.findById(to);
-            if (origin.isEmpty()) return Result.failure(missing(from));
-            if (destination.isEmpty()) return Result.failure(missing(to));
-            val debit = BigDecimal.valueOf(destination.get().type().debit);
-            val credit = BigDecimal.valueOf(origin.get().type().debit);
-            return post(date, description, List.of(new SplitInput(to, value.multiply(debit)),
-                    new SplitInput(from, value.negate().multiply(credit))));
+            if (origin.isEmpty() || destination.isEmpty()) return Result.failure(missing(origin.isEmpty() ? from : to));
+            return post(date, description, moving(origin.get(), destination.get(), value));
         });
+    }
+
+    /** The splits of {@code value} going from {@code from} to {@code to}: debited in {@code to}, credited in {@code from}. */
+    public static List<SplitInput> moving(Account from, Account to, BigDecimal value) {
+        return List.of(new SplitInput(to.identity(), to.type().debited(value)),
+                new SplitInput(from.identity(), from.type().credited(value)));
     }
 
     /** The transaction rewritten in place, same identity; each split in the same account keeps its identity too. */

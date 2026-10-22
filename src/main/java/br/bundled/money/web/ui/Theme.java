@@ -1,5 +1,6 @@
 package br.bundled.money.web.ui;
 
+import br.commons.web.ui.FontAwesome;
 import org.jspecify.annotations.NullMarked;
 
 import java.util.Locale;
@@ -11,14 +12,14 @@ import java.util.Locale;
 @NullMarked
 enum Theme {
 
-    AUTO("Automático", "◐"),
-    LIGHT("Claro", "☀"),
-    DARK("Escuro", "☾");
+    AUTO("Automático", FontAwesome.Solid.CIRCLE_HALF_STROKE),
+    LIGHT("Claro", FontAwesome.Solid.SUN),
+    DARK("Escuro", FontAwesome.Solid.MOON);
 
     private final String label;
-    private final String icon;
+    private final FontAwesome.Icon icon;
 
-    Theme(String label, String icon) {
+    Theme(String label, FontAwesome.Icon icon) {
         this.label = label;
         this.icon = icon;
     }
@@ -32,7 +33,7 @@ enum Theme {
         return label;
     }
 
-    String icon() {
+    FontAwesome.Icon icon() {
         return icon;
     }
 }

@@ -18,10 +18,12 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RequestLoggingFilterTest {
 
-    private static final HTTPHandler NEXT = request -> HTTPServerResponse.status(HTTPStatus.OK);
+    private static final HTTPHandler NEXT = _ -> HTTPServerResponse.status(HTTPStatus.OK);
 
     private final List<String> captured = new CopyOnWriteArrayList<>();
 
@@ -46,19 +48,29 @@ class RequestLoggingFilterTest {
     @Test
     void defaultsSkipOnlyPrefixesAndSuffixes() {
         val filter = new RequestLoggingFilter();
-        assertEquals(false, logs(filter, "/static/css/app.css"));
-        assertEquals(false, logs(filter, "/.well-known/security.txt"));
-        assertEquals(false, logs(filter, "/site.webmanifest"));
-        assertEquals(true, logs(filter, "/api/staticReports"));
-        assertEquals(true, logs(filter, "/reports/static"));
-        assertEquals(true, logs(filter, "/login"));
+        assertFalse(logs(filter, "/static/css/app.css"));
+        assertFalse(logs(filter, "/.well-known/security.txt"));
+        assertFalse(logs(filter, "/site.webmanifest"));
+        assertTrue(logs(filter, "/api/staticReports"));
+        assertTrue(logs(filter, "/reports/static"));
+        assertTrue(logs(filter, "/login"));
     }
 
     @Test
     void listsAreConfigurable() {
         val filter = new RequestLoggingFilter(List.of("/health"), List.of(".png"));
-        assertEquals(false, logs(filter, "/health/live"));
-        assertEquals(false, logs(filter, "/img/logo.png"));
-        assertEquals(true, logs(filter, "/static/css/app.css"));
+        assertFalse(logs(filter, "/health/live"));
+        assertFalse(logs(filter, "/img/logo.png"));
+        assertTrue(logs(filter, "/static/css/app.css"));
+    }
+
+    /** A form sent by GET, or a token, stays out of the log: only the path is written. */
+    @Test
+    void queryIsNotLogged() {
+        captured.clear();
+        new RequestLoggingFilter().apply(new HTTPServerRequest("", HTTPMethod.GET, "/split?token=secret&value=10",
+                Map.of(), new byte[0]), NEXT);
+        assertEquals(List.of(true), captured.stream().map(line -> line.contains("GET /split -> 200")).toList());
+        assertFalse(captured.stream().anyMatch(line -> line.contains("secret")));
     }
 }

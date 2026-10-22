@@ -1,5 +1,7 @@
 package br.bundled.money.business._0_domain.model;
 
+import java.math.BigDecimal;
+
 public enum AccountType {
     BANK(AccountNature.FINANCE_ACCOUNT, -1),
     CASH(AccountNature.FINANCE_ACCOUNT, -1),
@@ -24,6 +26,19 @@ public enum AccountType {
         this.nature = nature;
         this.credit = credit;
         this.debit = -credit;
+    }
+
+    /**
+     * The amount, in this type's nature, of a split that debits {@code value} (GnuCash's value; the inverse of
+     * {@link TransactionSplit#debitAmount}): a transfer debits where the value goes.
+     */
+    public BigDecimal debited(BigDecimal value) {
+        return value.multiply(BigDecimal.valueOf(debit));
+    }
+
+    /** The amount, in this type's nature, of a split that credits {@code value}: a transfer credits where it leaves. */
+    public BigDecimal credited(BigDecimal value) {
+        return debited(value.negate());
     }
 
     /**

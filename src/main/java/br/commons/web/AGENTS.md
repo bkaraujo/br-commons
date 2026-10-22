@@ -21,6 +21,7 @@ filtros prontos.
 | `filter/StaticFiles`         | Serve arquivos de classpath/diretório                 |
 | `filter/RequestLoggingFilter`| Loga `método path -> status`                          |
 | `filter/ErrorPages`          | Registro status → `ErrorPage` (inserido pelo `WebServer`) |
+| `ui/FontAwesome`             | Ícones Font Awesome Free (gerado), um enum por estilo (`Solid`, `Regular`, `Brands`), SVG inline: `Solid.HOUSE.svg()`; CSS da página dimensiona `.fa` |
 
 ## 1. Recurso e rotas
 

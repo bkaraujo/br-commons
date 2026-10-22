@@ -55,12 +55,18 @@ public final class HTTPServerRequest implements HTTPRequest {
      */
     public HTTPServerRequest(String requestId, HTTPMethod method, URI uri, Map<String, String> headers, byte[] body,
                              Multipart multipart) {
+        this(requestId, method, uri, query(uri.getRawQuery()), headers, body, multipart);
+    }
+
+    /** {@link #HTTPServerRequest(String, HTTPMethod, URI, Map, byte[], Multipart)} with the query already decoded. */
+    public HTTPServerRequest(String requestId, HTTPMethod method, URI uri, Map<String, String> parameters,
+                             Map<String, String> headers, byte[] body, Multipart multipart) {
         this.multipart = multipart;
         this.requestId = requestId;
         this.method = method;
         this.uri = uri;
         this.path = withoutTrailingSlash(Strings.or(uri.getPath(), ""));
-        this.parameters = Collections.unmodifiableMap(query(uri.getRawQuery()));
+        this.parameters = Collections.unmodifiableMap(new LinkedHashMap<>(parameters));
         this.headers = Collections.unmodifiableMap(lowerCaseNames(headers));
         this.body = body;
     }

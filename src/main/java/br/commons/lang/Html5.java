@@ -1222,6 +1222,31 @@ public abstract class Html5 extends Html {
     public static Node.Element svg(Content... c) { return element("svg", c); }
 
     /**
+     * The SVG {@code path} element, inside {@link #svg}: a shape drawn by its {@link #d} data.
+     *
+     * @see <a href="https://www.w3.org/TR/SVG2/paths.html#PathElement">SVG 2: the path element</a>
+     */
+    public static Node.Element path(Content... c) { return element("path", c); }
+
+    /**
+     * The SVG {@code d} attribute: the path data of a {@link #path} ({@code M10 10 L20 20 Z}).
+     * <p>On {@code path}.
+     *
+     * @see <a href="https://www.w3.org/TR/SVG2/paths.html#DProperty">SVG 2: the d property</a>
+     */
+    public static Attribute d(String pathData) { return attribute("d", pathData); }
+
+    /**
+     * The SVG {@code viewBox} attribute: the rectangle of user coordinates stretched to the {@link #svg}'s viewport.
+     * <p>On {@code svg}.
+     *
+     * @see <a href="https://www.w3.org/TR/SVG2/coords.html#ViewBoxAttribute">SVG 2: the viewBox attribute</a>
+     */
+    public static Attribute viewBox(int minX, int minY, int width, int height) {
+        return attribute("viewBox", minX + " " + minY + " " + width + " " + height);
+    }
+
+    /**
      * The {@code math} element: MathML inline in the page, in the MathML namespace (the HTML parser switches to it).
      * Children are MathML elements, built here with {@code element(…)}.
      *

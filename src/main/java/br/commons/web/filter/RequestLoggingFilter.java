@@ -11,8 +11,9 @@ import org.jspecify.annotations.NullMarked;
 import java.util.List;
 
 /**
- * Logs {@code METHOD path -> status} at INFO. Paths starting with an ignored prefix or ending with an ignored
- * suffix are not logged (by default static files, {@code /.well-known/} and the web manifest); a path that only
+ * Logs {@code METHOD path -> status} at INFO, the path as sent and never the query string: a form sent by GET or a
+ * {@code ?token=} would leak into the log. Paths starting with an ignored prefix or ending with an ignored suffix are
+ * not logged (by default static files, {@code /.well-known/} and the web manifest); a path that only
  * <em>contains</em> one of them, such as {@code /api/static-report}, is logged.
  */
 @NullMarked
@@ -39,7 +40,7 @@ public final class RequestLoggingFilter implements HTTPFilter {
         if (!ignored(request.path()))
             Logger.info("%s %s -> %d %s",
                     request.method(),
-                    request.uri(),
+                    request.uri().getRawPath(),
                     response.status().code(),
                     response.status().name()
             );

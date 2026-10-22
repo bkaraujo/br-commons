@@ -241,11 +241,14 @@ public final class StatementRoutes implements WebResource {
     // ---------- account and month of the request
 
     private YearMonth month(Function<String, @Nullable String> value) {
-        return Ui.monthOf(value.apply("month"), book.month());
+        return Ui.monthOf(value.apply("month"), book::month);
     }
 
+    /** The account asked, else the first financial one, else the first of all; the book read only without one. */
     private Account chosen(Function<String, @Nullable String> value) {
-        val fallback = book.financial().isEmpty() ? book.tree().getFirst() : book.financial().getFirst();
-        return book.account(Ui.uuid(value.apply("account"))).orElse(fallback);
+        return book.account(Ui.uuid(value.apply("account"))).orElseGet(() -> {
+            val tree = book.tree();
+            return tree.stream().filter(Account::financial).findFirst().orElse(tree.getFirst());
+        });
     }
 }

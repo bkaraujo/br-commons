@@ -3,6 +3,8 @@ package br.bundled.money.web.seed;
 import br.bundled.money.business._0_domain.model.AccountType;
 import br.bundled.money.business._0_domain.model.ChartTemplate;
 import br.bundled.money.business._1_application.ImportService;
+import br.commons.Result;
+import br.commons.business.BusinessError;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -15,7 +17,6 @@ import javax.xml.stream.XMLStreamReader;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -33,7 +34,8 @@ import java.util.zip.GZIPInputStream;
  * type the app lists in "Minhas contas" by the name of its group: credit card {@code CREDIT}, broker {@code STOCK},
  * bank, benefit or wallet {@code BANK}; anything else (a property, a loan given) keeps its type. Only one currency is
  * expected (the values are taken as they are, in BRL); each transaction is kept balanced to the cent. The read-only
- * threshold of the book becomes the closing date.
+ * threshold of the book becomes the closing date. GnuCash's legacy types become the app's ({@link #LEGACY}); a
+ * {@code CURRENCY} account (INTENT §4: one currency), any other unknown type or a file that cannot be read fails.
  */
 @NullMarked
 final class GnuCashSeed {
@@ -46,6 +48,12 @@ final class GnuCashSeed {
      */
     private static final String THRESHOLD_KEY = "Day Threshold for Read-Only Transactions (red line)";
     private static final Pattern BANK_GROUP = Pattern.compile("(?iu)conta|banc|benef[ií]cio|carteira");
+    /** GnuCash's types the app keeps under another name. */
+    private static final Map<String, AccountType> LEGACY = Map.of(
+            "CHECKING", AccountType.BANK,
+            "SAVINGS", AccountType.BANK,
+            "MONEYMRKT", AccountType.BANK,
+            "CREDITLINE", AccountType.CREDIT);
 
     private GnuCashSeed() {}
 
@@ -57,7 +65,7 @@ final class GnuCashSeed {
 
     private record Transaction(LocalDate date, String description, List<Split> splits) {}
 
-    static Seed.Loaded book(Path file, LocalDate today) {
+    static Result<Seed.Loaded, BusinessError> book(Path file, LocalDate today) {
         try (val input = open(file)) {
             val reader = factory().createXMLStreamReader(input);
             val accounts = new ArrayList<Account>();
@@ -92,17 +100,32 @@ final class GnuCashSeed {
             }
             return book(accounts, transactions, thresholdDays > 0 ? today.minusDays(thresholdDays) : null);
         } catch (IOException e) {
-            throw new UncheckedIOException("Reading the GnuCash book " + file, e);
-        } catch (XMLStreamException e) {
-            throw new IllegalArgumentException("Not a GnuCash XML book: " + file, e);
+            return failure("Reading the GnuCash book " + file + ": " + e);
+        } catch (XMLStreamException | RuntimeException e) {
+            // a number, date or fraction GnuCash would not write is as malformed as a broken XML
+            return failure("Not a GnuCash XML book: " + file + ": " + e);
         }
     }
 
-    private static Seed.Loaded book(List<Account> read, List<Transaction> transactions, @Nullable LocalDate threshold) {
+    private static Result<Seed.Loaded, BusinessError> failure(String message) {
+        return Result.failure(new BusinessError.Infrastructure(message));
+    }
+
+    private static Result<Seed.Loaded, BusinessError> book(List<Account> read, List<Transaction> transactions,
+                                                           @Nullable LocalDate threshold) {
         val byGuid = new HashMap<String, Account>();
         read.forEach(account -> byGuid.put(account.guid(), account));
         val parents = new HashSet<String>();
         read.forEach(account -> { if (account.parent() != null) parents.add(account.parent()); });
+        val types = new HashMap<String, AccountType>();
+        for (val account : read) {
+            if ("ROOT".equals(account.type())) continue;
+            val type = type(account.type());
+            if (type.isEmpty()) {
+                return failure("GnuCash account type " + account.type() + " not supported (account " + account.name() + ")");
+            }
+            types.put(account.guid(), type.get());
+        }
 
         // Parents before children: positions in the order of a depth-first walk from the top level.
         val positions = new HashMap<String, Integer>();
@@ -114,7 +137,8 @@ final class GnuCashSeed {
         while (!pending.isEmpty()) {
             val account = pending.pop();
             val parent = topParent(account, byGuid);
-            val type = type(account, parent == null ? null : byGuid.get(parent), parents.contains(account.guid()));
+            val type = type(Objects.requireNonNull(types.get(account.guid())), parent == null ? null : byGuid.get(parent),
+                    parents.contains(account.guid()));
             positions.put(account.guid(), chart.size());
             chart.add(new ChartTemplate.Entry(account.name(), type, parent == null ? null : positions.get(parent)));
             children.getOrDefault(account.guid(), List.of()).reversed().forEach(pending::push);
@@ -129,12 +153,11 @@ final class GnuCashSeed {
             val lines = new ArrayList<ImportService.Line>();
             for (var i = 0; i < kept.size(); i++) {
                 int position = Objects.requireNonNull(positions.get(kept.get(i).account()));
-                val debit = chart.get(position).type().debit;
-                lines.add(new ImportService.Line(position, values.get(i).multiply(BigDecimal.valueOf(debit))));
+                lines.add(new ImportService.Line(position, chart.get(position).type().debited(values.get(i))));
             }
             if (lines.size() >= 2) postings.add(new ImportService.Posting(transaction.date(), transaction.description(), lines));
         }
-        return new Seed.Loaded(chart, postings, threshold);
+        return Result.success(new Seed.Loaded(chart, postings, threshold));
     }
 
     /**
@@ -161,8 +184,14 @@ final class GnuCashSeed {
         return parent == null || "ROOT".equals(parent.type()) ? null : parent.guid();
     }
 
-    private static AccountType type(Account account, @Nullable Account parent, boolean group) {
-        val type = AccountType.valueOf(account.type());
+    /** The app's type of a GnuCash type ({@link #LEGACY} or the same name), if it has one. */
+    private static Optional<AccountType> type(String gnucash) {
+        return Optional.ofNullable(LEGACY.get(gnucash))
+                .or(() -> Arrays.stream(AccountType.values()).filter(type -> type.name().equals(gnucash)).findFirst());
+    }
+
+    /** {@code type} of a leaf in the money groups narrowed to the financial type of its group (see the class). */
+    private static AccountType type(AccountType type, @Nullable Account parent, boolean group) {
         if (group || parent == null) return type;
         return switch (type) {
             case LIABILITY -> CARD_GROUP.matcher(parent.name()).find() ? AccountType.CREDIT : type;

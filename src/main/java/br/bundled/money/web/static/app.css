@@ -879,6 +879,15 @@ button.link.danger {
     color: var(--neg);
 }
 
+/* Font Awesome (br.commons.web.ui.FontAwesome): inline SVG one em tall, in the color of the text. */
+.fa {
+    width: 1.25em;
+    height: 1em;
+    overflow: visible;
+    vertical-align: -.125em;
+    fill: currentColor;
+}
+
 button.icon-button {
     display: inline-grid;
     place-items: center;

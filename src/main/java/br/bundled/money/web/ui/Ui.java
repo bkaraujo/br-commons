@@ -24,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static br.commons.lang.Html5.*;
 
@@ -83,14 +84,17 @@ public final class Ui {
         return FULL_DAY.format(date);
     }
 
-    /** The month of the query string ({@code 2026-10}), or {@code fallback} when absent, invalid or out of range. */
-    public static YearMonth monthOf(@Nullable String value, YearMonth fallback) {
-        if (value == null || value.isBlank()) return fallback;
+    /**
+     * The month of the query string ({@code 2026-10}), or {@code fallback} when absent, invalid or out of range:
+     * computed only then (it may read the whole book).
+     */
+    public static YearMonth monthOf(@Nullable String value, Supplier<YearMonth> fallback) {
+        if (value == null || value.isBlank()) return fallback.get();
         try {
             val month = YearMonth.parse(value);
-            return month.isBefore(FIRST_MONTH) || month.isAfter(LAST_MONTH) ? fallback : month;
+            return month.isBefore(FIRST_MONTH) || month.isAfter(LAST_MONTH) ? fallback.get() : month;
         } catch (DateTimeParseException ignored) {
-            return fallback;
+            return fallback.get();
         }
     }
 

@@ -2,6 +2,7 @@ package br.bundled.money.web.book;
 
 import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.business._0_domain.model.AccountType;
+import br.bundled.money.business._0_domain.model.BookTransaction;
 import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.business._0_domain.model.TransactionSplit;
 import br.bundled.money.business._1_application.*;
@@ -101,16 +102,22 @@ public final class Book {
         return accountService.children(account);
     }
 
-    /** Every account, depth first, children by name. */
+    /** Every account, depth first, children by name: from one read of the accounts (by name). */
     public List<Account> tree() {
+        val accounts = accountService.accounts();
+        val children = new HashMap<Account, List<Account>>();
+        for (val account : accounts) {
+            val parent = account.parent();
+            if (parent != null) children.computeIfAbsent(parent, _ -> new ArrayList<>()).add(account);
+        }
         val all = new ArrayList<Account>();
-        roots().forEach(root -> collect(root, all));
+        accounts.stream().filter(account -> account.parent() == null).forEach(root -> collect(root, children, all));
         return all;
     }
 
-    private void collect(Account account, List<Account> all) {
+    private static void collect(Account account, Map<Account, List<Account>> children, List<Account> all) {
         all.add(account);
-        children(account).forEach(child -> collect(child, all));
+        children.getOrDefault(account, List.of()).forEach(child -> collect(child, children, all));
     }
 
     public int depth(Account account) {
@@ -157,10 +164,7 @@ public final class Book {
     }
 
     public Set<Account> subtree(Account account) {
-        val all = new HashSet<Account>();
-        all.add(account);
-        children(account).forEach(child -> all.addAll(subtree(child)));
-        return all;
+        return new HashSet<>(balanceService.subtree(account));
     }
 
     /** The accounts a balance or a ledger of {@code account} covers: itself when financial, its subtree otherwise. */
@@ -230,9 +234,10 @@ public final class Book {
 
     /** {@link #balance} of every account at the end of {@code day}. */
     public Map<Account, BigDecimal> balances(LocalDate day) {
+        val tree = tree();
         val own = new HashMap<Account, BigDecimal>();
-        tree().forEach(account -> own.put(account, own(account, day).multiply(BigDecimal.valueOf(account.type().debit))));
-        return inNature(own);
+        tree.forEach(account -> own.put(account, own(account, day).multiply(BigDecimal.valueOf(account.type().debit))));
+        return inNature(tree, own);
     }
 
     public Map<Account, BigDecimal> balances() {
@@ -257,16 +262,22 @@ public final class Book {
         val own = new HashMap<Account, BigDecimal>();
         transactionService.month(month).forEach(transaction -> transaction.splits()
                 .forEach(split -> own.merge(split.account(), split.debitAmount(), BigDecimal::add)));
-        return inNature(own);
+        return inNature(tree(), own);
     }
 
-    /** Each account's {@link #scope} summed from {@code debits} (own amounts in debit terms), in its nature. */
-    private Map<Account, BigDecimal> inNature(Map<Account, BigDecimal> debits) {
+    /**
+     * Each account's {@link #scope} summed from {@code debits} (own amounts in debit terms), in its nature. One pass
+     * over the {@link #tree} backwards: a subtree is summed before its parent, which adds it to its own.
+     */
+    private static Map<Account, BigDecimal> inNature(List<Account> tree, Map<Account, BigDecimal> debits) {
+        val sums = new HashMap<Account, BigDecimal>();
         val result = new HashMap<Account, BigDecimal>();
-        for (val account : tree()) {
-            val debit = scope(account).stream().map(each -> debits.getOrDefault(each, BigDecimal.ZERO))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            result.put(account, debit.multiply(BigDecimal.valueOf(account.type().debit)));
+        for (val account : tree.reversed()) {
+            val own = debits.getOrDefault(account, BigDecimal.ZERO);
+            val sum = sums.getOrDefault(account, BigDecimal.ZERO).add(own);
+            val parent = account.parent();
+            if (parent != null) sums.merge(parent, sum, BigDecimal::add);
+            result.put(account, (account.financial() ? own : sum).multiply(BigDecimal.valueOf(account.type().debit)));
         }
         return result;
     }
@@ -324,10 +335,9 @@ public final class Book {
         return categories.isEmpty() ? "Transferência" : String.join(", ", categories);
     }
 
-    /** The value of a transaction: the sum of its increasing debit splits. */
+    /** The value of a transaction (see {@link BookTransaction#value}). */
     public BigDecimal value(Transaction transaction) {
-        return transaction.splits().stream().map(TransactionSplit::debitAmount)
-                .filter(amount -> amount.signum() > 0).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return BookTransaction.value(transaction.splits());
     }
 
     /**
@@ -372,9 +382,7 @@ public final class Book {
     /** The transaction rewritten as {@code value} from {@code from} to {@code to}. */
     public Result<Transaction, BusinessError> revise(Transaction transaction, LocalDate date, String description,
                                                      Account from, Account to, BigDecimal value) {
-        return rewrite(transaction, date, description, List.of(
-                new SplitInput(to.identity(), value.multiply(BigDecimal.valueOf(to.type().debit))),
-                new SplitInput(from.identity(), value.negate().multiply(BigDecimal.valueOf(from.type().debit)))));
+        return rewrite(transaction, date, description, TransactionService.moving(from, to, value));
     }
 
     public Result<Transaction, BusinessError> rewrite(Transaction transaction, LocalDate date, String description,

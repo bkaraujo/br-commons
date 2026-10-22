@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 import static br.bundled.money.web.ui.Ui.ok;
 
@@ -43,11 +44,11 @@ public final class ReportRoutes implements WebResource {
     public void routes(Router router) {
         router.get(ReportViews.LIST, MediaType.TEXT_HTML, String.class, this::list).getOrThrow();
         router.get(ReportViews.BALANCE, MediaType.TEXT_HTML, String.class,
-                request -> monthly(request, book.month(), ReportViews::balance)).getOrThrow();
+                request -> monthly(request, book::month, ReportViews::balance)).getOrThrow();
         router.get(ReportViews.INCOME, MediaType.TEXT_HTML, String.class,
-                request -> monthly(request, book.month(), ReportViews::income)).getOrThrow();
+                request -> monthly(request, book::month, ReportViews::income)).getOrThrow();
         router.get(ReportViews.EVOLUTION, MediaType.TEXT_HTML, String.class,
-                request -> monthly(request, book.month().withMonth(1), ReportViews::evolution)).getOrThrow();
+                request -> monthly(request, () -> book.month().withMonth(1), ReportViews::evolution)).getOrThrow();
         router.get(ReportViews.CLOSING, MediaType.TEXT_HTML, String.class, this::closing).getOrThrow();
         router.post(ReportViews.CLOSING, MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::close)
                 .getOrThrow();
@@ -58,7 +59,7 @@ public final class ReportRoutes implements WebResource {
     }
 
     /** {@code report} of the month asked, {@code fallback} when none. */
-    private HTTPResponse monthly(WebRequest request, YearMonth fallback, BiFunction<Book, YearMonth, Node> report) {
+    private HTTPResponse monthly(WebRequest request, Supplier<YearMonth> fallback, BiFunction<Book, YearMonth, Node> report) {
         val month = Ui.monthOf(request.parameter(Ledger.MONTH), fallback);
         val view = report.apply(book, month);
         return Ui.partial(request) ? ok(view.render()) : Layout.page(request, Screen.REPORTS, view);

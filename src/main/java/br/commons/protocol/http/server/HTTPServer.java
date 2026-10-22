@@ -179,16 +179,17 @@ public final class HTTPServer {
      * answers 400 (malformed query or multipart) or 413 and returns {@code null} when it cannot.
      */
     private @Nullable HTTPServerRequest readRequest(HttpExchange exchange, String requestId, HTTPMethod method) throws IOException {
-        val query = HTTPServerRequest.parseQuery(exchange.getRequestURI().getRawQuery());
-        if (query instanceof Result.Failure<Map<String, String>, String>(var error)) {
+        val parsed = HTTPServerRequest.parseQuery(exchange.getRequestURI().getRawQuery());
+        if (parsed instanceof Result.Failure<Map<String, String>, String>(var error)) {
             Logger.debug("[IN ] malformed query: %s", error);
             write(exchange, HTTPServerResponse.status(HTTPStatus.BAD_REQUEST));
             return null;
         }
+        val query = parsed.getOrThrow();
         val contentType = exchange.getRequestHeaders().getFirst("Content-Type");
         if (multipart != null && MultipartParser.accepts(contentType)) {
             try {
-                return toRequest(exchange, requestId, method, new byte[0], multipart.parse(contentType, exchange.getRequestBody()));
+                return toRequest(exchange, requestId, method, query, new byte[0], multipart.parse(contentType, exchange.getRequestBody()));
             } catch (MultipartParser.TooLarge e) {
                 Logger.trace("[IN ]CONTENT_TOO_LARGE (multipart)");
                 write(exchange, HTTPServerResponse.status(HTTPStatus.CONTENT_TOO_LARGE));
@@ -205,7 +206,7 @@ public final class HTTPServer {
             write(exchange, HTTPServerResponse.status(HTTPStatus.CONTENT_TOO_LARGE));
             return null;
         }
-        return toRequest(exchange, requestId, method, body, Multipart.EMPTY);
+        return toRequest(exchange, requestId, method, query, body, Multipart.EMPTY);
     }
 
     /** Method outside {@link HTTPMethod} (HEAD, TRACE…) receives 405 instead of blowing up as a failure. */
@@ -248,14 +249,15 @@ public final class HTTPServer {
         }
     }
 
+    /** {@code query}: decoded once, by {@link #readRequest}. */
     private static HTTPServerRequest toRequest(HttpExchange exchange, String requestId, HTTPMethod method,
-                                               byte[] body, Multipart upload) {
+                                               Map<String, String> query, byte[] body, Multipart upload) {
         val headers = new LinkedHashMap<String, String>();
         exchange.getRequestHeaders().forEach((name, values) -> {
             if (!values.isEmpty()) headers.put(name, values.getFirst());
         });
 
-        val request = new HTTPServerRequest(requestId, method, exchange.getRequestURI(), headers, body, upload);
+        val request = new HTTPServerRequest(requestId, method, exchange.getRequestURI(), query, headers, body, upload);
         Logger.debug("[IN ] headers %s", headers);
         Logger.debug("[IN ] parameters %s", request.parameters());
         Logger.verbose("[IN ] body %s", Logger.lazy(() -> Arrays.toString(body)));

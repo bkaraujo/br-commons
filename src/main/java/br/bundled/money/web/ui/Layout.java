@@ -96,10 +96,21 @@ public final class Layout {
     /** {@code oob}: {@code hx-swap-oob} when it goes beside the content of a boosted navigation, else nothing. */
     private static Node navigation(Screen current, Content oob) {
         return nav(
-                id("menu"), cls("menu"), oob, ariaLabel(message("Menu")), ul(each(List.of(Screen.values()), screen -> li(
-                a(href(screen.path()), cls(screen == current ? "current" : ""),
-                        span(cls("icon"), ariaHidden(true), text(Text.data(screen.icon()))),
-                        span(cls("label"), data("label", screen.label()), text(message(screen.label())))))))
+                id("menu"),
+                cls("menu"),
+                oob,
+                ariaLabel(message("Menu")),
+                ul(each(
+                        List.of(Screen.values()),
+                        screen -> li(
+                                a(
+                                        href(screen.path()),
+                                        cls(screen == current ? "current" : ""),
+                                        span(cls("icon"), ariaHidden(true), screen.icon().svg()),
+                                        span(cls("label"), data("label", screen.label()), text(message(screen.label())))
+                                )
+                        )
+                ))
         );
     }
 
@@ -113,7 +124,7 @@ public final class Layout {
                 each(
                         List.of(Theme.values()), theme -> button(type(ButtonType.BUTTON), data("theme-choice", theme.token()),
                         title(message("Tema " + theme.label().toLowerCase(Locale.ROOT))),
-                        ariaLabel(message("Tema " + theme.label())), text(Text.data(theme.icon())))
+                        ariaLabel(message("Tema " + theme.label())), theme.icon().svg())
                 )
         );
     }
