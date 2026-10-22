@@ -91,6 +91,8 @@ public interface ErrorMessages {
     Text httpStatusOutOfRange(String code);
     Text httpServerStartFailed(String port, Object cause);
     Text malformedQuery(Object cause);
+    Text htmxScriptNotFound(Object resource);
+    Text htmxScriptReadFailed(Object resource, Object cause);
 
     // cache
     Text cachePopulateIncomplete(Object partition, Object errors);

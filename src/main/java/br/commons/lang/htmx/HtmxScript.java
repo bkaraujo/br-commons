@@ -1,6 +1,10 @@
 package br.commons.lang.htmx;
 
+import br.commons.Logger;
+import br.commons.Result;
+import br.commons.business.BusinessError;
 import br.commons.lang.Htmx;
+import br.commons.locale.i18n.Errors;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.message.HTTPMethod;
 import br.commons.protocol.http.message.HTTPRequest;
@@ -14,8 +18,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.util.Objects;
 
 /**
  * Serves the htmx library bundled beside this package ({@code br/commons/lang/htmx/<version>.min.js}) at
@@ -46,25 +48,31 @@ public final class HtmxScript implements HTTPFilter {
                     .header("ETag", ETAG)
                     .header("Cache-Control", CACHE_CONTROL);
         }
-        return HTTPServerResponse.status(HTTPStatus.OK, content())
-                .header("Content-Type", "text/javascript; charset=utf-8")
-                .header("ETag", ETAG)
-                .header("Cache-Control", CACHE_CONTROL)
-                .header("X-Content-Type-Options", "nosniff");
+        return switch (content()) {
+            case Result.Success<byte[], BusinessError>(var body) -> HTTPServerResponse.status(HTTPStatus.OK, body)
+                    .header("Content-Type", "text/javascript; charset=utf-8")
+                    .header("ETag", ETAG)
+                    .header("Cache-Control", CACHE_CONTROL)
+                    .header("X-Content-Type-Options", "nosniff");
+            case Result.Failure<byte[], BusinessError>(var error) -> {
+                Logger.error(error::render);
+                yield HTTPServerResponse.status(HTTPStatus.INTERNAL_SERVER_ERROR);
+            }
+        };
     }
 
-    /** Read once from the classpath; a missing file is a packaging error. */
-    private byte[] content() {
-        var loaded = bytes;
-        if (loaded == null) {
-            val resource = PATH.substring(1);
-            try (InputStream input = Objects.requireNonNull(HtmxScript.class.getClassLoader().getResourceAsStream(resource), resource)) {
-                loaded = input.readAllBytes();
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-            bytes = loaded;
+    /** Read once from the classpath and kept; a missing or unreadable file (packaging error) is a {@code Failure}. */
+    private Result<byte[], BusinessError> content() {
+        val loaded = bytes;
+        if (loaded != null) return Result.success(loaded);
+        val resource = PATH.substring(1);
+        try (InputStream input = HtmxScript.class.getClassLoader().getResourceAsStream(resource)) {
+            if (input == null) return Result.failure(new BusinessError.Infrastructure(Errors.get().htmxScriptNotFound(resource).value()));
+            val read = input.readAllBytes();
+            bytes = read;
+            return Result.success(read);
+        } catch (IOException e) {
+            return Result.failure(new BusinessError.Infrastructure(Errors.get().htmxScriptReadFailed(resource, String.valueOf(e.getMessage())).value()));
         }
-        return loaded;
     }
 }
