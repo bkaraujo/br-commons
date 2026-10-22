@@ -1123,6 +1123,19 @@ tr:hover .actions button,
     width: 100%;
 }
 
+/* parcelamentos: a conta vem antes da descrição, que fica com a sobra */
+.installments-panel .ledger-table th:nth-child(2) {
+    width: auto;
+}
+
+.installments-panel .ledger-table th:nth-child(3) {
+    width: 100%;
+}
+
+.installments-panel .ledger-table td.account {
+    white-space: nowrap;
+}
+
 .ledger-table tr.planned td {
     color: var(--muted);
     font-style: italic;

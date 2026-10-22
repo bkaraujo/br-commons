@@ -7,8 +7,9 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public enum Screen {
 
-    HOME("/", "Minhas contas", FontAwesome.Solid.WALLET),
+    HOME("/", "Visão Geral", FontAwesome.Solid.HOME_USER),
     STATEMENT("/statement", "Extrato", FontAwesome.Solid.LIST),
+    INSTALLMENTS("/installments", "Parcelamentos", FontAwesome.Solid.CREDIT_CARD),
     ENTRY("/entries/new", "Lançar", FontAwesome.Solid.PLUS),
     ACCOUNTS("/accounts", "Plano de contas", FontAwesome.Solid.SITEMAP),
     REPORTS("/reports", "Relatórios", FontAwesome.Solid.CHART_PIE);

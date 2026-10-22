@@ -4,6 +4,7 @@ import br.bundled.money.web.account.AccountRoutes;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.entry.EntryRoutes;
 import br.bundled.money.web.home.HomeRoutes;
+import br.bundled.money.web.installment.InstallmentRoutes;
 import br.bundled.money.web.report.ReportRoutes;
 import br.bundled.money.web.seed.Seed;
 import br.bundled.money.web.statement.StatementRoutes;
@@ -53,6 +54,7 @@ public final class WebModule implements Lifecycle {
                 new HomeRoutes(),
                 new AccountRoutes(),
                 new StatementRoutes(),
+                new InstallmentRoutes(),
                 new EntryRoutes(),
                 new ReportRoutes()
         );

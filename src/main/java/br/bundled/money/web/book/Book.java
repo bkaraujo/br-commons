@@ -317,6 +317,32 @@ public final class Book {
         return lines;
     }
 
+    /**
+     * The installments of the month in {@code accounts} ({@link Installment}), by date: each transaction once, in the
+     * first of the accounts it touches.
+     */
+    public List<Installment> installments(List<Account> accounts, YearMonth month) {
+        val seen = new HashSet<UUID>();
+        val installments = new ArrayList<Installment>();
+        for (val account : accounts) {
+            for (val installment : installments(account, month)) {
+                if (seen.add(installment.line().transaction().identity())) installments.add(installment);
+            }
+        }
+        installments.sort(Comparator.comparing(installment -> installment.line().transaction().date()));
+        return installments;
+    }
+
+    /**
+     * The lines of the account's month that are installments, each in the account its transaction touches: the
+     * account itself or, for a ledger account, a descendant.
+     */
+    private List<Installment> installments(Account account, YearMonth month) {
+        val accounts = scope(account);
+        return ledger(account, month).stream().flatMap(line -> Installment.of(line, line.transaction().splits().stream()
+                .map(TransactionSplit::account).filter(accounts::contains).findFirst().orElse(account)).stream()).toList();
+    }
+
     // ---------- transactions
 
     public int count() {
