@@ -38,6 +38,7 @@ class InstallmentTest {
         assertEquals(Optional.of("3/10"), of("LOJA X PARC 3 / 10"));
         assertEquals(Optional.of("3/10"), of("Loja X - Parcela 3 de 10"));
         assertEquals(Optional.of("10/10"), of("LOJA X 10/10"));
+        assertEquals(Optional.of("52/200"), of("Hipoteca (52/200)"));
     }
 
     /** The last valid fraction counts: a store named with digits does not hide the installment. */
@@ -53,7 +54,7 @@ class InstallmentTest {
         assertTrue(of("LOJA 11/10").isEmpty());
         assertTrue(of("LOJA 00/10").isEmpty());
         assertTrue(of("LOJA 1/1").isEmpty());
-        assertTrue(of("LOJA 123/456").isEmpty());
+        assertTrue(of("LOJA 1234/5678").isEmpty());
     }
 
     /** The installment of the transaction wins over the description. */

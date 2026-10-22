@@ -26,9 +26,10 @@ import static br.commons.lang.Htmx.*;
 /**
  * The installments screen: the home's accounts without the cards, each with a checkbox
  * ({@code #installments-accounts}), and the panel ({@code #installments-panel}) with the installments dated in the
- * month of the checked accounts and of every card, each with the account it is in, its {@code k/N} and what the ones
- * after it add up to. A change of the checkboxes loads the panel with the month ({@code #installments-month}); the
- * month navigation carries the checked accounts. Read only: a transaction is changed in the statement.
+ * month of the checked accounts and of every card, each with the account it is in, its {@code k/N} and its value;
+ * the summary adds what is left to pay. A change of the checkboxes loads the panel with the month
+ * ({@code #installments-month}); the month navigation carries the checked accounts. Read only: a transaction is
+ * changed in the statement.
  */
 @NullMarked
 final class InstallmentViews {
@@ -83,11 +84,10 @@ final class InstallmentViews {
                 div(cls("ledger-scroll"), table(
                         cls("records ledger-table"),
                         thead(tr(th(text(message("Data"))), th(text(message("Conta"))), th(text(message("Descrição"))),
-                                th(cls("num"), text(message("Parcela"))), th(cls("num"), text(message("Valor"))),
-                                th(cls("num hide-narrow"), text(message("Restante"))))),
+                                th(cls("num"), text(message("Parcela"))), th(cls("num"), text(message("Valor"))))),
                         tbody(
                                 each(installments, installment -> line(book, installment)),
-                                when(installments.isEmpty(), () -> tr(cls("empty"), td(colspan(6), text(message(
+                                when(installments.isEmpty(), () -> tr(cls("empty"), td(colspan(5), text(message(
                                         selected.isEmpty() ? "Marque uma conta para ver as parcelas."
                                                 : "Nenhuma parcela em " + Ui.month(month) + ".")))))))
                 )
@@ -102,9 +102,9 @@ final class InstallmentViews {
         val ending = installments.stream().filter(installment -> installment.left() == 0).count();
         return dl(cls("summary"),
                 div(dt(text(message("Parcelas"))), dd(text(Text.data(String.valueOf(installments.size()))))),
-                div(dt(text(message("Valor do mês"))), dd(Ui.amount(value, true))),
+                div(dt(text(message("Valor do mês"))), dd(Ui.amount(value.abs(), false))),
                 div(dt(text(message("Última parcela"))), dd(text(Text.data(String.valueOf(ending))))),
-                div(cls("closing"), dt(text(message("Restante"))), dd(Ui.amount(remaining, false))));
+                div(cls("closing"), dt(text(message("Restante"))), dd(Ui.amount(remaining.abs(), false))));
     }
 
     /** A line dated after today is planned, shown apart; the account the installment is in; the last one is marked. */
@@ -120,8 +120,7 @@ final class InstallmentViews {
                         small(cls("sub"), text(Text.data(installment.line().counterpart())))),
                 td(cls("num"), text(Text.data(installment.number() + "/" + installment.total())),
                         when(installment.left() == 0, () -> small(cls("sub"), text(message("última"))))),
-                td(cls("num"), Ui.amount(installment.line().amount(), true)),
-                td(cls("num hide-narrow"), Ui.amount(installment.remaining(), false))
+                td(cls("num"), Ui.amount(installment.line().amount().abs(), false))
         );
     }
 }

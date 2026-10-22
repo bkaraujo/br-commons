@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
 @NullMarked
 public record Installment(LedgerLine line, Account account, int number, int total) {
 
-    private static final Pattern FRACTION = Pattern.compile("(?<![\\d/])(\\d{1,2})\\s*/\\s*(\\d{1,2})(?![\\d/])");
-    private static final Pattern WORDS = Pattern.compile("(?i)\\bparc\\p{L}*\\.?\\s*(\\d{1,2})\\s+de\\s+(\\d{1,2})\\b");
+    private static final Pattern FRACTION = Pattern.compile("(?<![\\d/])(\\d{1,3})\\s*/\\s*(\\d{1,3})(?![\\d/])");
+    private static final Pattern WORDS = Pattern.compile("(?i)\\bparc\\p{L}*\\.?\\s*(\\d{1,3})\\s+de\\s+(\\d{1,3})\\b");
 
     /** The installment of the line in {@code account}, when its transaction is one: 1 ≤ k ≤ N, N ≥ 2. */
     public static Optional<Installment> of(LedgerLine line, Account account) {
