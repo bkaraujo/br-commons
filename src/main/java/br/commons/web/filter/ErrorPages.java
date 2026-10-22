@@ -2,6 +2,7 @@ package br.commons.web.filter;
 
 import br.commons.Logger;
 import br.commons.Result;
+import br.commons.Strings;
 import br.commons.locale.i18n.Errors;
 import br.commons.locale.l10n.L10N;
 import br.commons.protocol.http.HTTPStatus;
@@ -113,7 +114,7 @@ public final class ErrorPages implements HTTPFilter {
     /** Browser navigation lists {@code text/html}; {@code fetch}/HTMX send {@code *}{@code /*} and keep JSON. */
     static boolean acceptsHtml(HTTPRequest request) {
         val accept = request.header("Accept");
-        return accept != null && accept.toLowerCase().contains("text/html");
+        return accept != null && Strings.lower(accept).contains("text/html");
     }
 
     private static String builtin(HTTPRequest request, HTTPStatus status) {

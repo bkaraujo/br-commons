@@ -1,12 +1,12 @@
 package br.bundled.tasks.htmx;
 
 import br.bundled.tasks.shared.Task;
+import br.commons.Strings;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Function;
 
 /**
@@ -27,7 +27,7 @@ record TaskView(String filter, String query) {
 
     boolean shows(Task task) {
         val inTab = "all".equals(filter) || "done".equals(filter) == task.done();
-        return inTab && task.title().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
+        return inTab && Strings.lower(task.title()).contains(Strings.lower(query));
     }
 
     /** {@code /?filter=open}: the search is not kept in the history, only the tab. */

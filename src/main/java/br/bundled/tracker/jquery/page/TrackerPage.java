@@ -1,5 +1,6 @@
 package br.bundled.tracker.jquery.page;
 
+import br.commons.Strings;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.html5.CrossOrigin;
@@ -13,7 +14,6 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
 import java.util.List;
-import java.util.Locale;
 
 import static br.commons.lang.Html5.*;
 
@@ -76,7 +76,7 @@ public final class TrackerPage implements WebResource {
     private static Node themeSwitch() {
         return div(cls("theme"), hidden(), role("group"), ariaLabel(message("Tema")),
                 each(THEMES, theme -> button(type(ButtonType.BUTTON), data("theme-choice", theme.get(0)),
-                        title(message("Tema " + theme.get(1).toLowerCase(Locale.ROOT))),
+                        title(message("Tema " + Strings.lower(theme.get(1)))),
                         ariaLabel(message("Tema " + theme.get(1))), text(Text.data(theme.get(2))))));
     }
 

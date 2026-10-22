@@ -1,12 +1,12 @@
 package br.commons.testing;
 
+import br.commons.Strings;
 import lombok.val;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -38,7 +38,7 @@ public final class Postgres {
 
     /** JDBC URL of a new, empty database. */
     public static String newDatabase() {
-        val name = "test_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toLowerCase(Locale.ROOT);
+        val name = "test_" + Strings.lower(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         try (var connection = admin(); var statement = connection.createStatement()) {
             statement.execute("create database " + name);
         } catch (SQLException e) {

@@ -1,12 +1,11 @@
 package br.commons.web.ui;
 
+import br.commons.Strings;
 import br.commons.lang.Html5;
 import br.commons.lang.html.core.Node;
 import com.google.errorprone.annotations.Immutable;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
-
-import java.util.Locale;
 
 import static br.commons.lang.Html5.*;
 
@@ -49,7 +48,7 @@ public abstract class FontAwesome {
         /** The Font Awesome name: {@code house}, {@code arrow-right}, {@code 500px}; the class {@code fa-house}. */
         default String icon() {
             val name = name();
-            return name.substring(name.startsWith("_") ? 1 : 0).toLowerCase(Locale.ROOT).replace('_', '-');
+            return Strings.lower(name.substring(name.startsWith("_") ? 1 : 0)).replace('_', '-');
         }
 
         /**

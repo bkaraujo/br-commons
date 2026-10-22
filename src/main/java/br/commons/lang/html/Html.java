@@ -1,5 +1,6 @@
 package br.commons.lang.html;
 
+import br.commons.Strings;
 import br.commons.lang.html.core.Attribute;
 import br.commons.lang.html.core.Content;
 import br.commons.lang.html.core.Keyword;
@@ -15,7 +16,6 @@ import org.jspecify.annotations.NullMarked;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -96,7 +96,7 @@ public abstract class Html {
     }
 
     private static Node rawText(String tag, String content) {
-        if (content.toLowerCase(Locale.ROOT).contains("</" + tag)) {
+        if (Strings.lower(content).contains("</" + tag)) {
             throw new IllegalArgumentException(Errors.get().rawContentClosingTag(tag).value());
         }
         return new Node.Raw(content);

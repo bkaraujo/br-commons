@@ -1,12 +1,12 @@
 package br.bundled.tracker.htmx.ui;
 
+import br.commons.Strings;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.core.Node;
 import br.commons.locale.i18n.Text;
 import org.jspecify.annotations.NullMarked;
 
 import java.util.List;
-import java.util.Locale;
 
 import static br.bundled.tracker.htmx.ui.Ui.message;
 import static br.commons.lang.Html5.*;
@@ -62,7 +62,7 @@ public final class Layout {
                 cls("theme"), hidden(), role("group"), ariaLabel(message("Tema")),
                 each(
                         List.of(Theme.values()), theme -> button(type(ButtonType.BUTTON), data("theme-choice", theme.token()),
-                        title(message("Tema " + theme.label().toLowerCase(Locale.ROOT))),
+                        title(message("Tema " + Strings.lower(theme.label()))),
                         ariaLabel(message("Tema " + theme.label())), text(Text.data(theme.icon())))
                 )
         );

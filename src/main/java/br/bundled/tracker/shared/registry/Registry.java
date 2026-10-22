@@ -1,5 +1,6 @@
 package br.bundled.tracker.shared.registry;
 
+import br.commons.Strings;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
@@ -36,7 +37,7 @@ public final class Registry<T extends Registered> {
     }
 
     public List<T> all() {
-        return items.values().stream().sorted(Comparator.comparing(item -> item.name().toLowerCase(Locale.ROOT))).toList();
+        return items.values().stream().sorted(Comparator.comparing(item -> Strings.lower(item.name()))).toList();
     }
 
     /** What can still be chosen in a new entry. */

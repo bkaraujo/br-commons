@@ -7,6 +7,7 @@ import br.bundled.money.business._0_domain.repository.BalanceRepository;
 import br.bundled.money.business._0_domain.repository.BookRepository;
 import br.bundled.money.business._0_domain.repository.TransactionRepository;
 import br.commons.Result;
+import br.commons.Strings;
 import br.commons.business.BusinessError;
 import br.commons.cdi.Context;
 import lombok.val;
@@ -239,6 +240,6 @@ public final class AccountService {
 
     /** {@code Saldo Inícial} → {@code saldo inicial}. */
     private static String plain(String name) {
-        return Normalizer.normalize(name, Normalizer.Form.NFD).replaceAll("\\p{M}", "").strip().toLowerCase(Locale.ROOT);
+        return Strings.lower(Normalizer.normalize(name, Normalizer.Form.NFD).replaceAll("\\p{M}", "").strip());
     }
 }

@@ -1,9 +1,8 @@
 package br.bundled.money.web.ui;
 
+import br.commons.Strings;
 import br.commons.web.ui.FontAwesome;
 import org.jspecify.annotations.NullMarked;
-
-import java.util.Locale;
 
 /**
  * The themes of the switch. The choice lives only in the browser ({@code static/money/theme.js}: localStorage
@@ -26,7 +25,7 @@ enum Theme {
 
     /** The value of {@code data-theme} and of the button's {@code data-theme-choice}. */
     String token() {
-        return name().toLowerCase(Locale.ROOT);
+        return Strings.lower(name());
     }
 
     String label() {
