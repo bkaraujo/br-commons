@@ -66,6 +66,15 @@ public final class DomainErrors {
     /** Arg: position. A book loaded refers to an account its chart does not have */
     public static final String IMPORT_ACCOUNT = PREFIX + "import.account";
 
+    /** Args: file, cause. A book to load that cannot be read */
+    public static final String IMPORT_UNREADABLE = PREFIX + "import.unreadable";
+
+    /** Args: file, cause. A book to load that is not in the format expected */
+    public static final String IMPORT_MALFORMED = PREFIX + "import.malformed";
+
+    /** Args: account name, type. An account of a type with no equivalent (another currency) that has transactions */
+    public static final String IMPORT_ACCOUNT_TYPE = PREFIX + "import.account_type";
+
     /** Args: field, file, cause. A record of the storage that cannot be read back */
     public static final String STORAGE_UNREADABLE = PREFIX + "storage.unreadable";
 

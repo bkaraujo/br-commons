@@ -158,13 +158,13 @@ public final class HTTPServer {
                 return;
             }
 
-            Logger.debug("[IN ] %s %s %s", exchange.getProtocol(), exchange.getRequestMethod(), exchange.getRequestURI());
+            Logger.debug("[IN ] %s %s %s", exchange.getProtocol(), exchange.getRequestMethod(), logged(exchange));
             request = readRequest(exchange, requestId, method);
             if (request != null) write(exchange, chain.handle(request));
         } catch (Throwable e) {
             // Throwable, not just RuntimeException: an Error (e.g. IncompatibleClassChangeError from old class)
             // would close the connection without response or log.
-            Logger.error("Fatal error dispatching %s: %s", exchange.getRequestURI(), e.toString());
+            Logger.error("Fatal error dispatching %s: %s", logged(exchange), e.toString());
             writeSafely(exchange, onFailure.apply(e));
         } finally {
             if (request != null) deleteQuietly(request.multipart());
@@ -179,17 +179,17 @@ public final class HTTPServer {
      * answers 400 (malformed query or multipart) or 413 and returns {@code null} when it cannot.
      */
     private @Nullable HTTPServerRequest readRequest(HttpExchange exchange, String requestId, HTTPMethod method) throws IOException {
-        val parsed = HTTPServerRequest.parseQuery(exchange.getRequestURI().getRawQuery());
-        if (parsed instanceof Result.Failure<Map<String, String>, String>(var error)) {
+        val parsed = HTTPServerRequest.Target.parse(exchange.getRequestURI());
+        if (parsed instanceof Result.Failure<HTTPServerRequest.Target, String>(var error)) {
             Logger.debug("[IN ] malformed query: %s", error);
             write(exchange, HTTPServerResponse.status(HTTPStatus.BAD_REQUEST));
             return null;
         }
-        val query = parsed.getOrThrow();
+        val target = parsed.getOrThrow();
         val contentType = exchange.getRequestHeaders().getFirst("Content-Type");
         if (multipart != null && MultipartParser.accepts(contentType)) {
             try {
-                return toRequest(exchange, requestId, method, query, new byte[0], multipart.parse(contentType, exchange.getRequestBody()));
+                return toRequest(exchange, requestId, method, target, new byte[0], multipart.parse(contentType, exchange.getRequestBody()));
             } catch (MultipartParser.TooLarge e) {
                 Logger.trace("[IN ]CONTENT_TOO_LARGE (multipart)");
                 write(exchange, HTTPServerResponse.status(HTTPStatus.CONTENT_TOO_LARGE));
@@ -206,7 +206,7 @@ public final class HTTPServer {
             write(exchange, HTTPServerResponse.status(HTTPStatus.CONTENT_TOO_LARGE));
             return null;
         }
-        return toRequest(exchange, requestId, method, query, body, Multipart.EMPTY);
+        return toRequest(exchange, requestId, method, target, body, Multipart.EMPTY);
     }
 
     /** Method outside {@link HTTPMethod} (HEAD, TRACE…) receives 405 instead of blowing up as a failure. */
@@ -215,6 +215,11 @@ public final class HTTPServer {
             if (method.name().equals(name)) return method;
         }
         return null;
+    }
+
+    /** The request in the log: its path, never the query, which may carry a form sent by GET or a token. */
+    private static String logged(HttpExchange exchange) {
+        return exchange.getRequestURI().getRawPath();
     }
 
     /**
@@ -249,17 +254,18 @@ public final class HTTPServer {
         }
     }
 
-    /** {@code query}: decoded once, by {@link #readRequest}. */
+    /** {@code target}: its query decoded once, by {@link #readRequest}. */
     private static HTTPServerRequest toRequest(HttpExchange exchange, String requestId, HTTPMethod method,
-                                               Map<String, String> query, byte[] body, Multipart upload) {
+                                               HTTPServerRequest.Target target, byte[] body, Multipart upload) {
         val headers = new LinkedHashMap<String, String>();
         exchange.getRequestHeaders().forEach((name, values) -> {
             if (!values.isEmpty()) headers.put(name, values.getFirst());
         });
 
-        val request = new HTTPServerRequest(requestId, method, exchange.getRequestURI(), query, headers, body, upload);
+        val request = new HTTPServerRequest(requestId, method, target, headers, body, upload);
         Logger.debug("[IN ] headers %s", headers);
-        Logger.debug("[IN ] parameters %s", request.parameters());
+        // names only: the values may be a form sent by GET or a token
+        Logger.debug("[IN ] parameters %s", request.parameters().keySet());
         Logger.verbose("[IN ] body %s", Logger.lazy(() -> Arrays.toString(body)));
         return request;
     }
@@ -287,7 +293,7 @@ public final class HTTPServer {
         if (body.length == 0) return;
 
         try (val out = exchange.getResponseBody()) {
-            Logger.debug("[OUT] %s %s %s :: %s bytes", exchange.getProtocol(), exchange.getRequestMethod(), exchange.getRequestURI(), body.length);
+            Logger.debug("[OUT] %s %s %s :: %s bytes", exchange.getProtocol(), exchange.getRequestMethod(), logged(exchange), body.length);
             Logger.trace("[OUT] headers %s", response.headers());
             Logger.trace("[OUT] cookies %s", response.cookies());
             Logger.verbose("[OUT] body %s", Logger.lazy(() -> Arrays.toString(body)));
@@ -307,7 +313,7 @@ public final class HTTPServer {
             exchange.sendResponseHeaders(response.status().code(), 0);
 
             try (val out = exchange.getResponseBody()) {
-                Logger.debug("[STR] %s %s %s", exchange.getProtocol(), exchange.getRequestMethod(), exchange.getRequestURI());
+                Logger.debug("[STR] %s %s %s", exchange.getProtocol(), exchange.getRequestMethod(), logged(exchange));
                 response.streamWriter().ifSuccess(writer -> writer.accept(out));
             }
         } catch (IOException e) {

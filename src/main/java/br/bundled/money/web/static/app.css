@@ -879,13 +879,14 @@ button.link.danger {
     color: var(--neg);
 }
 
-/* Font Awesome (br.commons.web.ui.FontAwesome): inline SVG one em tall, in the color of the text. */
+/*
+ * Icons: Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license/free (Icons: CC BY 4.0) Copyright 2026 Fonticons, Inc.
+ * br.commons.web.ui.FontAwesome sizes and colors the inline SVG itself; here only its alignment with the text.
+ */
 .fa {
-    width: 1.25em;
-    height: 1em;
     overflow: visible;
     vertical-align: -.125em;
-    fill: currentColor;
 }
 
 button.icon-button {

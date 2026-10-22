@@ -1247,6 +1247,30 @@ public abstract class Html5 extends Html {
     }
 
     /**
+     * The SVG {@code width} attribute of an {@link #svg}: a length ({@code 1.25em}); the page's CSS still overrides it.
+     * <p>On {@code svg}. The HTML {@code width} in pixels is {@link #width(int)}.
+     *
+     * @see <a href="https://www.w3.org/TR/SVG2/geometry.html#Sizing">SVG 2: sizing properties</a>
+     */
+    public static Attribute width(String length) { return attribute("width", length); }
+
+    /**
+     * The SVG {@code height} attribute of an {@link #svg}: a length ({@code 1em}); the page's CSS still overrides it.
+     * <p>On {@code svg}. The HTML {@code height} in pixels is {@link #height(int)}.
+     *
+     * @see <a href="https://www.w3.org/TR/SVG2/geometry.html#Sizing">SVG 2: sizing properties</a>
+     */
+    public static Attribute height(String length) { return attribute("height", length); }
+
+    /**
+     * The SVG {@code fill} attribute: the paint of the shapes ({@code currentColor}: the color of the text).
+     * <p>On {@code svg} and its shapes.
+     *
+     * @see <a href="https://www.w3.org/TR/SVG2/painting.html#FillProperty">SVG 2: the fill property</a>
+     */
+    public static Attribute fill(String paint) { return attribute("fill", paint); }
+
+    /**
      * The {@code math} element: MathML inline in the page, in the MathML namespace (the HTML parser switches to it).
      * Children are MathML elements, built here with {@code element(…)}.
      *

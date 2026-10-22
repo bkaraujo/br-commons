@@ -102,8 +102,16 @@ public final class Book {
         return accountService.children(account);
     }
 
-    /** Every account, depth first, children by name: from one read of the accounts (by name). */
+    /** Every account, depth first, children by name. */
     public List<Account> tree() {
+        return chart().tree();
+    }
+
+    /** The accounts read once: depth first, and the children of each one that has any, by name. */
+    private record Chart(List<Account> tree, Map<Account, List<Account>> children) {}
+
+    /** {@link Chart} from one read of the accounts (by name): no search per account. */
+    private Chart chart() {
         val accounts = accountService.accounts();
         val children = new HashMap<Account, List<Account>>();
         for (val account : accounts) {
@@ -112,7 +120,7 @@ public final class Book {
         }
         val all = new ArrayList<Account>();
         accounts.stream().filter(account -> account.parent() == null).forEach(root -> collect(root, children, all));
-        return all;
+        return new Chart(all, children);
     }
 
     private static void collect(Account account, Map<Account, List<Account>> children, List<Account> all) {
@@ -156,7 +164,8 @@ public final class Book {
 
     /** Income and expense accounts without children, the ones a quick entry can use. */
     public List<Account> categories() {
-        return tree().stream().filter(Book::category).filter(account -> children(account).isEmpty()).toList();
+        val chart = chart();
+        return chart.tree().stream().filter(Book::category).filter(account -> !chart.children().containsKey(account)).toList();
     }
 
     public Optional<Account> root(AccountType type) {

@@ -50,31 +50,51 @@ public final class HTTPServerRequest implements HTTPRequest {
      * ({@code /people/?q=caf%C3%A9}): the path decoded and without trailing slash, the query decoded. A
      * {@code multipart/form-data} body was streamed by the {@link MultipartParser}, not kept in memory.
      *
-     * @throws IllegalArgumentException when the query is malformed (see {@link #parseQuery(String)}, which the
-     *                                  server checks first to answer 400)
+     * @throws IllegalArgumentException when the query is malformed (see {@link Target#parse}, which the server
+     *                                  checks first to answer 400)
      */
     public HTTPServerRequest(String requestId, HTTPMethod method, URI uri, Map<String, String> headers, byte[] body,
                              Multipart multipart) {
-        this(requestId, method, uri, query(uri.getRawQuery()), headers, body, multipart);
+        this(requestId, method, target(uri), headers, body, multipart);
     }
 
-    /** {@link #HTTPServerRequest(String, HTTPMethod, URI, Map, byte[], Multipart)} with the query already decoded. */
-    public HTTPServerRequest(String requestId, HTTPMethod method, URI uri, Map<String, String> parameters,
-                             Map<String, String> headers, byte[] body, Multipart multipart) {
+    /** {@link #HTTPServerRequest(String, HTTPMethod, URI, Map, byte[], Multipart)} with the target already read. */
+    public HTTPServerRequest(String requestId, HTTPMethod method, Target target, Map<String, String> headers,
+                             byte[] body, Multipart multipart) {
         this.multipart = multipart;
         this.requestId = requestId;
         this.method = method;
-        this.uri = uri;
+        this.uri = target.uri;
         this.path = withoutTrailingSlash(Strings.or(uri.getPath(), ""));
-        this.parameters = Collections.unmodifiableMap(new LinkedHashMap<>(parameters));
+        this.parameters = Collections.unmodifiableMap(target.parameters);
         this.headers = Collections.unmodifiableMap(lowerCaseNames(headers));
         this.body = body;
     }
 
-    private static Map<String, String> query(@Nullable String rawQuery) {
-        val query = parseQuery(rawQuery);
-        if (query instanceof Result.Failure<Map<String, String>, String>(var error)) throw new IllegalArgumentException(error);
-        return query.getOrThrow();
+    /**
+     * The target the client sent ({@code /people/?q=caf%C3%A9}) with its query decoded. Only {@link #parse} builds
+     * one, so the parameters of a request are always the query of its own URI.
+     */
+    public static final class Target {
+
+        private final URI uri;
+        private final Map<String, String> parameters;
+
+        private Target(URI uri, Map<String, String> parameters) {
+            this.uri = uri;
+            this.parameters = parameters;
+        }
+
+        /** The target with its query decoded, or why the query cannot be (see {@link #parseQuery}). */
+        public static Result<Target, String> parse(URI uri) {
+            return parseQuery(uri.getRawQuery()).map(parameters -> new Target(uri, parameters));
+        }
+    }
+
+    private static Target target(URI uri) {
+        val target = Target.parse(uri);
+        if (target instanceof Result.Failure<Target, String>(var error)) throw new IllegalArgumentException(error);
+        return target.getOrThrow();
     }
 
     private static String withoutTrailingSlash(String path) {

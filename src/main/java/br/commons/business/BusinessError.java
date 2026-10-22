@@ -25,7 +25,8 @@ public sealed interface BusinessError {
 
     default String render() { return I18N.of(key(), args()); }
 
-    default void toConsole() { Logger.error(render()); }
+    /** The rendered text may carry what came from outside (a name with {@code %}): never a format string. */
+    default void toConsole() { Logger.error(this::render); }
 
     @NullMarked
     record NotFound(String key, Object... args) implements BusinessError {
