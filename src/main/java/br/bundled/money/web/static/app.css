@@ -1064,6 +1064,11 @@ tr:hover .actions button,
     margin: 0 .5rem .5rem;
 }
 
+/* extrato: contas e cartões na mesma lista */
+.statement-accounts ul + h3 {
+    margin-top: 1rem;
+}
+
 .statement-accounts ul {
     margin: 0;
     padding: 0;
@@ -1089,11 +1094,6 @@ tr:hover .actions button,
     background: var(--soft);
     color: var(--accent);
     font-weight: 600;
-}
-
-.statement-accounts a.group {
-    margin-top: .5rem;
-    font-weight: 700;
 }
 
 .statement-accounts a.depth-1 {
@@ -1511,7 +1511,6 @@ tr:hover .actions button,
     }
 
     .statement-accounts a,
-    .statement-accounts a.group,
     .statement-accounts a[class*="depth-"] {
         flex-direction: column;
         gap: 0;

@@ -23,6 +23,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
 import java.util.function.Function;
@@ -33,7 +34,7 @@ import static br.commons.lang.Html5.*;
 import static br.commons.lang.Htmx.*;
 
 /**
- * The statement screen: the list of accounts ({@code .statement-accounts}, always visible) and the panel
+ * The statement screen: the home's accounts and cards ({@code .statement-accounts}, always visible) and the panel
  * ({@code #statement-panel}) with the chosen account's month. The list loads only the panel; it marks the chosen
  * account itself, so its scroll is kept. The month travels to the list links in {@code #statement-month}.
  * "Novo lançamento" creates and each line edits or deletes its transaction in {@code #statement-editor}, a modal
@@ -58,29 +59,53 @@ final class StatementViews {
     static Node screen(Book book, Account account, YearMonth month, Node editor) {
         return section(
                 cls("statement"),
-                accounts(book, account, false),
+                accounts(book, account, month, false),
                 panel(book, account, month, editor)
         );
     }
 
-    /** The list; {@code oob}: sent beside the panel after a change, to update the balances. */
-    static Node accounts(Book book, Account account, boolean oob) {
-        val balances = book.balances();
+    /**
+     * The list: the accounts and the credit cards of the home ({@link Book#moneyAccounts}), each group under its title,
+     * an empty one left out, each with its value in {@code month}: the balance of an account ({@link #shown}), the bill
+     * of a card ({@link Book#bills}); {@code oob}: sent beside the panel after a change or a new month.
+     */
+    static Node accounts(Book book, Account account, YearMonth month, boolean oob) {
+        val cards = book.cards();
+        val values = new HashMap<>(book.balances(book.bankAccounts(), shown(book, month)));
+        values.putAll(book.bills(cards, month));
         return nav(id("statement-accounts"), cls("statement-accounts card"), ariaLabel(message("Contas")),
                 hxOnHtmx("before-request", MARK), oob ? hxSwapOob() : fragment(),
-                h3(text(message("Contas"))),
-                ul(each(book.tree(), item -> li(accountLink(book, item, balances.getOrDefault(item, BigDecimal.ZERO),
-                        item.equals(account))))));
+                group("Contas", book.bankAccounts(), values, account),
+                group("Cartões", cards, values, account));
     }
 
-    private static Node accountLink(Book book, Account account, BigDecimal balance, boolean current) {
+    /** The day of the balances: today in the current month (planned entries do not count yet), else its last day. */
+    private static LocalDate shown(Book book, YearMonth month) {
+        return YearMonth.from(book.today()).equals(month) ? book.today() : month.atEndOfMonth();
+    }
+
+    private static Node group(String title, List<Account> accounts, Map<Account, BigDecimal> values, Account account) {
+        return accounts.isEmpty() ? fragment() : fragment(h3(text(message(title))),
+                ul(each(accounts, item -> li(accountLink(item, values.getOrDefault(item, BigDecimal.ZERO), item.equals(account),
+                        depth(item, accounts))))));
+    }
+
+    /** How many accounts of the list are above this one (an account with subaccounts), up to the 3 the style has. */
+    private static int depth(Account account, List<Account> listed) {
+        var depth = 0;
+        for (var parent = account.parent(); parent != null; parent = parent.parent()) {
+            if (listed.contains(parent)) depth++;
+        }
+        return Math.min(depth, 3);
+    }
+
+    private static Node accountLink(Account account, BigDecimal balance, boolean current, int depth) {
         val url = "/statement?account=" + account.identity();
-        val depth = book.depth(account);
         return a(href(url), hxGet(url), hxTarget("#statement-panel"), hxSwap(HxSwap.OUTER_HTML),
                 hxInclude("#statement-month"), hxPushUrl(true),
-                cls("depth-" + Math.min(depth, 3) + (depth == 0 ? " group" : "") + (current ? " current" : "")),
+                cls((current ? "current" : "") + (depth > 0 ? " depth-" + depth : "")),
                 span(text(Text.data(account.name()))),
-                Ui.amount(balance, false));
+                span(Ui.amount(balance, false)));
     }
 
     /** The month of the account: navigation, summary and the transactions dated in the month. */

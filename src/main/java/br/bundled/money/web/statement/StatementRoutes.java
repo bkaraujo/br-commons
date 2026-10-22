@@ -28,6 +28,7 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.net.URI;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -72,8 +73,20 @@ public final class StatementRoutes implements WebResource {
     private HTTPResponse statement(WebRequest request) {
         val month = month(request::parameter);
         val account = chosen(request::parameter);
-        return Ui.partial(request) ? ok(StatementViews.panel(book, account, month, Html.fragment()).render())
+        return Ui.partial(request)
+                ? ok(Html.fragment(StatementViews.panel(book, account, month, Html.fragment()),
+                        monthChanged(request) ? StatementViews.accounts(book, account, month, true) : Html.fragment()).render())
                 : Layout.page(request, Screen.STATEMENT, StatementViews.screen(book, account, month, Html.fragment()));
+    }
+
+    /**
+     * Whether the month asked is not the one the page shows ({@code HX-Current-URL}): only then the values of the list
+     * (and the list itself, whose accounts may have changed) go along; choosing an account keeps the month.
+     */
+    private boolean monthChanged(WebRequest request) {
+        val shown = HtmxRequest.of(request).currentUrl().map(URI::create).map(URI::getRawQuery)
+                .map(query -> month(Form.parse(query)::value));
+        return shown.isEmpty() || !shown.get().equals(month(request::parameter));
     }
 
     // ---------- editor
@@ -234,7 +247,7 @@ public final class StatementRoutes implements WebResource {
     /** The panel with a notice in the editor, and the list with the new balances. */
     private HTTPResponse changed(Account account, YearMonth month, String notice) {
         Node view = Html.fragment(StatementViews.panel(book, account, month, StatementViews.notice(notice)),
-                StatementViews.accounts(book, account, true));
+                StatementViews.accounts(book, account, month, true));
         return ok(view.render());
     }
 
@@ -244,11 +257,11 @@ public final class StatementRoutes implements WebResource {
         return Ui.monthOf(value.apply("month"), book::month);
     }
 
-    /** The account asked, else the first financial one, else the first of all; the book read only without one. */
+    /** The account asked, else the first of the list ({@link Book#moneyAccounts}), else the first of all. */
     private Account chosen(Function<String, @Nullable String> value) {
         return book.account(Ui.uuid(value.apply("account"))).orElseGet(() -> {
-            val tree = book.tree();
-            return tree.stream().filter(Account::financial).findFirst().orElse(tree.getFirst());
+            val money = book.moneyAccounts();
+            return money.isEmpty() ? book.tree().getFirst() : money.getFirst();
         });
     }
 }

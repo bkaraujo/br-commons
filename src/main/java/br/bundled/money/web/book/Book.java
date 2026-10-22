@@ -1,10 +1,6 @@
 package br.bundled.money.web.book;
 
-import br.bundled.money.business._0_domain.model.Account;
-import br.bundled.money.business._0_domain.model.AccountType;
-import br.bundled.money.business._0_domain.model.BookTransaction;
-import br.bundled.money.business._0_domain.model.Transaction;
-import br.bundled.money.business._0_domain.model.TransactionSplit;
+import br.bundled.money.business._0_domain.model.*;
 import br.bundled.money.business._1_application.*;
 import br.commons.Result;
 import br.commons.business.BusinessError;
@@ -152,6 +148,16 @@ public final class Book {
                 .filter(account -> account.type() != AccountType.STOCK && account.type() != AccountType.MUTUAL).toList();
     }
 
+    /** The financial accounts that are not credit cards: the "Contas" of the screens. */
+    public List<Account> bankAccounts() {
+        return moneyAccounts().stream().filter(account -> !card(account)).toList();
+    }
+
+    /** The credit cards: the "Cartões" of the screens. */
+    public List<Account> cards() {
+        return moneyAccounts().stream().filter(Book::card).toList();
+    }
+
     /** A credit card: a financial account of type {@link AccountType#CREDIT}. */
     public static boolean card(Account account) {
         return account.type() == AccountType.CREDIT;
@@ -264,6 +270,29 @@ public final class Book {
         return transactionService.month(month).stream()
                 .map(transaction -> amountIn(transaction, accounts, account.type().debit))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * {@link #balance} of just {@code accounts} at the end of {@code day}: no search through the rest of the tree.
+     */
+    public Map<Account, BigDecimal> balances(Collection<Account> accounts, LocalDate day) {
+        val result = new HashMap<Account, BigDecimal>();
+        accounts.forEach(account -> result.put(account, balance(account, day)));
+        return result;
+    }
+
+    /**
+     * The bill of each card in the month, in one pass: purchases less refunds, in its nature. A transfer between
+     * financial accounts (the payment of the bill) is left out.
+     */
+    public Map<Account, BigDecimal> bills(Collection<Account> cards, YearMonth month) {
+        val bills = new HashMap<Account, BigDecimal>();
+        cards.forEach(card -> bills.put(card, BigDecimal.ZERO));
+        for (val transaction : transactionService.month(month)) {
+            if (transaction.splits().stream().allMatch(split -> split.account().financial())) continue;
+            transaction.splits().forEach(split -> bills.computeIfPresent(split.account(), (_, bill) -> bill.add(split.amount())));
+        }
+        return bills;
     }
 
     /** {@link #flow} of every account during the month, in one pass over its transactions. */

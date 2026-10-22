@@ -55,11 +55,9 @@ final class HomeViews {
      * is left out.
      */
     private static Node accounts(Book book, Set<Account> selected) {
-        val accounts = book.moneyAccounts();
         return div(cls("home-accounts"),
-                group("home-accounts", "Contas", accounts.stream().filter(account -> !Book.card(account)).toList(),
-                        selected),
-                group("home-cards", "Cartões", accounts.stream().filter(Book::card).toList(), selected));
+                group("home-accounts", "Contas", book.bankAccounts(), selected),
+                group("home-cards", "Cartões", book.cards(), selected));
     }
 
     /**
