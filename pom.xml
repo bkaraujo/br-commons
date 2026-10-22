@@ -13,7 +13,9 @@
 
     <properties>
         <java.version>25</java.version>
-        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <!-- no release flag: jdk.incubator.vector (br.commons.Math) is not in the release symbol table -->
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
@@ -173,9 +175,11 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${version.plugin.compiler}</version>
                 <configuration>
-                    <release>${java.version}</release>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
                     <parameters>true</parameters>
                     <compilerArgs>
+                        <arg>--add-modules=jdk.incubator.vector</arg>
                         <arg>-XDcompilePolicy=simple</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
                         <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/test/java/.* -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=br.commons -XepOpt:NullAway:ExcludedFieldAnnotations=lombok.Getter</arg>
@@ -198,7 +202,7 @@
                     <includes>
                         <include>**/*Test.java</include>
                     </includes>
-                    <argLine>@{argLine} -XX:+EnableDynamicAgentLoading</argLine>
+                    <argLine>@{argLine} -XX:+EnableDynamicAgentLoading --add-modules jdk.incubator.vector</argLine>
                     <!-- Ryuk (the reaper container) needs a privileged socket that rootless Podman lacks;
                          containers are removed when the test JVM ends anyway. -->
                     <environmentVariables>
