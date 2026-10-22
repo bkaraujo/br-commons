@@ -5,7 +5,7 @@ import org.jspecify.annotations.NullMarked;
 
 /** Strategy de {@link Math}: argumentos já validados; escolhida no primeiro uso. */
 @NullMarked
-public sealed interface MathEngine permits ScalarMathEngine, SimdMathEngine {
+public sealed interface MathEngine permits ScalarMath, SimdMath {
 
     double sum(double[] a);
 
@@ -46,7 +46,7 @@ public sealed interface MathEngine permits ScalarMathEngine, SimdMathEngine {
     void mul(int[] a, int[] b, int[] out);
 
     static MathEngine select() {
-        if (ModuleLayer.boot().findModule("jdk.incubator.vector").isEmpty()) return new ScalarMathEngine();
-        return new SimdMathEngine();
+        if (ModuleLayer.boot().findModule("jdk.incubator.vector").isEmpty()) return new ScalarMath();
+        return new SimdMath();
     }
 }

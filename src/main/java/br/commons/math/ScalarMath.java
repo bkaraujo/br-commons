@@ -4,7 +4,7 @@ import org.jspecify.annotations.NullMarked;
 
 /** Strategy escalar: usada quando {@code jdk.incubator.vector} não está no runtime. */
 @NullMarked
-final class ScalarMathEngine implements MathEngine {
+final class ScalarMath implements MathEngine {
 
     @Override
     public double sum(double[] a) {

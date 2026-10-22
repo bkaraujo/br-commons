@@ -1,16 +1,11 @@
 package br.commons.math;
 
-import br.commons.MathEngine;
-import jdk.incubator.vector.DoubleVector;
-import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.IntVector;
-import jdk.incubator.vector.VectorOperators;
-import jdk.incubator.vector.VectorSpecies;
+import jdk.incubator.vector.*;
 import org.jspecify.annotations.NullMarked;
 
 /** Strategy SIMD: referencia a Vector API, então só é carregada quando o módulo existe. */
 @NullMarked
-final class SimdMathEngine implements MathEngine {
+final class SimdMath implements MathEngine {
 
     private static final VectorSpecies<Double> D = DoubleVector.SPECIES_PREFERRED;
     private static final VectorSpecies<Float> F = FloatVector.SPECIES_PREFERRED;
