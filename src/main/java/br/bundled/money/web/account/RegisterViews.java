@@ -3,7 +3,9 @@ package br.bundled.money.web.account;
 import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.business._0_domain.model.AccountType;
 import br.bundled.money.web.book.Book;
+import br.bundled.money.web.book.LedgerLine;
 import br.bundled.money.web.ui.Forms;
+import br.bundled.money.web.ui.Ledger;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.ButtonType;
@@ -23,6 +25,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +38,9 @@ import static br.commons.lang.Htmx.*;
  * The chart of accounts with its register: "Nova conta" and, on each row below the top level, edit and delete. The
  * form and the delete panel open in {@code #account-editor}, shown as a modal dialog over a frosted tree (CSS: the
  * editor holding a card); Escape or a click on the backdrop empties it. Saving or deleting answers with the whole
- * {@code #accounts}, the tree updated and a notice in the editor.
+ * {@code #accounts}, the tree updated and a notice in the editor. Beside the tree, {@code #account-panel}: the month
+ * of the account picked in it, as in the statement (navigation, summary, transactions), read only; a name in the tree
+ * loads only the panel, with the month ({@code #account-month}).
  */
 @NullMarked
 final class RegisterViews {
@@ -50,9 +55,23 @@ final class RegisterViews {
     /** The id prefix of each top-level branch of the tree ({@code tree.js} keeps the open ones by it). */
     private static final String BRANCH = "branch-";
 
+    /** Moves {@code .current} to the row whose name was clicked: the tree is not re-rendered. */
+    private static final String MARK = "if (event.target.closest('a')) { this.querySelectorAll('tr.current')"
+            + ".forEach(row => row.classList.remove('current')); event.target.closest('tr').classList.add('current') }";
+
     private RegisterViews() {}
 
+    /** The tree and, beside it, the month of {@code account}. */
+    static Node layout(Book book, Node editor, Account account, YearMonth month) {
+        return div(cls("chart"), screen(book, editor, account), panel(book, account, month));
+    }
+
     static Node screen(Book book, Node editor) {
+        return screen(book, editor, null);
+    }
+
+    /** The tree; {@code current}: the account whose month is beside it. */
+    private static Node screen(Book book, Node editor, @Nullable Account current) {
         val balances = book.balances();
         return section(
                 id("accounts"), cls("registry"),
@@ -66,14 +85,55 @@ final class RegisterViews {
                 div(id("account-editor"), cls("modal"), hxGet("/accounts/editor"), hxTrigger(DISMISS),
                         hxSwap(HxSwap.INNER_HTML), editor),
                 table(
-                        cls("records tree"),
+                        cls("records tree"), hxOnHtmx("before-request", MARK),
                         thead(tr(th(text(message("Conta"))), th(cls("hide-narrow"), text(message("Tipo"))),
                                 th(cls("num"), text(message("Saldo"))), th(ariaLabel(message("Ações"))))),
                         each(branches(book), branch -> {
-                            val rows = each(branch, account -> row(book, account, balances.getOrDefault(account, BigDecimal.ZERO)));
+                            val rows = each(branch, account -> row(book, account, balances.getOrDefault(account, BigDecimal.ZERO),
+                                    account.equals(current)));
                             return branch.size() > 1 ? tbody(id(BRANCH + branch.getFirst().identity()), cls("branch collapsed"), rows) : tbody(rows);
                         })
                 )
+        );
+    }
+
+    /** The month of the account: navigation, summary and its transactions, each value without sign. */
+    static Node panel(Book book, Account account, YearMonth month) {
+        val lines = book.ledger(account, month);
+        return div(
+                id("account-panel"), cls("statement-panel account-panel"),
+                input(type("hidden"), id("account-month"), name(Ledger.MONTH), value(month.toString())),
+                div(cls("ledger-head"),
+                        div(p(cls("caption"), text(message("Lançamentos · " + Ui.typeLabel(account.type())))),
+                                h2(text(Text.data(book.path(account))))),
+                        div(cls("buttons"),
+                                a(href(Screen.STATEMENT.path() + "?account=" + account.identity() + "&" + Ledger.MONTH + "="
+                                        + month), text(message("Abrir no extrato"))),
+                                Ledger.monthNav(book, month, Screen.ACCOUNTS.path() + "?account=" + account.identity(),
+                                        "#account-panel"))),
+                Ledger.summary(book, account, month, lines),
+                div(cls("ledger-scroll"), table(
+                        cls("records ledger-table"),
+                        thead(tr(th(text(message("Data"))), th(text(message("Descrição"))), th(cls("num"), text(message("Valor"))))),
+                        tbody(
+                                each(lines, line -> line(book, line)),
+                                when(lines.isEmpty(), () -> tr(cls("empty"),
+                                        td(colspan(3), text(message("Nenhum lançamento em " + Ui.month(month) + "."))))))
+                ))
+        );
+    }
+
+    /** A line dated after today is planned: still counted, shown apart. */
+    private static Node line(Book book, LedgerLine line) {
+        val transaction = line.transaction();
+        val planned = transaction.date().isAfter(book.today());
+        return tr(
+                cls(planned ? "planned" : ""),
+                td(time(datetime(transaction.date().toString()), text(Text.data(Ui.day(transaction.date())))),
+                        when(planned, () -> small(cls("sub"), text(message("previsto"))))),
+                td(strong(text(Text.data(transaction.description()))),
+                        small(cls("sub"), text(Text.data(line.counterpart())))),
+                td(cls("num"), Ui.amount(line.amount().abs(), false))
         );
     }
 
@@ -92,15 +152,17 @@ final class RegisterViews {
     }
 
     /** A row; the top level (Ativo, Passivo...) is fixed: no actions. */
-    private static Node row(Book book, Account account, BigDecimal balance) {
+    private static Node row(Book book, Account account, BigDecimal balance, boolean current) {
         val depth = book.depth(account);
         val path = "/accounts/" + account.identity();
+        val month = Screen.ACCOUNTS.path() + "?account=" + account.identity();
         return tr(
-                cls("depth-" + Math.min(depth, 3) + (depth == 0 ? " group" : "")),
+                cls("depth-" + Math.min(depth, 3) + (depth == 0 ? " group" : "") + (current ? " current" : "")),
                 td(when(depth == 0 && !book.children(account).isEmpty(), () -> button(
                                 type(ButtonType.BUTTON), cls("toggle"), ariaExpanded(false), ariaControls(BRANCH + account.identity()),
                                 ariaLabel(message("Mostrar ou ocultar subcontas")), span(cls("chevron"), ariaHidden(true)))),
-                        a(href(Screen.STATEMENT.path() + "?account=" + account.identity()),
+                        a(href(month), hxGet(month), hxTarget("#account-panel"), hxSwap(HxSwap.OUTER_HTML),
+                                hxInclude("#account-month"), hxPushUrl(true),
                                 text(Text.data(account.name())))),
                 td(cls("hide-narrow"), span(cls("badge" + (account.financial() ? " financial" : "")),
                         text(message(Ui.typeLabel(account.type()))))),

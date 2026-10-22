@@ -635,6 +635,33 @@ button:hover {
     display: none;
 }
 
+/* plano de contas: a árvore e, ao lado, o mês da conta escolhida (como no extrato); sem a coluna do tipo */
+.chart {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.chart .tree th:nth-child(2),
+.chart .tree td:nth-child(2) {
+    display: none;
+}
+
+.chart .account-panel {
+    position: sticky;
+    top: calc(var(--top-height) + 1rem);
+}
+
+.tree tr.current td {
+    background: var(--soft);
+}
+
+.tree tr.current a {
+    color: var(--accent);
+    font-weight: 600;
+}
+
 .tree .toggle,
 .outline .toggle {
     display: inline-grid;
@@ -1433,8 +1460,13 @@ tr:hover .actions button,
         grid-template-columns: 1fr 1fr;
     }
 
-    .statement {
+    .statement,
+    .chart {
         grid-template-columns: 1fr;
+    }
+
+    .chart .account-panel {
+        position: static;
     }
 
     /* tela estreita: a barra de contas já ocupa o topo; a tabela volta a rolar com a página */

@@ -5,6 +5,7 @@ import br.bundled.money.business._0_domain.model.ChartTemplate;
 import br.bundled.money.business._1_application.AccountInput;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.ui.Layout;
+import br.bundled.money.web.ui.Ledger;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.Result;
@@ -29,6 +30,7 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.time.YearMonth;
 import java.util.*;
 
 import static br.bundled.money.web.ui.Ui.ok;
@@ -40,8 +42,9 @@ import static br.bundled.money.web.ui.Ui.pathId;
  * {@code /accounts/form} when the type changes) or the delete panel ({@code /accounts/{id}/delete}). Saving and
  * deleting answer with the whole {@code #accounts}; invalid, the form or the panel with its errors; refused by the
  * services (a rule of the domain), the tree with the reason. {@code /accounts/empty}: the empty book from the personal
- * chart of accounts (INTENT F8), confirmed first. An account's transactions are in the statement
- * ({@code /statement?account=}). Literal routes come before {@code {id}}: the first match wins.
+ * chart of accounts (INTENT F8), confirmed first. Beside the tree, the month of an account
+ * ({@code /accounts?account=3&month=2026-10}, only {@code #account-panel} when the tree or the month navigation
+ * asks); without one, the first financial account. Literal routes come before {@code {id}}: the first match wins.
  */
 @NullMarked
 public final class AccountRoutes implements WebResource {
@@ -67,8 +70,20 @@ public final class AccountRoutes implements WebResource {
     }
 
     private HTTPResponse tree(WebRequest request) {
-        return Ui.partial(request) ? ok(RegisterViews.screen(book, Html.fragment()).render())
+        return Ui.partial(request) ? ok(RegisterViews.panel(book, chosen(request), month(request)).render())
                 : page(request, Html.fragment());
+    }
+
+    /** The account asked, else the first financial one, else the first of all. */
+    private Account chosen(WebRequest request) {
+        return book.account(Ui.uuid(request.parameter("account"))).orElseGet(() -> {
+            val tree = book.tree();
+            return tree.stream().filter(Account::financial).findFirst().orElse(tree.getFirst());
+        });
+    }
+
+    private YearMonth month(WebRequest request) {
+        return Ui.monthOf(request.parameter(Ledger.MONTH), book::month);
     }
 
     // ---------- editor
@@ -208,7 +223,7 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse redirected(WebRequest request, Result<?, BusinessError> result) {
         return result instanceof Result.Failure<?, BusinessError>(var error)
                 ? Layout.page(request, HTTPStatus.UNPROCESSABLE_CONTENT, Screen.ACCOUNTS,
-                        RegisterViews.screen(book, RegisterViews.notice(error.render())))
+                        RegisterViews.layout(book, RegisterViews.notice(error.render()), chosen(request), month(request)))
                 : WebResponse.redirect("/accounts");
     }
 
@@ -218,6 +233,6 @@ public final class AccountRoutes implements WebResource {
     }
 
     private HTTPResponse page(WebRequest request, Node editor) {
-        return Layout.page(request, Screen.ACCOUNTS, RegisterViews.screen(book, editor));
+        return Layout.page(request, Screen.ACCOUNTS, RegisterViews.layout(book, editor, chosen(request), month(request)));
     }
 }
