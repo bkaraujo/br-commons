@@ -22,6 +22,9 @@ public abstract class Transaction extends Entity implements Auditable {
     /** Original purchase identity of an installment (GnuCash slot {@code br-money/purchase}); null when not an installment */
     public @Nullable UUID purchase() { return null; }
 
+    /** Day the purchase was made, when it differs from {@link #date()} (a card purchase is posted on the bill's due date); null when unknown */
+    public @Nullable LocalDate purchased() { return null; }
+
     public abstract TransactionStatus status();
 
     public abstract List<TransactionSplit> splits();

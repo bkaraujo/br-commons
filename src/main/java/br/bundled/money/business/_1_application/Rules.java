@@ -42,7 +42,7 @@ final class Rules {
                                    List<? extends TransactionSplit> splits) {
         if (transaction instanceof BookTransaction kept) return kept.revised(date, description, splits);
         val details = new BookTransaction.Details(transaction.status(), transaction.installment(),
-                transaction.installmentTotal(), transaction.installmentAmount(), transaction.purchase());
+                transaction.installmentTotal(), transaction.installmentAmount(), transaction.purchase(), transaction.purchased());
         return new BookTransaction(transaction.identity(), date, description, splits, details, transaction.createdAt(),
                 System.currentTimeMillis());
     }

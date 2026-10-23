@@ -33,7 +33,12 @@ public final class ImportService {
     public record Line(int account, BigDecimal amount) {}
 
     /** A transaction to load. */
-    public record Posting(LocalDate date, String description, List<Line> lines) {}
+    public record Posting(LocalDate date, String description, List<Line> lines, @Nullable LocalDate purchased) {
+
+        public Posting(LocalDate date, String description, List<Line> lines) {
+            this(date, description, lines, null);
+        }
+    }
 
     /** The book as it was before a load, to write back when the load cannot be stored. */
     private record Snapshot(List<Account> accounts, List<Transaction> transactions, Book book) {}
@@ -75,7 +80,7 @@ public final class ImportService {
                     }
                     splits.add(BookSplit.of(created.get(line.account()), line.amount()));
                 }
-                val transaction = BookTransaction.of(posting.date(), posting.description(), splits);
+                val transaction = BookTransaction.of(posting.date(), posting.description(), splits, posting.purchased());
                 transaction.validate();
                 built.add(transaction);
             }

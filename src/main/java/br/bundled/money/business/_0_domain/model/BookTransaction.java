@@ -18,11 +18,16 @@ public final class BookTransaction extends Transaction {
 
     /** What a transaction has besides its identity, date, description and splits (INTENT F10 installments). */
     public record Details(TransactionStatus status, int installment, int installmentTotal, BigDecimal installmentAmount,
-                          @Nullable UUID purchase) {
+                          @Nullable UUID purchase, @Nullable LocalDate purchased) {
+
+        public Details(TransactionStatus status, int installment, int installmentTotal, BigDecimal installmentAmount,
+                       @Nullable UUID purchase) {
+            this(status, installment, installmentTotal, installmentAmount, purchase, null);
+        }
 
         /** Not an installment: one of one, worth the whole {@code value}. */
         public static Details single(BigDecimal value) {
-            return new Details(TransactionStatus.CONFIRMED, 1, 1, value, null);
+            return new Details(TransactionStatus.CONFIRMED, 1, 1, value, null, null);
         }
     }
 
@@ -46,13 +51,24 @@ public final class BookTransaction extends Transaction {
 
     /** A new transaction, now; not an installment. */
     public static BookTransaction of(LocalDate date, String description, List<? extends TransactionSplit> splits) {
+        return of(date, description, splits, null);
+    }
+
+    /** A new transaction, now, bought on {@code purchased} (null: the same day as {@code date}). */
+    public static BookTransaction of(LocalDate date, String description, List<? extends TransactionSplit> splits,
+                                     @Nullable LocalDate purchased) {
         val now = System.currentTimeMillis();
-        return new BookTransaction(UUID.randomUUID(), date, description, splits, Details.single(value(splits)), now, now);
+        val single = Details.single(value(splits));
+        val details = new Details(single.status(), 1, 1, single.installmentAmount(), null, purchased);
+        return new BookTransaction(UUID.randomUUID(), date, description, splits, details, now, now);
     }
 
     /** The same transaction (identity, creation, status) with new date, description and splits, changed now. */
     public BookTransaction revised(LocalDate date, String description, List<? extends TransactionSplit> splits) {
-        val kept = details.installmentTotal() == 1 ? new Details(details.status(), 1, 1, value(splits), null) : details;
+        // the purchase day belongs to the date it was posted on: moving the date drops it
+        val purchased = date.equals(this.date) ? details.purchased() : null;
+        val kept = details.installmentTotal() == 1
+                ? new Details(details.status(), 1, 1, value(splits), null, purchased) : details;
         return new BookTransaction(id, date, description, splits, kept, createdAt, System.currentTimeMillis());
     }
 
@@ -70,6 +86,7 @@ public final class BookTransaction extends Transaction {
     @Override public int installmentTotal() { return details.installmentTotal(); }
     @Override public BigDecimal installmentAmount() { return details.installmentAmount(); }
     @Override public @Nullable UUID purchase() { return details.purchase(); }
+    @Override public @Nullable LocalDate purchased() { return details.purchased(); }
     @Override public TransactionStatus status() { return details.status(); }
     @Override public List<TransactionSplit> splits() { return splits; }
     @Override public long createdAt() { return createdAt; }

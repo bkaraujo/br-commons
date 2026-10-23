@@ -47,6 +47,7 @@ import java.util.zip.GZIPInputStream;
 final class GnuCashSeed {
 
     private static final Pattern CARD_GROUP = Pattern.compile("(?iu)cart(?:[ãa]o|[õo]es)");
+    private static final Pattern PURCHASE = Pattern.compile("Evento (\\d{4}-\\d{2}-\\d{2})");
     private static final Pattern BROKER_GROUP = Pattern.compile("(?iu)corretora");
     /**
      * The book option of the read-only threshold, in days before today (0: none), as GnuCash keeps it; it becomes the
@@ -69,7 +70,7 @@ final class GnuCashSeed {
     /** {@code value}: the debit value, GnuCash's sign (positive debits the account). */
     private record Split(String account, BigDecimal value) {}
 
-    private record Transaction(LocalDate date, String description, List<Split> splits) {}
+    private record Transaction(LocalDate date, String description, List<Split> splits, @Nullable LocalDate purchased) {}
 
     /** What the file holds, before it becomes a chart and postings. */
     private record Read(List<Account> accounts, List<Transaction> transactions, @Nullable LocalDate threshold) {}
@@ -169,7 +170,7 @@ final class GnuCashSeed {
                 int position = Objects.requireNonNull(positions.get(kept.get(i).account()));
                 lines.add(new ImportService.Line(position, chart.get(position).type().debited(values.get(i))));
             }
-            if (lines.size() >= 2) postings.add(new ImportService.Posting(transaction.date(), transaction.description(), lines));
+            if (lines.size() >= 2) postings.add(new ImportService.Posting(transaction.date(), transaction.description(), lines, transaction.purchased()));
         }
         return Result.success(new Seed.Loaded(chart, postings, threshold));
     }
@@ -237,7 +238,8 @@ final class GnuCashSeed {
     }
 
     private static Transaction transaction(XMLStreamReader reader) throws XMLStreamException {
-        String description = "", date = null, account = null, value = null;
+        String description = "", date = null, account = null, value = null, slot = null;
+        LocalDate purchased = null;
         val splits = new ArrayList<Split>();
         var depth = 1;
         while (depth > 0) {
@@ -259,10 +261,24 @@ final class GnuCashSeed {
                 case "trn:date-posted" -> { date = posted(reader); depth--; }
                 case "split:account" -> { account = reader.getElementText(); depth--; }
                 case "split:value" -> { value = reader.getElementText(); depth--; }
+                case "slot:key" -> { slot = reader.getElementText(); depth--; }
+                case "slot:value" -> {
+                    if (purchased == null && "notes".equals(slot)) {
+                        purchased = purchase(reader.getElementText());
+                        depth--;
+                    }
+                }
                 default -> {}
             }
         }
-        return new Transaction(LocalDate.parse(required(date, "trn:date-posted").substring(0, 10)), description, splits);
+        return new Transaction(LocalDate.parse(required(date, "trn:date-posted").substring(0, 10)), description, splits,
+                purchased);
+    }
+
+    /** The day of the purchase a note records ({@code Evento 2025-09-08 | ...}); null when it has none. */
+    private static @Nullable LocalDate purchase(String notes) {
+        val found = PURCHASE.matcher(notes);
+        return found.find() ? LocalDate.parse(found.group(1)) : null;
     }
 
     /**

@@ -144,9 +144,10 @@ final class StatementViews {
         val closed = book.closed(transaction);
         val path = "/statement/transactions/" + transaction.identity();
         val context = "?account=" + account.identity() + "&month=" + month;
+        val shown = shownDate(book, transaction, account);
         return tr(
                 cls(planned ? "planned" : ""),
-                td(time(datetime(transaction.date().toString()), text(Text.data(Ui.day(transaction.date())))),
+                td(time(datetime(shown.toString()), text(Text.data(Ui.day(shown)))),
                         when(planned, () -> small(cls("sub"), text(message("previsto")))),
                         when(closed, () -> small(cls("sub"), text(message("fechado"))))),
                 td(strong(text(Text.data(transaction.description()))),
@@ -164,6 +165,12 @@ final class StatementViews {
                                 title(message("Excluir")), ariaLabel(message("Excluir " + transaction.description())),
                                 span(cls("glyph glyph-delete"), ariaHidden(true))))))
         );
+    }
+
+    /** In a card's statement, a purchase is dated by the day it was made ({@link Transaction#purchased()}), not the bill's. */
+    private static LocalDate shownDate(Book book, Transaction transaction, Account account) {
+        val purchased = transaction.purchased();
+        return purchased != null && book.cards().contains(account) ? purchased : transaction.date();
     }
 
     static Node notice(String text) {
