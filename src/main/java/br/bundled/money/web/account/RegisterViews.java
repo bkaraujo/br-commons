@@ -38,9 +38,9 @@ import static br.commons.lang.Htmx.*;
  * The chart of accounts with its register: "Nova conta" and, on each row below the top level, edit and delete. The
  * form and the delete panel open in {@code #account-editor}, shown as a modal dialog over a frosted tree (CSS: the
  * editor holding a card); Escape or a click on the backdrop empties it. Saving or deleting answers with the whole
- * {@code #accounts}, the tree updated and a notice in the editor. Beside the tree, {@code #account-panel}: the month
- * of the account picked in it, as in the statement (navigation, summary, transactions), read only; a name in the tree
- * loads only the panel, with the month ({@code #account-month}).
+ * {@code #accounts}, the tree updated and a notice in the editor, and the panel out of band. Beside the tree,
+ * {@code #account-panel}: the month of the account picked in it, as in the statement (navigation, summary,
+ * transactions), read only; a name in the tree loads only the panel, with the month ({@code #account-month}).
  */
 @NullMarked
 final class RegisterViews {
@@ -63,15 +63,11 @@ final class RegisterViews {
 
     /** The tree and, beside it, the month of {@code account}. */
     static Node layout(Book book, Node editor, Account account, YearMonth month) {
-        return div(cls("chart"), screen(book, editor, account), panel(book, account, month));
-    }
-
-    static Node screen(Book book, Node editor) {
-        return screen(book, editor, null);
+        return div(cls("chart"), screen(book, editor, account), panel(book, account, month, false));
     }
 
     /** The tree; {@code current}: the account whose month is beside it. */
-    private static Node screen(Book book, Node editor, @Nullable Account current) {
+    static Node screen(Book book, Node editor, Account current) {
         val balances = book.balances();
         return section(
                 id("accounts"), cls("registry"),
@@ -97,11 +93,15 @@ final class RegisterViews {
         );
     }
 
-    /** The month of the account: navigation, summary and its transactions, each value without sign. */
-    static Node panel(Book book, Account account, YearMonth month) {
+    /**
+     * The month of the account: navigation, summary and its transactions, each value without sign; {@code oob}: sent
+     * beside the tree after a change.
+     */
+    static Node panel(Book book, Account account, YearMonth month, boolean oob) {
         val lines = book.ledger(account, month);
         return div(
                 id("account-panel"), cls("statement-panel account-panel"),
+                oob ? hxSwapOob() : fragment(),
                 input(type("hidden"), id("account-month"), name(Ledger.MONTH), value(month.toString())),
                 div(cls("ledger-head"),
                         div(p(cls("caption"), text(message("Lançamentos · " + Ui.typeLabel(account.type())))),

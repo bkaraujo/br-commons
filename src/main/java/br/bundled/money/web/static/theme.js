@@ -2,7 +2,8 @@
  * Tema claro/escuro só no navegador: a escolha fica no localStorage e vira <html data-theme="auto|light|dark">,
  * que o app.css do money lê. Carregado no <head> sem defer, aplica o tema antes da primeira pintura (sem piscar).
  * Os botões ([data-theme-choice]) são tratados por delegação no document, então continuam valendo quando o
- * htmx troca o body (hx-boost); depois de cada troca (htmx:load) o botão pressionado é marcado de novo.
+ * htmx troca o conteúdo (hx-boost) ou o body inteiro (restauração do histórico); depois de cada troca (htmx:load) o
+ * botão pressionado é marcado de novo.
  */
 (() => {
     const KEY = 'theme';

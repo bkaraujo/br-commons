@@ -25,7 +25,8 @@ import java.util.List;
  * <p>Run with {@code mvn -Pexamples compile exec:java -Dexamples.main=br.bundled.tracker.htmx.TrackerApp}
  * and open {@code http://localhost:5001} (another port: {@code -Dexec.args=PORT}). It shows:
  * <ul>
- *   <li>a boosted menu ({@code hx-boost}) between the screens, and one URL for page and fragment;</li>
+ *   <li>a boosted menu ({@code hx-boost}) that swaps only the content between the screens (the CSS marks the current
+ *       one), and one URL for page, content and fragment;</li>
  *   <li>a week filtered by person, both in the URL and in the history ({@code hx-push-url});</li>
  *   <li>fields declared once and checked on the server, with rules across fields and registers (end after start,
  *       active project and person, unique name and e-mail), errors next to each field;</li>

@@ -10,6 +10,7 @@ import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.FormMethod;
+import br.commons.lang.html.Html;
 import br.commons.lang.html.core.Content;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.Field;
@@ -39,7 +40,7 @@ import static br.commons.lang.Htmx.*;
 @NullMarked
 final class EntryViews {
 
-    /** The hidden marker of the dialog's form: saving it refreshes the screen behind instead of swapping a page. */
+    /** The hidden marker of the dialog's form: saving it reloads the content behind instead of swapping a page. */
     static final String MODAL = "modal";
 
     private EntryViews() {}
@@ -66,7 +67,7 @@ final class EntryViews {
         return form(
                 id("entry-form"), cls("quick-form card"), method(FormMethod.POST), action("/entries"),
                 hxPost("/entries"), hxTarget(modal ? "#entry-form" : "#quick"), hxSwap(HxSwap.OUTER_HTML),
-                modal ? role("dialog") : (Content) fragment(),
+                modal ? role("dialog") : fragment(),
                 modal ? fragment(input(type("hidden"), name(MODAL), value("1")), h3(text(message("Lançamento rápido"))))
                         : fragment(),
                 modal && refused != null ? p(cls("error wide"), role("alert"), text(Text.data(refused))) : fragment(),
@@ -91,7 +92,7 @@ final class EntryViews {
         return p(cls("notice"), role("status"),
                 text(message("Lançado: " + saved.description() + " · " + Ui.money(book.value(saved)) + ". ")),
                 account.map(found -> (Node) a(href(Screen.STATEMENT.path() + "?account=" + found.identity()),
-                        text(message("Ver em " + found.name())))).orElseGet(() -> fragment()));
+                        text(message("Ver em " + found.name())))).orElseGet(Html::fragment));
     }
 
     private static Node labeled(Field field, String label, Map<String, String> values, List<Violation> errors,

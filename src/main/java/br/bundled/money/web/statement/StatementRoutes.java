@@ -28,7 +28,6 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.net.URI;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,8 +39,9 @@ import static br.bundled.money.web.ui.Ui.ok;
 import static br.bundled.money.web.ui.Ui.pathId;
 
 /**
- * {@code GET /statement?account=3&month=2026-10}: the whole page, or only {@code #statement-panel} when the list or
- * the month navigation asks. Without a valid account, the first financial one. The editor
+ * {@code GET /statement?account=3&month=2026-10}: the whole page, or only {@code #statement-panel} when the list asks
+ * (the month navigation swaps the content: the list's values change with the month). Without a valid account, the
+ * first financial one. The editor
  * ({@code #statement-editor}) receives the form ({@code /statement/transactions/new},
  * {@code /statement/transactions/{id}/edit}) or the confirmation ({@code /statement/transactions/{id}/delete});
  * creating, saving and deleting answer with the panel of the account and month sent along, plus the list out of
@@ -73,21 +73,9 @@ public final class StatementRoutes implements WebResource {
     private HTTPResponse statement(WebRequest request) {
         val month = month(request::parameter);
         val account = chosen(request::parameter);
-        return Ui.partial(request)
-                ? ok(Html.fragment(StatementViews.panel(book, account, month, Html.fragment()),
-                        monthChanged(request) ? StatementViews.accounts(book, account, month, true) : Html.fragment()).render())
+        return Ui.partial(request) ? ok(StatementViews.panel(book, account, month, Html.fragment()).render())
                 : Layout.page(request, Screen.STATEMENT, Ledger.monthNav(book, month),
                         StatementViews.screen(book, account, month, Html.fragment()));
-    }
-
-    /**
-     * Whether the month asked is not the one the page shows ({@code HX-Current-URL}): only then the values of the list
-     * (and the list itself, whose accounts may have changed) go along; choosing an account keeps the month.
-     */
-    private boolean monthChanged(WebRequest request) {
-        val shown = HtmxRequest.of(request).currentUrl().map(URI::create).map(URI::getRawQuery)
-                .map(query -> month(Form.parse(query)::value));
-        return shown.isEmpty() || !shown.get().equals(month(request::parameter));
     }
 
     // ---------- editor

@@ -99,16 +99,26 @@ public final class Ui {
     }
 
     /**
-     * Whether to answer with a fragment: htmx asked, and it is neither a boosted navigation (which swaps the
-     * whole body) nor a history restore (which needs the whole page).
+     * Whether to answer with a fragment: htmx asked, and it is neither a boosted navigation (which gets the content
+     * from {@link Layout#page}) nor a history restore (which needs the whole page).
      */
     public static boolean partial(HTTPRequest request) {
         val htmx = HtmxRequest.of(request);
         return htmx.isHtmx() && !htmx.boosted() && !htmx.historyRestore();
     }
 
+    /** A boosted navigation (not a history restore, which swaps the whole body): it gets only the content. */
+    public static boolean boosted(HTTPRequest request) {
+        val htmx = HtmxRequest.of(request);
+        return htmx.boosted() && !htmx.historyRestore();
+    }
+
+    /**
+     * Every HTML answer: the same URL gives the page, a boosted navigation's content or a fragment, by the htmx
+     * headers; {@code Vary} keeps a cache from serving one for the other.
+     */
     public static HTTPResponse ok(String html) {
-        return WebResponse.html(HTTPStatus.OK, html);
+        return WebResponse.html(HTTPStatus.OK, html).header("Vary", "HX-Request, HX-Boosted");
     }
 
     /**

@@ -34,8 +34,9 @@ digitar.
 lançamento rápido (UI-51), vazio até ser aberto, fica fora dele, no corpo da página, para valer em qualquer tela; o rodapé diz "Dados em memória"
 (RN-72). O `<title>` é "Tela · br.money".
 
-**UI-12 — Menu.** Seis telas, nesta ordem; a atual é marcada (`.current`) e cada rótulo reserva a largura da versão em
-negrito, para marcar a tela não mexer na barra.
+**UI-12 — Menu.** Seis telas, nesta ordem; a atual é marcada pelo CSS: o `<main id="content">` diz a tela
+(`data-screen`) e o link com o mesmo `data-screen` fica em destaque, então o menu não volta do servidor a cada
+navegação. Cada rótulo reserva a largura da versão em negrito, para marcar a tela não mexer na barra.
 
 | Tela | Caminho | Rótulo |
 |------|---------|--------|
@@ -53,16 +54,22 @@ Fonte: `Screen`, `Layout`.
 **UI-20 — Boost.** O `body` é `hx-boost`: todo link e formulário carrega a próxima página por htmx e empurra a URL no
 histórico, sem recarregar. Os scripts do `<head>` carregam uma vez.
 
-**UI-21 — Três respostas para a mesma URL.** Decididas pelos cabeçalhos htmx (`Vary: HX-Request, HX-Boosted`):
+**UI-21 — Uma URL, só o que muda.** Cada parte da tela que muda sozinha é uma região: um `id` estável, montada pelo
+mesmo método da página inteira e alcançável por GET. A resposta leva só a região que mudou, decidida pelos cabeçalhos
+da requisição (`Vary: HX-Request, HX-Boosted, HX-Trigger, HX-Current-URL, Month-Key`):
 - requisição comum, ou restauração de histórico: **página inteira** (`Layout.page`);
-- navegação *boosted*: só o **conteúdo** retargetado em `#content`, mais o título, o menu e a navegação de mês, estes
-  dois trocados fora de banda (`hx-swap-oob`); a janela volta ao topo;
+- navegação *boosted*: só o **conteúdo** retargetado em `#content` e o título; a navegação de mês vai fora de banda
+  (`hx-swap-oob`) só quando muda (UI-30); o menu nunca volta (UI-12); a janela volta ao topo;
+- troca só de mês (`Ui.monthOnly`): só a parte da tela que depende do mês (UI-31);
+- o conteúdo se recarregando depois de um lançamento rápido (UI-52): como a navegação *boosted*, sem voltar ao topo;
 - htmx não-boosted (um filtro, um botão): só o **fragmento** do painel (`Ui.partial`).
 
-Os `POST` de escrita (ex.: `/entries`) decidem por `isHtmx()`, que também é verdadeiro para um envio *boosted*, e
-respondem só o fragmento do próprio alvo (`#quick`, `#statement-panel`, `#accounts`), sem título, menu ou mês fora de
-banda. Toda página inteira passa por `Layout.page`. A resposta *boosted* de `Layout.page` sai sempre `200` (htmx descarta resposta de erro sem
-trocar, e um 404 pareceria clique morto); a página inteira mantém o status real (ex.: 422).
+Os `POST` de escrita decidem por `isHtmx()`, que também é verdadeiro para um envio *boosted*, e respondem só o
+fragmento do próprio alvo (`#quick`, `#statement-panel`, `#accounts`), mais as regiões vizinhas que mudaram, fora de
+banda (a lista de contas do Extrato, o painel do Plano de contas); o lançamento rápido, que abre sobre qualquer tela,
+avisa com um evento e a tela se recarrega (UI-52). Toda página inteira passa por `Layout.page`. A resposta *boosted* de
+`Layout.page` sai sempre `200` (htmx descarta resposta de erro sem trocar, e um 404 pareceria clique morto); a página
+inteira mantém o status real (ex.: 422).
 
 **UI-22 — Estado na URL.** Filtros vão na query string e entram no histórico (`hx-push-url`): `account`, `month`
 (`2026-10`), e nas telas com caixas de seleção `filtered=1` mais `account-<id>=1` por conta marcada. Uma URL sem
@@ -86,14 +93,18 @@ nota tem "Ver em <conta>".
 **UI-30 — Um seletor, no cabeçalho.** `Ledger.monthNav` é o único: "←" (mês anterior), a lista de meses, "→" (próximo)
 e "Hoje" (só aparece fora do mês atual). Todas as telas que têm mês o usam: **Extrato, Parcelamentos, Plano de contas
 e os relatórios de mês** (balanço, resultado, evolução). Nenhuma desenha o seu. Telas sem mês (Visão Geral, Lançar,
-lista de Relatórios, Fechamento) deixam o espaço vazio; trocar de tela troca o conteúdo do espaço junto, fora de banda
-(UI-21).
+lista de Relatórios, Fechamento) deixam o espaço vazio. Trocar de tela troca o espaço junto, fora de banda, só quando a
+navegação de mês muda: o `#month-slot` guarda uma chave do que mostra (`data-key`), `month.js` a manda em todo pedido
+htmx (cabeçalho `Month-Key`) e o servidor só o reenvia quando a chave é outra (UI-21).
 
 **UI-31 — Vale a URL em que a página está.** Como o seletor é do cabeçalho, ele não conhece a tela: `month.js` leva cada
 controle para a URL atual com só `month=` trocado, mantendo o resto (a conta do extrato, as contas marcadas). O clique é
 tratado antes do htmx e faz `htmx.ajax` com o próprio link como origem, o que dá a mesma navegação *boosted* (UI-21):
-a tela inteira é trocada, então listas com valores do mês (lista de contas do extrato) também se atualizam. A lista de
-meses usa o link oculto `.month-go` para seguir o mesmo caminho. Sem JavaScript, os links levam só o mês e a lista de meses não faz nada (reage apenas ao evento de mudança).
+a tela decide o que volta (`Ui.monthOnly`: mesmo caminho, só o `month` diferente). No Extrato e nos relatórios, o
+conteúdo inteiro (a lista de contas do Extrato tem valores do mês); no Plano de contas e em Parcelamentos, só o painel
+(`Layout.region`), sem a árvore nem as caixas, que não dependem do mês, e sem rolar a janela. A lista de meses usa o
+link oculto `.month-go` para seguir o mesmo caminho. Sem JavaScript, os links levam só o mês e a lista de meses não faz
+nada (reage apenas ao evento de mudança).
 
 **UI-32 — Lista de meses.** Do mais antigo entre o mês da transação mais antiga (hoje, sem transações) e o mês
 mostrado, até 12 meses depois do maior entre o mês atual e o mês mostrado; do mais recente para o mais antigo, com o
@@ -109,8 +120,9 @@ Fonte: `Ledger`, `Layout`, `static/month.js`, `static/app.css`.
 ### 5.1 Visão Geral (`/`)
 
 **UI-40** — À esquerda, as contas financeiras em dois cartões, "Contas" e "Cartões" (um vazio some), cada conta com
-caixa de seleção; todas marcadas na primeira visita. Marcar ou desmarcar recarrega só o gráfico (`/home/chart`) com as
-caixas dos dois cartões (o formulário não tem botão de envio: sem htmx as caixas não fazem nada). Só contas
+caixa de seleção; todas marcadas na primeira visita. Marcar ou desmarcar recarrega só o gráfico (`/` como fragmento) com
+as caixas dos dois cartões e empurra a URL com elas (UI-22; o formulário não tem botão de envio: sem htmx as caixas não
+fazem nada). Só contas
 financeiras que as telas oferecem (`Book#moneyAccounts`, sem STOCK nem MUTUAL, RN-05): categorias e contas técnicas
 ficam no plano de contas (INTENT §7, "visões separadas"). A mesma lista vale no Extrato, em Parcelamentos e em Lançar.
 
@@ -169,8 +181,10 @@ Título "Lançamento rápido"; o campo Valor tem o marcador "0,00" e Descrição
 quando já é o tipo). Data padrão: hoje (RN-23). Botões "Lançar" e "Cancelar".
 
 **UI-52 — Depois de lançar.** Na janela (o formulário leva o marcador `modal=1`), salvar com sucesso **fecha a janela e
-recarrega a tela por trás** (`HX-Refresh`), que passa a mostrar o lançamento e os novos saldos; o mês e a conta da URL
-são mantidos, e a tela pode abrir em outro mês se o lançamento passar a ser o mais recente (RN-35). Erro de campo ou
+recarrega o conteúdo da tela por trás**, sem recarregar a página: a resposta avisa com o evento `book-changed`
+(`HX-Trigger`) e o `<main id="content">` se busca de novo da URL em que o navegador está (`hx-get=""`), passando a
+mostrar o lançamento e os novos saldos; o mês, a conta e as caixas da URL são mantidos, e a tela pode abrir em outro mês
+se o lançamento passar a ser o mais recente (RN-35). Erro de campo ou
 recusa do serviço devolve o formulário no lugar, na própria janela; a recusa aparece dentro do formulário
 (`role="alert"`). Na página (sem htmx, ou endereço aberto direto), o `#quick` é trocado: a nota "Lançado: descrição ·
 valor." com "Ver em <conta>" e o formulário **limpo mas com a mesma data e conta**, para lançar vários em sequência;
@@ -197,7 +211,8 @@ ou subcontas o tipo aparece fixo: "<tipo> · fixo: a conta tem lançamentos ou s
 pedindo recuar a data-limite. Com lançamentos: "N lançamento(s) serão movidos para a conta escolhida" e o campo
 "Mover lançamentos para" (obrigatório), botão "Mover e excluir". Sem lançamentos: "A conta não tem lançamentos." e "Excluir". Salvar e excluir trocam
 a árvore inteira, com a nota do resultado ("Conta "X" criada." / "atualizada." / "excluída.", ou "excluída; N
-lançamento(s) movidos para "Y"") ou o motivo da recusa.
+lançamento(s) movidos para "Y"") ou o motivo da recusa, e, fora de banda, o painel ao lado: da conta e do mês da página
+(a primeira financeira, se a conta não existe mais), com a linha dela marcada na árvore.
 
 **UI-57 — Novo livro vazio.** "Novo livro vazio" (e, ao criar, a nota "Livro vazio criado com o plano de contas pessoal.") abre a confirmação com quantas contas e lançamentos em memória serão
 descartados ("Nenhum arquivo é alterado.") e o tamanho do plano (RN-18); "Criar livro vazio" confirma.
@@ -290,7 +305,7 @@ inline em fragmentos (marcar a linha ou o link atual) e expressões de gatilho d
 | `combo.js` | filtro ao vivo nos `<select>` (UI-71) |
 | `chart.js` | gráfico de linhas da Visão Geral (UI-41) |
 | `header.js` | altura do cabeçalho em `--top-height` (UI-10) |
-| `month.js` | navegação de mês do cabeçalho (UI-31) |
+| `month.js` | navegação de mês do cabeçalho (UI-31) e a chave `Month-Key` de todo pedido htmx (UI-30) |
 | `tree.js` | ramos recolhíveis do plano de contas, lembrados (UI-53) |
 | `outline.js` | linhas recolhíveis da evolução (UI-59) |
 | `splits.js` | totais do formulário de splits (UI-47) |

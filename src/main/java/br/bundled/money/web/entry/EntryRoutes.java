@@ -31,8 +31,9 @@ import static br.bundled.money.web.ui.Ui.ok;
 /**
  * {@code GET /entries/new}: the quick entry, as a dialog over the screen when htmx asks (the menu), else its page.
  * {@code GET /entries/editor}: the dialog emptied. {@code POST /entries}: from the dialog ({@link EntryViews#MODAL}),
- * valid, the screen behind is refreshed ({@code HX-Refresh}), invalid, the form comes back with its errors; from the
- * page, valid, the form ready for the next one with what was saved. Without htmx: post/redirect/get to the home.
+ * valid, the dialog closes and the content behind reloads itself ({@link Layout#CHANGED}), invalid, the form comes
+ * back with its errors; from the page, valid, the form ready for the next one with what was saved. Without htmx:
+ * post/redirect/get to the home.
  */
 @NullMarked
 public final class EntryRoutes implements WebResource {
@@ -48,15 +49,14 @@ public final class EntryRoutes implements WebResource {
 
     private HTTPResponse blank(WebRequest request) {
         val values = EntryFields.blank(book.today(), null);
-        return Ui.partial(request) ? ok(view(true, values, List.of(), null, null).render())
-                : Layout.page(request, Screen.ENTRY, view(false, values, List.of(), null, null));
+        return Ui.partial(request) ? ok(view(true, values, List.of(), null).render())
+                : Layout.page(request, Screen.ENTRY, view(false, values, List.of(), null));
     }
 
-    /** The dialog (a card to open over a screen) or the page. */
-    private Node view(boolean modal, Map<String, String> values, List<Violation> errors,
-                      @Nullable Transaction saved, @Nullable String refused) {
+    /** The dialog (a card to open over a screen) or the page, with nothing saved yet. */
+    private Node view(boolean modal, Map<String, String> values, List<Violation> errors, @Nullable String refused) {
         return modal ? EntryViews.modal(book, values, errors, refused)
-                : EntryViews.screen(book, values, errors, saved, refused);
+                : EntryViews.screen(book, values, errors, null, refused);
     }
 
     private HTTPResponse create(WebRequest request) {
@@ -67,15 +67,15 @@ public final class EntryRoutes implements WebResource {
             case Result.Success<QuickEntry, List<Violation>>(var entry) -> {
                 val saved = book.quick(entry.date(), entry.description(), entry.account(), entry.category(), entry.amount());
                 if (saved instanceof Result.Failure<Transaction, BusinessError>(var error)) {
-                    val view = view(modal, EntryFields.values(form::value), List.of(), null, error.render());
+                    val view = view(modal, EntryFields.values(form::value), List.of(), error.render());
                     yield htmx ? ok(view.render()) : Layout.page(request, Screen.ENTRY, view);
                 }
-                if (modal) yield HtmxResponse.of(ok("")).refresh().response();
+                if (modal) yield HtmxResponse.of(ok("")).trigger(Layout.CHANGED).response();
                 yield htmx ? ok(EntryViews.screen(book, EntryFields.blank(entry.date(), entry.account()), List.of(),
                         saved.getOrThrow(), null).render()) : WebResponse.redirect(Screen.HOME.path());
             }
             case Result.Failure<QuickEntry, List<Violation>>(var errors) -> {
-                val view = view(modal, EntryFields.values(form::value), errors, null, null);
+                val view = view(modal, EntryFields.values(form::value), errors, null);
                 yield htmx ? ok(view.render()) : Layout.page(request, Screen.ENTRY, view);
             }
         };

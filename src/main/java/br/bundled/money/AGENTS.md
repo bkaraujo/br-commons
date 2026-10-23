@@ -86,21 +86,30 @@ web
 
 - Features dependem só de `ui` (e da aplicação); `ui` não depende de feature.
 - `*Views` não acessa repositório nem regra: recebe dados prontos.
+- **Só o que muda volta**: cada região da tela tem `id` estável, é montada pelo mesmo
+  método da página inteira e tem URL GET; a resposta htmx leva só a região que mudou
+  (UI.md UI-21). Quem decide é o Java, pelos cabeçalhos; o JS não conhece as telas.
 - Mesma URL serve página inteira e fragmento: `Ui.partial(request)` decide
   (htmx não-boosted e não history-restore → fragmento).
 - Menu com `hx-boost`; filtros (conta, caixas) na URL com `hx-push-url`; o mês é
   navegado no cabeçalho (`Ledger.monthNav`, `month.js`; UI.md §4).
 - Cabeçalho (menu) fixo; navegação boosted troca só `<main id="content">`:
-  `Layout.page(request, ...)` responde título + conteúdo (`HX-Retarget`) +
-  menu e espaço do mês em `hx-swap-oob`. Toda página inteira passa por `Layout.page`.
+  `Layout.page(request, ...)` responde título + conteúdo (`HX-Retarget`) + espaço
+  do mês em `hx-swap-oob` só quando muda (`Month-Key`). O menu não volta: o CSS marca
+  o link pelo `data-screen` do `<main>`. Toda página inteira passa por `Layout.page`.
+- Troca só de mês (`Ui.monthOnly`): a tela pode responder só o painel que depende
+  dele (`Layout.region`), como Plano de contas e Parcelamentos.
+- Escrita na própria tela: o alvo + as vizinhas que mudaram em `hx-swap-oob`. Escrita
+  sobre qualquer tela (Lançar): `HX-Trigger: book-changed` e o `#content` se
+  recarrega (`hx-get=""`); nunca `HX-Refresh`.
 - Todo JS fica no `<head>` do `Layout` (carregado uma vez, nunca no body nem
   em fragmento). Scripts agem por delegação no `document` / eventos htmx
   (`htmx:load`), para valer em conteúdo trocado sem recarregar.
 - Campos declarados uma vez (`FieldSpec`) → renderizados com `DIALECT` e
   validados no servidor; erro ao lado do campo (`Ui.errorOf`).
 - Inválido: Extrato e Plano de contas devolvem o formulário no lugar (`HX-Retarget`;
-  o Extrato até sem htmx), Lançar (janela `#entry-modal`) devolve o formulário no lugar e, salvo, recarrega a tela
-  (`HX-Refresh`); post/redirect/get só em sucesso
+  o Extrato até sem htmx), Lançar (janela `#entry-modal`) devolve o formulário no lugar e, salvo, recarrega o
+  conteúdo da tela (`book-changed`); post/redirect/get só em sucesso
   (UI.md UI-23, UI-72).
 - Tema claro/escuro só no navegador (`theme.js` + `light-dark()` no CSS).
 - **Toda dropdown tem filtro ao vivo**: renderize `<select>` comum (com opção

@@ -1,10 +1,13 @@
+/* global htmx */
 /*
  * A navegação de mês do cabeçalho (Ledger.monthNav) é a mesma em todas as telas com mês: cada controle vai para a URL
  * em que a página está com ?month= trocado, então mantém o resto (a conta do extrato, as contas marcadas dos
  * parcelamentos). O htmx guarda o href do link "boosted" ao processá-lo, então o clique é tratado aqui (fase de
  * captura, antes do htmx): htmx.ajax com o próprio link como origem faz o mesmo que o boost (HX-Boosted, #content,
- * histórico). O seletor de mês usa o link oculto .month-go, para seguir o mesmo caminho. Sem JavaScript, os links
- * levam só o mês.
+ * histórico); a tela decide o que volta: o conteúdo, ou só a parte que depende do mês (Ui.monthOnly). O seletor de mês
+ * usa o link oculto .month-go, para seguir o mesmo caminho. Cada pedido do htmx leva a chave da navegação de mês que a
+ * página mostra (data-key do #month-slot, cabeçalho Month-Key): o servidor só a manda de novo quando muda. Sem
+ * JavaScript, os links levam só o mês.
  */
 (() => {
     const to = month => {
@@ -27,5 +30,10 @@
         const go = select.closest('.month-nav').querySelector('a.month-go');
         go.dataset.month = select.value;
         go.click();
+    });
+
+    document.addEventListener('htmx:configRequest', event => {
+        const slot = document.getElementById('month-slot');
+        if (slot) event.detail.headers['Month-Key'] = slot.dataset.key;
     });
 })();

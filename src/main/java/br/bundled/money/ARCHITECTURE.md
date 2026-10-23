@@ -406,38 +406,43 @@ flowchart LR
   `Installment`, contas/cartões/categorias que a tela oferece); escritas repassam ao serviço e devolvem o `Result`.
   Contém só cálculo de tela.
 - **`web.ui`**: `Layout` (a página em volta), `Screen` (enum do menu: caminho, rótulo, ícone), `Ui` (formatação
-  pt-BR de dinheiro, mês e dia; `partial`, `boosted`, `ok`, `pathId`, `uuid`, `monthOf`, `errorOf`), `Forms`
+  pt-BR de dinheiro, mês e dia; `partial`, `boosted`, `reload`, `monthOnly`, `shown`, `ok`, `pathId`, `uuid`,
+  `monthOf`, `errorOf`), `Forms`
   (mensagens de violação, escolha de conta, campo rotulado), `Ledger` (resumo, colunas e `monthNav`), `Theme`
   (botões do tema). O `Layout` também tem o contêiner `#entry-modal` do lançamento rápido, aberto pelo menu.
 - **Telas**: ver o mapeamento tela → rota em [UI.md](UI.md); aqui só a estrutura.
 
 | Feature | Rotas (resumo) | Observação de estrutura |
 |---|---|---|
-| `home` | `GET /`, `GET /home/chart` | Fragmento do gráfico por contas marcadas |
+| `home` | `GET /` | Fragmento do gráfico por contas marcadas (`/` parcial), com as caixas na URL |
 | `statement` | `/statement`, `/statement/transactions...` | Editor simples e de divisões (`SplitFields`) |
 | `installment` | `GET /installments` | Parcelas calculadas por `Book#installments` |
-| `entry` | `GET /entries/new` (janela ou página), `GET /entries/editor`, `POST /entries` | Lançamento rápido numa janela sobre a tela atual (`QuickEntry`, `EntryFields`); salvar recarrega a tela por trás (`HX-Refresh`) |
+| `entry` | `GET /entries/new` (janela ou página), `GET /entries/editor`, `POST /entries` | Lançamento rápido numa janela sobre a tela atual (`QuickEntry`, `EntryFields`); salvar recarrega o conteúdo da tela por trás (evento `book-changed`) |
 | `account` | `/accounts...` | `RegisterViews` + `AccountFields`; recomeço por `/accounts/empty` |
 | `report` | `/reports`, `/reports/balance`, `/income`, `/evolution`, `/closing` | `closing` altera a data-limite |
 
-### 8.2 Três respostas para a mesma URL
+### 8.2 Uma URL, só o que muda
 
-A mesma URL responde a página inteira, só o conteúdo (navegação *boosted*) ou só um fragmento, conforme os cabeçalhos
-htmx (`Ui.partial`, `Ui.boosted`). `Ui.html` acrescenta `Vary: HX-Request, HX-Boosted` para que um cache não troque uma
-resposta pela outra. A resposta *boosted* sempre sai com status 200 (htmx descarta resposta de erro sem trocar o
-conteúdo), mesmo que a página inteira use outro status.
+A mesma URL responde a página inteira, só o conteúdo (navegação *boosted*, ou o `#content` se recarregando depois de
+um lançamento rápido), só a parte que o mês muda ou só um fragmento, conforme os cabeçalhos da requisição
+(`Ui.partial`, `Ui.boosted`, `Ui.reload`, `Ui.monthOnly`). `Ui.html` acrescenta
+`Vary: HX-Request, HX-Boosted, HX-Trigger, HX-Current-URL, Month-Key` para que um cache não troque uma resposta pela
+outra. A resposta *boosted* sempre sai com status 200 (htmx descarta resposta de erro sem trocar o conteúdo), mesmo que
+a página inteira use outro status. O menu nunca volta do servidor: o CSS marca o link pelo `data-screen` do `<main>`.
 
-Diagrama: decisão de resposta numa rota de tela (`Layout#page` e `Ui#partial`).
+Diagrama: decisão de resposta numa rota de tela (`Layout#page`, `Layout#region` e `Ui#partial`).
 
 ```mermaid
 flowchart TD
     Req["GET de uma tela"] --> Hx{"HX-Request?"}
     Hx -- "não" --> Full["Página inteira: document() com head, header, main#content"]
-    Hx -- "sim" --> Boost{"HX-Boosted e não é history restore?"}
-    Boost -- "sim" --> Content["Layout#page: título + main#content + menu e month-slot em hx-swap-oob; HX-Retarget #content, 200"]
-    Boost -- "não" --> Hist{"history restore?"}
+    Hx -- "sim" --> Hist{"history restore?"}
     Hist -- "sim" --> Full
-    Hist -- "não" --> Frag["Fragmento: só o painel da tela (Ui.partial)"]
+    Hist -- "não" --> Boost{"HX-Boosted, ou o #content se recarregando (HX-Trigger: content)?"}
+    Boost -- "não" --> Frag["Fragmento: só o painel da tela (Ui.partial)"]
+    Boost -- "sim" --> Month{"Só o mês mudou e a tela tem região do mês? (Ui.monthOnly)"}
+    Month -- "sim" --> Region["Layout#region: só o painel + month-slot oob; HX-Retarget no painel, 200"]
+    Month -- "não" --> Content["Layout#page: título + main#content + month-slot oob se a chave mudou; HX-Retarget #content, 200"]
 ```
 
 As telas `report` (lista e fechamento) e `HomeRoutes#home` seguem o mesmo padrão; `/reports` responde sempre por
@@ -446,9 +451,12 @@ As telas `report` (lista e fechamento) e `HomeRoutes#home` seguem o mesmo padrã
 ### 8.3 Navegação de mês no cabeçalho
 
 `Ledger#monthNav` monta a navegação (anterior, seletor, próximo, "Hoje") e `Layout` a coloca em `#month-slot`, ao lado do
-menu. Em navegação *boosted*, o `month-slot` vai sempre junto como `hx-swap-oob` (vazio em tela sem mês), para o mês da
-tela anterior não ficar. `month.js` intercepta o clique (fase de captura) e chama `htmx.ajax('GET', url, {target:
-'#content', swap: 'outerHTML'})` com a URL atual e `month=` trocado, mantendo os demais parâmetros.
+menu. Em navegação *boosted*, o `month-slot` vai junto como `hx-swap-oob` (vazio em tela sem mês) só quando muda: ele
+guarda em `data-key` um hash do que mostra, `month.js` manda essa chave em todo pedido htmx (cabeçalho `Month-Key`) e o
+`Layout` compara. `month.js` intercepta o clique (fase de captura) e chama `htmx.ajax('GET', url, {target:
+'#content', swap: 'outerHTML'})` com a URL atual e `month=` trocado, mantendo os demais parâmetros. Se só o mês mudou
+(`Ui.monthOnly`), Plano de contas e Parcelamentos respondem só o painel (`Layout#region`, sem rolar a janela); Extrato
+e relatórios, o conteúdo.
 
 Diagrama: sequência de uma troca de mês.
 
@@ -464,8 +472,8 @@ sequenceDiagram
     M->>M: "monta URL atual com month trocado"
     M->>H: "htmx.ajax GET target #content outerHTML"
     H->>R: "GET /tela?month=AAAA-MM (HX-Boosted)"
-    R->>L: "page(request, tela, monthNav, conteúdo)"
-    L-->>H: "title + main#content + menu oob + month-slot oob"
+    R->>L: "page(request, tela, monthNav, conteúdo) ou region(request, monthNav, painel)"
+    L-->>H: "title + main#content (ou só o painel) + month-slot oob"
     H-->>U: "troca o conteúdo e o cabeçalho"
 ```
 
@@ -586,7 +594,7 @@ sem `ApplicationModule`, `Seed` fictício e o front-end (não confirmado nenhum 
 | `Result<T, BusinessError>` na aplicação, `Result<T, String>` nos repositórios | Falha esperada como valor | Conversão em `Rules.stored` |
 | `*Views` package-private, `*Routes` públicas | A view não é chamada de fora da feature | Teste de view precisa estar no mesmo pacote |
 | Todo JS no `<head>`, por delegação | Navegação *boosted* troca só `#content`; scripts carregam uma vez | Scripts precisam se reaplicar a cada `htmx:load` |
-| Mesma URL, três respostas | Funciona com e sem htmx (melhoria progressiva) | Rotas precisam de `Ui.partial`/`Layout.page` em todo caso |
+| Mesma URL, só o que muda volta | Funciona com e sem htmx (melhoria progressiva); respostas pequenas | Rotas precisam de `Ui.partial`/`Layout.page` em todo caso |
 | Ordem dos módulos = ordem de `attach` | `Module#initialize` percorre dependências em sequência | A ordem em `MoneyApp` é parte do contrato |
 | `Seed` dentro de `web` e chamada em `WebModule#initialize` | Dado de desenvolvimento fora do domínio | `web.seed` depende de `ImportService` (aplicação) |
 

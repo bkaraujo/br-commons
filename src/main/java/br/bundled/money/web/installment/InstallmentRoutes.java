@@ -22,8 +22,9 @@ import static br.bundled.money.web.ui.Ui.ok;
 
 /**
  * {@code GET /installments?filtered=1&account-<id>=1&month=2026-10}: the whole page, or only
- * {@code #installments-panel} when the checkboxes or the month navigation ask. The accounts are the home's, without
- * the cards; the installments are those of the checked accounts and of every card, none while no account is checked.
+ * {@code #installments-panel} when the checkboxes or the month navigation ask ({@link Ui#monthOnly}). The accounts are
+ * the home's, without the cards; the installments are those of the checked accounts and of every card, none while no
+ * account is checked.
  */
 @NullMarked
 public final class InstallmentRoutes implements WebResource {
@@ -45,9 +46,13 @@ public final class InstallmentRoutes implements WebResource {
             scope.addAll(selected);
         }
         val installments = book.installments(scope, month);
-        return Ui.partial(request) ? ok(InstallmentViews.panel(book, selected, installments, month).render())
-                : Layout.page(request, Screen.INSTALLMENTS, Ledger.monthNav(book, month),
-                        InstallmentViews.screen(book, accounts, selected, installments, month));
+        if (Ui.partial(request)) return ok(InstallmentViews.panel(book, selected, installments, month).render());
+        if (Ui.monthOnly(request)) {
+            return Layout.region(request, Ledger.monthNav(book, month), "#installments-panel",
+                    InstallmentViews.panel(book, selected, installments, month));
+        }
+        return Layout.page(request, Screen.INSTALLMENTS, Ledger.monthNav(book, month),
+                InstallmentViews.screen(book, accounts, selected, installments, month));
     }
 
     /** The checked accounts; all of them before the first change. */

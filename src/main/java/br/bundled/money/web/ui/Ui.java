@@ -11,12 +11,14 @@ import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.message.HTTPRequest;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
+import br.commons.web.server.Form;
 import br.commons.web.server.WebRequest;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -129,18 +131,62 @@ public final class Ui {
     }
 
     /**
-     * Whether to answer with a fragment: htmx asked, and it is neither a boosted navigation (which gets the content
-     * from {@link Layout#page}) nor a history restore (which needs the whole page).
+     * Whether to answer with a fragment: htmx asked, and it is neither a boosted navigation nor the content reloading
+     * itself (both get the content from {@link Layout#page}) nor a history restore (which needs the whole page).
      */
     public static boolean partial(HTTPRequest request) {
         val htmx = HtmxRequest.of(request);
-        return htmx.isHtmx() && !htmx.boosted() && !htmx.historyRestore();
+        return htmx.isHtmx() && !boosted(request) && !htmx.historyRestore();
     }
 
-    /** A boosted navigation (not a history restore, which swaps the whole body): it gets only the content. */
+    /**
+     * A boosted navigation, or the content reloading itself ({@link #reload}): both get only the content. Not a
+     * history restore, which swaps the whole body.
+     */
     public static boolean boosted(HTTPRequest request) {
         val htmx = HtmxRequest.of(request);
-        return htmx.boosted() && !htmx.historyRestore();
+        return (htmx.boosted() || reload(request)) && !htmx.historyRestore();
+    }
+
+    /**
+     * The content asking for itself again after a change over the screen ({@link Layout#CHANGED}): it is the element
+     * that triggered the request.
+     */
+    public static boolean reload(HTTPRequest request) {
+        return HtmxRequest.of(request).trigger().filter(Layout.CONTENT::equals).isPresent();
+    }
+
+    /**
+     * The month navigation of the header ({@code month.js}): a boosted navigation to the page's own path that changes
+     * nothing in its query but the month. The screen may then answer only what the month changes
+     * ({@link Layout#region}); with anything else changed, it is a navigation like any other.
+     */
+    public static boolean monthOnly(HTTPRequest request) {
+        if (!HtmxRequest.of(request).boosted() || reload(request)) return false;
+        val asked = request.uri();
+        return shown(request).filter(page -> page.getPath().equals(asked.getPath()) && others(page).equals(others(asked)))
+                .isPresent();
+    }
+
+    /** A parameter of the page the browser is on ({@code HX-Current-URL}); an empty text when it has none. */
+    public static String shown(HTTPRequest request, String name) {
+        return shown(request).map(URI::getRawQuery).map(query -> Form.parse(query).value(name)).orElse("");
+    }
+
+    /** The URL of the page the browser is on, when htmx sent one that parses. */
+    private static Optional<URI> shown(HTTPRequest request) {
+        try {
+            return HtmxRequest.of(request).currentUrl().map(URI::create);
+        } catch (IllegalArgumentException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    /** The parameters of the query but the month, as written: {@code month.js} keeps the others' text and order. */
+    private static List<String> others(URI uri) {
+        val query = uri.getRawQuery();
+        return query == null ? List.of() : Arrays.stream(query.split("&"))
+                .filter(pair -> !pair.isEmpty() && !pair.startsWith(Ledger.MONTH + "=")).toList();
     }
 
     public static HTTPResponse ok(String html) {
@@ -148,11 +194,12 @@ public final class Ui {
     }
 
     /**
-     * Every HTML answer: the same URL gives the page, a boosted navigation's content or a fragment, by the htmx
-     * headers; {@code Vary} keeps a cache from serving one for the other.
+     * Every HTML answer: the same URL gives the page, the content (boosted, reloaded or only what the month changes)
+     * or a fragment, by the request headers; {@code Vary} keeps a cache from serving one for the other.
      */
     static HTTPResponse html(HTTPStatus status, String html) {
-        return WebResponse.html(status, html).header("Vary", "HX-Request, HX-Boosted");
+        return WebResponse.html(status, html)
+                .header("Vary", "HX-Request, HX-Boosted, HX-Trigger, HX-Current-URL, " + Layout.MONTH_KEY);
     }
 
     /** The {@code {id}} of the route; {@code null} (matches nothing) when it is not an id. */

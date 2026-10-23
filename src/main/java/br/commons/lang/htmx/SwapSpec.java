@@ -53,6 +53,12 @@ public final class SwapSpec {
     /** Shows the edge of the element matching {@code selector} (or {@code window}). */
     public SwapSpec show(String selector, ScrollEdge edge) { return with("show:" + selector + ":" + edge.token()); }
 
+    /**
+     * Shows nothing: the window stays where it is, even for a boosted element, whose target htmx otherwise scrolls
+     * to the top ({@code htmx.config.scrollIntoViewOnBoost}).
+     */
+    public SwapSpec noShow() { return with("show:none"); }
+
     /** Whether to scroll to a focused element after the swap. */
     public SwapSpec focusScroll(boolean scroll) { return with("focus-scroll:" + scroll); }
 

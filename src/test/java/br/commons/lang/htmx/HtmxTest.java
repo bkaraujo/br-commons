@@ -67,6 +67,7 @@ class HtmxTest {
                 + "scroll:#log:bottom show:bottom show:window:top focus-scroll:false", spec.token());
         assertEquals(spec.token(), spec.toString());
         assertEquals("innerHTML", SwapSpec.of(HxSwap.INNER_HTML).token());
+        assertEquals("outerHTML show:none", SwapSpec.of(HxSwap.OUTER_HTML).noShow().token());
         assertEquals("""
                 <div hx-swap="delete swap:1000ms"></div>""",
                 div(hxSwap(SwapSpec.of(HxSwap.DELETE).swap(Duration.ofSeconds(1)))).render());

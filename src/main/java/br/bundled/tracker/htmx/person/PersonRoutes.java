@@ -55,7 +55,7 @@ public final class PersonRoutes implements WebResource {
 
     private HTTPResponse list(WebRequest request) {
         return Ui.partial(request) ? ok(PersonViews.screen(people, entries, Map.of(), List.of()).render())
-                : page(Map.of(), List.of());
+                : page(request, Map.of(), List.of());
     }
 
     /** Valid: the whole screen with the new person in its place. Invalid: the form with its errors. */
@@ -71,7 +71,7 @@ public final class PersonRoutes implements WebResource {
             case Result.Failure<PersonInput, List<Violation>>(var errors) -> htmx
                     ? HtmxResponse.of(ok(PersonViews.personForm(PersonFields.values(form::value), errors).render()))
                             .retarget("#person-form").reswap(HxSwap.OUTER_HTML).response()
-                    : page(PersonFields.values(form::value), errors);
+                    : page(request, PersonFields.values(form::value), errors);
         };
     }
 
@@ -124,7 +124,7 @@ public final class PersonRoutes implements WebResource {
         return entries.ofPerson(person.id());
     }
 
-    private HTTPResponse page(Map<String, String> form, List<Violation> errors) {
-        return ok(Layout.page(Screen.PEOPLE, PersonViews.screen(people, entries, form, errors)));
+    private HTTPResponse page(WebRequest request, Map<String, String> form, List<Violation> errors) {
+        return Layout.page(request, Screen.PEOPLE, PersonViews.screen(people, entries, form, errors));
     }
 }

@@ -6,7 +6,6 @@ import br.bundled.money.web.book.Book;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.FormMethod;
-import br.commons.lang.html.core.Content;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;
@@ -25,9 +24,9 @@ import static br.commons.lang.Htmx.*;
 /**
  * The home: the financial accounts on the left, as the statement's list, each with a checkbox, and the income
  * against the expenses of the last 12 months of the checked ones in the middle ({@code #home-chart}). Checking
- * reloads only the chart. Only financial accounts: categories and technical accounts are in the chart of accounts
- * (INTENT §7, "visões separadas"). The chart is the table of the months; {@code static/money/chart.js} draws its
- * lines from the {@code data-*} of each row.
+ * reloads only the chart and keeps the checked accounts in the URL. Only financial accounts: categories and technical
+ * accounts are in the chart of accounts (INTENT §7, "visões separadas"). The chart is the table of the months;
+ * {@code static/money/chart.js} draws its lines from the {@code data-*} of each row.
  */
 @NullMarked
 final class HomeViews {
@@ -50,32 +49,32 @@ final class HomeViews {
 
     /**
      * The accounts and the credit cards in separate cards, only to show they are of different kinds; an empty one
-     * is left out.
+     * is left out. One {@link #FILTERED} for both, so the URL pushed has it once.
      */
     private static Node accounts(Book book, Set<Account> selected) {
         return div(cls("home-accounts"),
+                input(type("hidden"), id("home-filtered"), name(FILTERED), value("1")),
                 group("home-accounts", "Contas", book.bankAccounts(), selected),
                 group("home-cards", "Cartões", book.cards(), selected));
     }
 
     /**
-     * A titled form of checkable accounts. A change sends the checkboxes of both forms, so the chart sees every
-     * checked account; without htmx the form goes to the home itself.
+     * A titled form of checkable accounts. A change sends the checkboxes of both forms to the home, so the chart sees
+     * every checked account and the URL pushed keeps them; without htmx the form goes to the home itself.
      */
     private static Node group(String id, String title, List<Account> accounts, Set<Account> selected) {
         return accounts.isEmpty() ? fragment() : form(id(id), cls("statement-accounts card"),
                 ariaLabel(message(title)), method(FormMethod.GET), action(Screen.HOME.path()),
-                hxGet("/home/chart"), hxTrigger("change"), hxInclude("#home-accounts, #home-cards"),
-                hxTarget("#home-chart"), hxSwap(HxSwap.OUTER_HTML),
+                hxGet(Screen.HOME.path()), hxTrigger("change"), hxInclude("#home-filtered, #home-accounts, #home-cards"),
+                hxTarget("#home-chart"), hxSwap(HxSwap.OUTER_HTML), hxPushUrl(true),
                 h3(text(message(title))),
-                input(type("hidden"), name(FILTERED), value("1")),
                 ul(each(accounts, account -> li(option(account, selected.contains(account))))));
     }
 
     /** A checkbox with the name. */
     private static Node option(Account account, boolean checked) {
         return label(cls("account-option"),
-                input(type("checkbox"), name(ACCOUNT + account.identity()), value("1"), checked ? checked() : (Content) fragment()),
+                input(type("checkbox"), name(ACCOUNT + account.identity()), value("1"), checked ? checked() : fragment()),
                 span(text(Text.data(account.name()))));
     }
 
