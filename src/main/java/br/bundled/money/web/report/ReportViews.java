@@ -77,15 +77,15 @@ final class ReportViews {
     }
 
     static Node balance(Book book, YearMonth month) {
-        return monthly(book, month, BALANCE, balanceSheet(book, month.atEndOfMonth()));
+        return monthly(balanceSheet(book, month.atEndOfMonth()));
     }
 
     static Node income(Book book, YearMonth month) {
-        return monthly(book, month, INCOME, incomeStatement(book, month));
+        return monthly(incomeStatement(book, month));
     }
 
     static Node evolution(Book book, YearMonth from) {
-        return monthly(book, from, EVOLUTION, evolutionTable(book, from));
+        return monthly(evolutionTable(book, from));
     }
 
     /** The closing card ({@link #closing}) on its own page; the card swaps itself, so there is no month to navigate. */
@@ -93,11 +93,11 @@ final class ReportViews {
         return section(id("reports"), cls("reports"), div(cls("ledger-head"), back()), card);
     }
 
-    /** A report of a month: the way back to the list, the month navigation of {@code path} and the report. */
-    private static Node monthly(Book book, YearMonth month, String path, Node report) {
+    /** A report of a month: the way back to the list and the report; the month is navigated in the header. */
+    private static Node monthly(Node report) {
         return section(
                 id("reports"), cls("reports"),
-                div(cls("ledger-head"), back(), Ledger.monthNav(book, month, path, "#reports")),
+                div(cls("ledger-head"), back()),
                 report
         );
     }

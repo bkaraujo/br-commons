@@ -210,6 +210,15 @@ footer {
     user-select: none;
 }
 
+/* A navegação de mês das telas com mês fica ao lado do menu (Ledger.monthNav); vazio, nada ocupa o topo. */
+.month-slot {
+    margin-left: auto;
+}
+
+.month-slot:empty {
+    display: none;
+}
+
 .theme {
     display: flex;
     gap: .15rem;
@@ -219,8 +228,15 @@ footer {
     background: var(--bg);
 }
 
+/* Nasce oculto (o theme.js revela): ocupa o lugar sem aparecer, para o seletor de mês não pular quando ele surge. */
 .theme[hidden] {
-    display: none;
+    display: flex;
+    visibility: hidden;
+}
+
+/* Com o seletor de mês antes dele, só o seletor empurra para a direita: o tema fica colado nele. */
+.month-slot:not(:empty) + .theme {
+    margin-left: 0;
 }
 
 .theme button {
@@ -995,6 +1011,10 @@ tr:hover .actions button,
     background: var(--card);
     font-weight: 600;
     text-align: center;
+}
+
+.month-nav a.month-go[hidden] {
+    display: none;
 }
 
 .month-nav a {

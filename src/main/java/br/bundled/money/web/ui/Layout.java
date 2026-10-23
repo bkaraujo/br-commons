@@ -16,6 +16,7 @@ import br.commons.protocol.http.message.HTTPRequest;
 import br.commons.protocol.http.message.HTTPResponse;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -29,7 +30,8 @@ import static br.commons.lang.Htmx.*;
  * and a boosted navigation swaps only {@code <main id="content">}: the server answers it with the title, the content
  * (retargeted there) and the menu out of band, so the scripts in the {@code <head>} load once. On narrow screens the
  * menu becomes a bar at the bottom, in reach of the thumb. The header's real height goes to {@code --top-height}
- * ({@code static/money/header.js}). Every {@code <select>} gets a live filter in the browser
+ * ({@code static/money/header.js}); the month navigation of a screen with a month sits beside the menu
+ * ({@code static/money/month.js}). Every {@code <select>} gets a live filter in the browser
  * ({@code static/money/combo.js}); the home's chart is drawn from its table ({@code static/money/chart.js}); the form of splits sums its
  * columns while typing ({@code static/money/splits.js}); the rows of an outline open and close at any level
  * ({@code static/money/outline.js}).
@@ -43,7 +45,16 @@ public final class Layout {
     private Layout() {}
 
     public static HTTPResponse page(HTTPRequest request, Screen current, Node content) {
-        return page(request, HTTPStatus.OK, current, content);
+        return page(request, HTTPStatus.OK, current, null, content);
+    }
+
+    /** A screen with a month: {@code months} ({@link Ledger#monthNav}) goes to the header. */
+    public static HTTPResponse page(HTTPRequest request, Screen current, Node months, Node content) {
+        return page(request, HTTPStatus.OK, current, months, content);
+    }
+
+    public static HTTPResponse page(HTTPRequest request, HTTPStatus status, Screen current, Node content) {
+        return page(request, status, current, null, content);
     }
 
     /**
@@ -51,13 +62,15 @@ public final class Layout {
      * as {@code 200}: htmx drops an error answer unswapped (a missing account's 404 would look like a dead click); the
      * whole page keeps the real status.
      */
-    public static HTTPResponse page(HTTPRequest request, HTTPStatus status, Screen current, Node content) {
-        if (!Ui.boosted(request)) return Ui.html(status, document(current, content));
-        val changed = Html.fragment(pageTitle(current), main(id("content"), content), navigation(current, hxSwapOob()));
+    public static HTTPResponse page(HTTPRequest request, HTTPStatus status, Screen current, @Nullable Node months,
+                                    Node content) {
+        if (!Ui.boosted(request)) return Ui.html(status, document(current, months, content));
+        val changed = Html.fragment(pageTitle(current), main(id("content"), content), navigation(current, hxSwapOob()),
+                monthSlot(months, hxSwapOob()));
         return HtmxResponse.of(Ui.ok(changed.render())).retarget("#content").reswap(INTO_CONTENT).response();
     }
 
-    private static String document(Screen current, Node content) {
+    private static String document(Screen current, @Nullable Node months, Node content) {
         return Html5.document(html(
                 lang("pt-BR"),
                 head(
@@ -71,6 +84,7 @@ public final class Layout {
                         script(src("/static/money/combo.js"), defer()),
                         script(src("/static/money/chart.js"), defer()),
                         script(src("/static/money/header.js"), defer()),
+                        script(src("/static/money/month.js"), defer()),
                         script(src("/static/money/tree.js"), defer()),
                         script(src("/static/money/outline.js"), defer()),
                         script(src("/static/money/splits.js"), defer())
@@ -81,6 +95,7 @@ public final class Layout {
                                 cls("top"),
                                 p(cls("brand"), span(cls("logo"), text(Text.data("R$"))), text(Text.data("br.money"))),
                                 navigation(current, Html.fragment()),
+                                monthSlot(months, Html.fragment()),
                                 themeSwitch()
                         ),
                         main(id("content"), content),
@@ -112,6 +127,14 @@ public final class Layout {
                         )
                 ))
         );
+    }
+
+    /**
+     * Where the month navigation of the screen goes, beside the menu: empty on a screen without a month. Always sent
+     * with a boosted navigation, so the previous screen's months do not stay.
+     */
+    private static Node monthSlot(@Nullable Node months, Content oob) {
+        return div(id("month-slot"), cls("month-slot"), oob, months == null ? Html.fragment() : months);
     }
 
     /**

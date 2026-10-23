@@ -76,7 +76,8 @@ public final class StatementRoutes implements WebResource {
         return Ui.partial(request)
                 ? ok(Html.fragment(StatementViews.panel(book, account, month, Html.fragment()),
                         monthChanged(request) ? StatementViews.accounts(book, account, month, true) : Html.fragment()).render())
-                : Layout.page(request, Screen.STATEMENT, StatementViews.screen(book, account, month, Html.fragment()));
+                : Layout.page(request, Screen.STATEMENT, Ledger.monthNav(book, month),
+                        StatementViews.screen(book, account, month, Html.fragment()));
     }
 
     /**
@@ -238,7 +239,7 @@ public final class StatementRoutes implements WebResource {
                                String done) {
         if (HtmxRequest.of(request).isHtmx()) return changed(account, month, outcome(result, done));
         if (result instanceof Result.Failure<?, BusinessError>(var error)) {
-            return Layout.page(request, HTTPStatus.UNPROCESSABLE_CONTENT, Screen.STATEMENT,
+            return Layout.page(request, HTTPStatus.UNPROCESSABLE_CONTENT, Screen.STATEMENT, Ledger.monthNav(book, month),
                     StatementViews.screen(book, account, month, StatementViews.notice(error.render())));
         }
         return WebResponse.redirect("/statement?account=" + account.identity() + "&" + Ledger.MONTH + "=" + month);

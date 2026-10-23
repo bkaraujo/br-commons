@@ -17,7 +17,6 @@ import org.jspecify.annotations.NullMarked;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static br.bundled.money.web.ui.Ui.message;
 import static br.commons.lang.Html5.*;
@@ -70,16 +69,13 @@ final class InstallmentViews {
 
     /** The month: navigation (with the checked accounts), summary and the installments. */
     static Node panel(Book book, List<Account> selected, List<Installment> installments, YearMonth month) {
-        val path = Screen.INSTALLMENTS.path() + "?" + FILTERED + "=1" + selected.stream()
-                .map(account -> "&" + ACCOUNT + account.identity() + "=1").collect(Collectors.joining());
         return div(
                 id(SCREEN + "-panel"), cls("statement-panel installments-panel"),
                 input(type("hidden"), id(SCREEN + "-month"), name(Ledger.MONTH), value(month.toString())),
                 div(cls("ledger-head"),
                         div(p(cls("caption"), text(message("Parcelamentos"))),
                                 h2(text(message(selected.isEmpty() ? "Nenhuma conta selecionada"
-                                        : selected.size() + (selected.size() == 1 ? " conta" : " contas") + " e os cartões")))),
-                        div(cls("buttons"), Ledger.monthNav(book, month, path, "#" + SCREEN + "-panel"))),
+                                        : selected.size() + (selected.size() == 1 ? " conta" : " contas") + " e os cartões"))))),
                 summary(installments),
                 div(cls("ledger-scroll"), table(
                         cls("records ledger-table"),

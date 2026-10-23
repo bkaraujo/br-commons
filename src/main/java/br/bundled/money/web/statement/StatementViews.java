@@ -123,8 +123,7 @@ final class StatementViews {
                                 button(type(ButtonType.BUTTON),
                                         hxGet("/statement/transactions/new?account=" + account.identity() + "&month=" + month),
                                         hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
-                                        text(message("+ Novo lançamento"))),
-                                Ledger.monthNav(book, month, "/statement?account=" + account.identity(), "#statement-panel"))),
+                                        text(message("+ Novo lançamento"))))),
                 Ledger.summary(book, account, month, lines),
                 div(cls("ledger-scroll"), table(
                         cls("records ledger-table"),

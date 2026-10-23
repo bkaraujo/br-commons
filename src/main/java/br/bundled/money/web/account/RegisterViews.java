@@ -108,9 +108,7 @@ final class RegisterViews {
                                 h2(text(Text.data(book.path(account))))),
                         div(cls("buttons"),
                                 a(href(Screen.STATEMENT.path() + "?account=" + account.identity() + "&" + Ledger.MONTH + "="
-                                        + month), text(message("Abrir no extrato"))),
-                                Ledger.monthNav(book, month, Screen.ACCOUNTS.path() + "?account=" + account.identity(),
-                                        "#account-panel"))),
+                                        + month), text(message("Abrir no extrato"))))),
                 Ledger.summary(book, account, month, lines),
                 div(cls("ledger-scroll"), table(
                         cls("records ledger-table"),

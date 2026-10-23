@@ -62,7 +62,8 @@ public final class ReportRoutes implements WebResource {
     private HTTPResponse monthly(WebRequest request, Supplier<YearMonth> fallback, BiFunction<Book, YearMonth, Node> report) {
         val month = Ui.monthOf(request.parameter(Ledger.MONTH), fallback);
         val view = report.apply(book, month);
-        return Ui.partial(request) ? ok(view.render()) : Layout.page(request, Screen.REPORTS, view);
+        return Ui.partial(request) ? ok(view.render())
+                : Layout.page(request, Screen.REPORTS, Ledger.monthNav(book, month), view);
     }
 
     /** The closing page, or only the card as it is (the cancel of a reopening). */

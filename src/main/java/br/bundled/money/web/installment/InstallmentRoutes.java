@@ -46,7 +46,7 @@ public final class InstallmentRoutes implements WebResource {
         }
         val installments = book.installments(scope, month);
         return Ui.partial(request) ? ok(InstallmentViews.panel(book, selected, installments, month).render())
-                : Layout.page(request, Screen.INSTALLMENTS,
+                : Layout.page(request, Screen.INSTALLMENTS, Ledger.monthNav(book, month),
                         InstallmentViews.screen(book, accounts, selected, installments, month));
     }
 

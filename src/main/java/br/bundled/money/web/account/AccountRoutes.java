@@ -223,7 +223,7 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse redirected(WebRequest request, Result<?, BusinessError> result) {
         return result instanceof Result.Failure<?, BusinessError>(var error)
                 ? Layout.page(request, HTTPStatus.UNPROCESSABLE_CONTENT, Screen.ACCOUNTS,
-                        RegisterViews.layout(book, RegisterViews.notice(error.render()), chosen(request), month(request)))
+                        Ledger.monthNav(book, month(request)), RegisterViews.layout(book, RegisterViews.notice(error.render()), chosen(request), month(request)))
                 : WebResponse.redirect("/accounts");
     }
 
@@ -233,6 +233,7 @@ public final class AccountRoutes implements WebResource {
     }
 
     private HTTPResponse page(WebRequest request, Node editor) {
-        return Layout.page(request, Screen.ACCOUNTS, RegisterViews.layout(book, editor, chosen(request), month(request)));
+        return Layout.page(request, Screen.ACCOUNTS, Ledger.monthNav(book, month(request)),
+                RegisterViews.layout(book, editor, chosen(request), month(request)));
     }
 }
