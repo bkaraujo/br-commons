@@ -5,13 +5,15 @@
 
 ## 1. Visão
 
-Aplicação web (PWA) de contabilidade pessoal por partidas dobradas (double-entry
+Aplicação **100% web** de contabilidade pessoal por partidas dobradas (double-entry
 bookkeeping), tendo o [GnuCash](../../../../../.agents/gnucash) como referência de
 modelo de domínio e comportamento.
 
 - Uso pessoal, single-user. Fase atual: POC.
 - Execução local: Docker + navegador.
-- Evolução: deploy na AWS, acesso pelo celular. UI responsiva desktop + mobile.
+- Evolução: deploy na AWS, acessado pelo navegador do desktop.
+- **Somente web, para uso no desktop**: não há desejo de utilização em celular (sem app nativo, sem PWA
+  instalável, sem layout pensado para tela pequena).
 
 ## 2. Restrições técnicas
 
@@ -46,7 +48,8 @@ modelo de domínio e comportamento.
 - Conciliação (reconcile n/c/y).
 - Importação OFX/CSV.
 - Multiusuário.
-- Suporte offline (PWA apenas instalável; online obrigatório).
+- Uso em celular: app nativo, PWA instalável e layout mobile. O sistema é 100% web, só para navegador de desktop.
+- Suporte offline (online obrigatório).
 
 ### Fase 2 (intenção registrada)
 
@@ -118,21 +121,22 @@ modelo de domínio e comportamento.
 
 ## 7. UX
 
-- PWA online: manifest + instalável na home; sem cache de dados em service worker.
-- HTMX server-side; layout responsivo (mobile-first).
-- **Desktop**: todas as funcionalidades do MVP.
+- 100% web, em navegador de **desktop**; online obrigatório. Sem PWA, sem manifest, sem service worker e sem
+  requisito de uso em celular nem de layout para tela pequena.
+- HTMX server-side.
+- Todas as funcionalidades do MVP estão na web de desktop.
 - **Visões separadas**: "Minhas contas" (financeiras com saldo) separada da árvore
   contábil completa.
 - **Modo simples x avançado**: simples esconde contas contábeis técnicas (PL,
   ajustes, abertura) e splits — usuário vê "conta" e "categoria", nunca
   débito/crédito; avançado mostra tudo, como o GnuCash.
-- **Mobile** (mínimo obrigatório):
-  - Lançamento rápido: valor, conta, categoria, descrição, data (padrão hoje).
-    "Conta" lista só contas **financeiras**; "categoria" lista só contas
-    **contábeis** de Receita/Despesa.
-  - Consulta de saldos: árvore de contas com saldo, drill-down no razão.
-  - Relatórios: Balanço e DRE legíveis em tela pequena.
-- Importação de PDF/GnuCash: desktop (mobile não obrigatório).
+- **Lançamento rápido**: valor, conta, categoria, descrição, data (padrão hoje). Abre como janela sobre a
+  tela atual, sem listar os lançamentos anteriores.
+  "Conta" lista só contas **financeiras**; "categoria" lista só contas
+  **contábeis** de Receita/Despesa.
+- **Consulta de saldos**: árvore de contas com saldo, drill-down no razão.
+- **Relatórios**: Balanço e DRE.
+- Importação de PDF/GnuCash pela web.
 - Sem modo "Transferência" no lançamento rápido; transferências entre contas
   financeiras (ex.: pagamento de fatura) via lançamento completo.
 

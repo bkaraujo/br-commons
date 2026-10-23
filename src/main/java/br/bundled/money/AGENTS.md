@@ -1,14 +1,15 @@
 # br.bundled.money — Double-entry bookkeeping
 
-Produto definido em [INTENT.md](INTENT.md). Este arquivo é o guia de
-arquitetura: leia antes de criar/mover código no pacote.
-Pendências conhecidas (revisões ainda não resolvidas): [BACKLOG.md](BACKLOG.md).
+Produto definido em [INTENT.md](INTENT.md); regras de negócio em [BUSINESS.md](BUSINESS.md); navegação e interface em
+[UI.md](UI.md); estrutura, fluxos e diagramas em [ARCHITECTURE.md](ARCHITECTURE.md). Este arquivo é o guia de
+convenções: leia antes de criar/mover código no pacote.
+Pendências em andamento (incompletas): [BACKLOG.md](BACKLOG.md).
 
 ## 1. Camadas
 
 ```
 br.bundled.money
-├── MoneyApp                  ponto de entrada; só anexa módulos (Module.of)
+├── MoneyApp                  ponto de entrada; registra Storage e Clock no Context e anexa os módulos
 ├── business
 │   ├── _0_domain             modelo, regras, contratos (repository/service)
 │   └── _1_application        casos de uso; orquestra domínio + repositórios
@@ -48,8 +49,9 @@ número menor ou `br.commons`/JDK):
 - Um caso de uso por operação do usuário (lançar, importar, fechar período...).
 - Retorna `Result<T, BusinessError>`; não renderiza texto (render só na borda).
 - Não conhece HTTP, HTML nem SQL.
-- `ApplicationModule` (Lifecycle) cria os serviços sobre as interfaces de
-  repositório recebidas; um lock único: um caso de uso altera o livro por vez.
+- `ApplicationModule` (Lifecycle) registra os serviços no `Context`; cada serviço
+  pega os repositórios (implementados pela persistência) do `Context` no
+  construtor; um lock único: um caso de uso altera o livro por vez.
   Regra do domínio (`BusinessException`) e falha de storage
   (`BusinessError.Infrastructure`) viram `Failure` (`Rules.locked`/`stored`).
 - Saldos: `Balances` (implementa `BalanceService`) lê o cache do
@@ -60,8 +62,9 @@ número menor ou `br.commons`/JDK):
 ## 3.1 Persistência (`persistence`)
 
 - Repositórios sobre `br.commons.persistence.Storage` (JSON via
-  `br.commons.lang.Json`, linhas = records): `InMemoryStorage` hoje,
-  `LocalFileStorage` sem mudar código. Layout no javadoc do pacote.
+  `br.commons.lang.Json`, linhas = records): `InMemoryStorage` hoje
+  (registrado em `MoneyApp`); trocar a implementação registrada não muda o resto,
+  mas a troca por `LocalFileStorage` nunca foi exercitada. Layout no javadoc do pacote.
 - `PersistenceModule.initialize` carrega tudo (contas antes das transações);
   leitura vem do cache, escrita é write-through. Registro ilegível para o start.
 - Contas são instâncias vivas referenciadas pelas splits: alterar no lugar e
@@ -78,29 +81,34 @@ web
 ├── <feature>          uma pasta por tela/feature
 │   ├── *Routes        WebResource: lê request, chama aplicação, escolhe resposta
 │   └── *Views         package-private: só monta Node (Html5 + Htmx DSL)
-└── static             app.css, theme.js (servidos em /static/money/)
+└── static             app.css e os scripts (theme, combo, chart, header, month, tree, outline, splits), em /static/money/
 ```
 
 - Features dependem só de `ui` (e da aplicação); `ui` não depende de feature.
 - `*Views` não acessa repositório nem regra: recebe dados prontos.
 - Mesma URL serve página inteira e fragmento: `Ui.partial(request)` decide
   (htmx não-boosted e não history-restore → fragmento).
-- Menu com `hx-boost`; filtros (mês, conta) na URL com `hx-push-url`.
+- Menu com `hx-boost`; filtros (conta, caixas) na URL com `hx-push-url`; o mês é
+  navegado no cabeçalho (`Ledger.monthNav`, `month.js`; UI.md §4).
 - Cabeçalho (menu) fixo; navegação boosted troca só `<main id="content">`:
   `Layout.page(request, ...)` responde título + conteúdo (`HX-Retarget`) +
-  menu `hx-swap-oob`. Toda página inteira passa por `Layout.page`.
+  menu e espaço do mês em `hx-swap-oob`. Toda página inteira passa por `Layout.page`.
 - Todo JS fica no `<head>` do `Layout` (carregado uma vez, nunca no body nem
   em fragmento). Scripts agem por delegação no `document` / eventos htmx
   (`htmx:load`), para valer em conteúdo trocado sem recarregar.
 - Campos declarados uma vez (`FieldSpec`) → renderizados com `DIALECT` e
   validados no servidor; erro ao lado do campo (`Ui.errorOf`).
-- Inválido com htmx: `HX-Retarget` no form; sem htmx: post/redirect/get.
+- Inválido: Extrato e Plano de contas devolvem o formulário no lugar (`HX-Retarget`;
+  o Extrato até sem htmx), Lançar (janela `#entry-modal`) devolve o formulário no lugar e, salvo, recarrega a tela
+  (`HX-Refresh`); post/redirect/get só em sucesso
+  (UI.md UI-23, UI-72).
 - Tema claro/escuro só no navegador (`theme.js` + `light-dark()` no CSS).
 - **Toda dropdown tem filtro ao vivo**: renderize `<select>` comum (com opção
   vazia "Escolha…" como prompt); `static/combo.js` (carregado no `Layout`) o
   transforma em combobox filtrável no navegador, inclusive em conteúdo trocado
   pelo htmx. Não crie dropdown fora de `<select>` nem filtre no servidor.
-- Mobile-first: toda tela utilizável em tela estreita (INTENT §7).
+- 100% web, só para navegador de desktop: sem requisito de uso em celular (INTENT §1, §7); o CSS
+  não tem regras para tela estreita.
 - Textos de UI em pt-BR via `Ui.message(...)`.
 
 ### 4.1 Livro da web e seed
@@ -129,4 +137,5 @@ web
 - [ ] Camada certa? Dependência respeita a tabela do §1?
 - [ ] Regra contábil já está no INTENT §6? Se nova, registrar lá primeiro.
 - [ ] Na web: `*Routes` + `*Views` na pasta da feature; nada de regra na view.
-- [ ] Erro com chave i18n, não texto cru.
+- [ ] Erro de regra do domínio com chave i18n (`DomainErrors`); texto de tela via `Ui.message`
+      (as mensagens de campo, `Forms.violation`, e os avisos de rota são texto pt-BR no código).
