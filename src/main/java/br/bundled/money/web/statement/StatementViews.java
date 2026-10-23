@@ -51,7 +51,7 @@ final class StatementViews {
 
     /** Closing the dialog: a click on the backdrop itself, or Escape while a card is open. */
     private static final String DISMISS = "click[target.id=='statement-editor'], "
-            + "keyup[key=='Escape'&&document.querySelector('#statement-editor > .card')] from:body";
+            + "keyup[key=='Escape'&&document.querySelector('#statement-editor > .card')!=null] from:body";
 
     private StatementViews() {}
 
@@ -152,7 +152,7 @@ final class StatementViews {
                 td(strong(text(Text.data(transaction.description()))),
                         small(cls("sub"), text(Text.data(line.counterpart())))),
                 td(cls("num"), Ui.amount(line.amount(), true)),
-                td(cls("num hide-narrow"), Ui.amount(line.balance(), false)),
+                td(cls("num"), Ui.amount(line.balance(), false)),
                 // fechado (antes da data-limite) é imutável: sem ações
                 td(cls("actions"), when(!closed, () -> fragment(
                         button(type(ButtonType.BUTTON), cls("link icon-button"), hxGet(path + "/edit" + context),

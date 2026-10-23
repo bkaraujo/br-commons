@@ -5,7 +5,7 @@ import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.business._0_domain.model.TransactionSplit;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.ui.Forms;
-import br.bundled.money.web.ui.Recent;
+import br.bundled.money.web.ui.Layout;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.ButtonType;
@@ -31,15 +31,20 @@ import static br.commons.lang.Html5.*;
 import static br.commons.lang.Htmx.*;
 
 /**
- * The quick entry: the value first and big, then category, account, description and date. The whole
- * {@code #quick} is swapped on saving: the notice of what was saved, the form and the latest transactions.
+ * The quick entry: the value first and big, then category, account, description and date. It opens as a dialog over
+ * the screen the user is on ({@link #modal}, from the menu), without the latest transactions; the page
+ * ({@link #screen}) is only what a browser without htmx gets from {@code /entries/new}. In the page, the whole
+ * {@code #quick} is swapped on saving: the notice of what was saved and the form ready for the next one.
  */
 @NullMarked
 final class EntryViews {
 
+    /** The hidden marker of the dialog's form: saving it refreshes the screen behind instead of swapping a page. */
+    static final String MODAL = "modal";
+
     private EntryViews() {}
 
-    /** {@code refused}: why the service did not save it (a rule of the domain), shown above the form. */
+    /** The page. {@code refused}: why the service did not save it (a rule of the domain), shown above the form. */
     static Node screen(Book book, Map<String, String> values, List<Violation> errors, @Nullable Transaction saved,
                        @Nullable String refused) {
         return section(
@@ -47,19 +52,37 @@ final class EntryViews {
                 h2(text(message("Lançamento rápido"))),
                 saved == null ? fragment() : notice(book, saved),
                 refused == null ? fragment() : p(cls("error"), role("alert"), text(Text.data(refused))),
-                form(
-                        id("entry-form"), cls("quick-form card"), method(FormMethod.POST), action("/entries"),
-                        hxPost("/entries"), hxTarget("#quick"), hxSwap(HxSwap.OUTER_HTML),
-                        labeled(EntryFields.AMOUNT, "Valor (R$)", values, errors, null,
-                                cls("amount-input"), inputmode(InputMode.DECIMAL), placeholder(Text.data("0,00")), autofocus()),
-                        labeled(EntryFields.CATEGORY, "Categoria", values, errors, options(book, book.categories(), true)),
-                        labeled(EntryFields.ACCOUNT, "Conta", values, errors, options(book, book.moneyAccounts(), false)),
-                        labeled(EntryFields.DESCRIPTION, "Descrição", values, errors, null,
-                                placeholder(message("Ex.: mercado, salário…"))),
-                        labeled(EntryFields.DATE, "Data", values, errors, null),
-                        button(type(ButtonType.SUBMIT), text(message("Lançar")))
-                ),
-                Recent.list(book, 5)
+                entryForm(book, values, errors, null, false)
+        );
+    }
+
+    /** The dialog: the form alone, a card in {@code #entry-modal}; invalid, it comes back in place with its errors. */
+    static Node modal(Book book, Map<String, String> values, List<Violation> errors, @Nullable String refused) {
+        return entryForm(book, values, errors, refused, true);
+    }
+
+    private static Node entryForm(Book book, Map<String, String> values, List<Violation> errors,
+                                  @Nullable String refused, boolean modal) {
+        return form(
+                id("entry-form"), cls("quick-form card"), method(FormMethod.POST), action("/entries"),
+                hxPost("/entries"), hxTarget(modal ? "#entry-form" : "#quick"), hxSwap(HxSwap.OUTER_HTML),
+                modal ? role("dialog") : (Content) fragment(),
+                modal ? fragment(input(type("hidden"), name(MODAL), value("1")), h3(text(message("Lançamento rápido"))))
+                        : fragment(),
+                modal && refused != null ? p(cls("error wide"), role("alert"), text(Text.data(refused))) : fragment(),
+                labeled(EntryFields.AMOUNT, "Valor (R$)", values, errors, null,
+                        cls("amount-input"), inputmode(InputMode.DECIMAL), placeholder(Text.data("0,00")), autofocus()),
+                labeled(EntryFields.CATEGORY, "Categoria", values, errors, options(book, book.categories(), true)),
+                labeled(EntryFields.ACCOUNT, "Conta", values, errors, options(book, book.moneyAccounts(), false)),
+                labeled(EntryFields.DESCRIPTION, "Descrição", values, errors, null,
+                        placeholder(message("Ex.: mercado, salário…"))),
+                labeled(EntryFields.DATE, "Data", values, errors, null),
+                modal ? div(cls("buttons wide"),
+                        button(type(ButtonType.SUBMIT), text(message("Lançar"))),
+                        button(type(ButtonType.BUTTON), cls("link"), hxGet(Layout.ENTRY_EDITOR),
+                                hxTarget("#" + Layout.ENTRY_MODAL), hxSwap(HxSwap.INNER_HTML),
+                                text(message("Cancelar"))))
+                        : button(type(ButtonType.SUBMIT), text(message("Lançar")))
         );
     }
 

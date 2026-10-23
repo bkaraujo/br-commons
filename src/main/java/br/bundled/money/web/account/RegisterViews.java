@@ -50,7 +50,7 @@ final class RegisterViews {
 
     /** Closing the dialog: a click on the backdrop itself, or Escape while a card is open. */
     private static final String DISMISS = "click[target.id=='account-editor'], "
-            + "keyup[key=='Escape'&&document.querySelector('#account-editor > .card')] from:body";
+            + "keyup[key=='Escape'&&document.querySelector('#account-editor > .card')!=null] from:body";
 
     /** The id prefix of each top-level branch of the tree ({@code tree.js} keeps the open ones by it). */
     private static final String BRANCH = "branch-";
@@ -86,7 +86,7 @@ final class RegisterViews {
                         hxSwap(HxSwap.INNER_HTML), editor),
                 table(
                         cls("records tree"), hxOnHtmx("before-request", MARK),
-                        thead(tr(th(text(message("Conta"))), th(cls("hide-narrow"), text(message("Tipo"))),
+                        thead(tr(th(text(message("Conta"))), th(text(message("Tipo"))),
                                 th(cls("num"), text(message("Saldo"))), th(ariaLabel(message("Ações"))))),
                         each(branches(book), branch -> {
                             val rows = each(branch, account -> row(book, account, balances.getOrDefault(account, BigDecimal.ZERO),
@@ -162,7 +162,7 @@ final class RegisterViews {
                         a(href(month), hxGet(month), hxTarget("#account-panel"), hxSwap(HxSwap.OUTER_HTML),
                                 hxInclude("#account-month"), hxPushUrl(true),
                                 text(Text.data(account.name())))),
-                td(cls("hide-narrow"), span(cls("badge" + (account.financial() ? " financial" : "")),
+                td(span(cls("badge" + (account.financial() ? " financial" : "")),
                         text(message(Ui.typeLabel(account.type()))))),
                 td(cls("num"), Ui.amount(balance, false)),
                 td(cls("actions"), when(depth > 0, () -> fragment(

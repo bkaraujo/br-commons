@@ -42,7 +42,7 @@ public final class Ledger {
     /** Date, description, value and running balance; {@code extra} columns after them. */
     public static Node columns(Node... extra) {
         return thead(tr(th(text(message("Data"))), th(text(message("Descrição"))),
-                th(cls("num"), text(message("Valor"))), th(cls("num hide-narrow"), text(message("Saldo"))), fragment(extra)));
+                th(cls("num"), text(message("Valor"))), th(cls("num"), text(message("Saldo"))), fragment(extra)));
     }
 
     /**

@@ -378,10 +378,6 @@ public final class Book {
         return transactions().size();
     }
 
-    public List<Transaction> recent(int limit) {
-        return transactions().reversed().stream().limit(limit).toList();
-    }
-
     public Optional<Transaction> transaction(@Nullable UUID id) {
         return id == null ? Optional.empty() : transactionService.find(id);
     }

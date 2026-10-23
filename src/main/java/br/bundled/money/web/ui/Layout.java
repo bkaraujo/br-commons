@@ -18,6 +18,7 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static br.bundled.money.web.ui.Ui.message;
@@ -28,8 +29,7 @@ import static br.commons.lang.Htmx.*;
  * The page around every screen: head, the menu and the theme switch. The body is boosted ({@code hx-boost}): every
  * link and form loads the next page by htmx and pushes the URL, without a full reload. The header stays fixed on top
  * and a boosted navigation swaps only {@code <main id="content">}: the server answers it with the title, the content
- * (retargeted there) and the menu out of band, so the scripts in the {@code <head>} load once. On narrow screens the
- * menu becomes a bar at the bottom, in reach of the thumb. The header's real height goes to {@code --top-height}
+ * (retargeted there) and the menu out of band, so the scripts in the {@code <head>} load once. The header's real height goes to {@code --top-height}
  * ({@code static/money/header.js}); the month navigation of a screen with a month sits beside the menu
  * ({@code static/money/month.js}). Every {@code <select>} gets a live filter in the browser
  * ({@code static/money/combo.js}); the home's chart is drawn from its table ({@code static/money/chart.js}); the form of splits sums its
@@ -41,6 +41,17 @@ public final class Layout {
 
     /** A boosted navigation replaces the content and starts at the top of the window. */
     private static final SwapSpec INTO_CONTENT = SwapSpec.of(HxSwap.OUTER_HTML).show("window", ScrollEdge.TOP);
+
+    /** Where the quick entry opens over any screen ({@code GET /entries/new}); {@link #ENTRY_EDITOR} empties it. */
+    public static final String ENTRY_MODAL = "entry-modal";
+    public static final String ENTRY_EDITOR = "/entries/editor";
+
+    /**
+     * Closing the quick entry: a click on the backdrop itself, or Escape while its card is open. The filter of htmx
+     * must answer {@code true}: ending it with the element itself ({@code querySelector(...)}) never fires.
+     */
+    private static final String ENTRY_DISMISS = "click[target.id=='" + ENTRY_MODAL + "'], "
+            + "keyup[key=='Escape'&&document.querySelector('#" + ENTRY_MODAL + " > .card')!=null] from:body";
 
     private Layout() {}
 
@@ -75,8 +86,6 @@ public final class Layout {
                 lang("pt-BR"),
                 head(
                         metaCharset("utf-8"),
-                        meta(name("viewport"), content("width=device-width, initial-scale=1")),
-                        meta(name("theme-color"), content("#4a5a1c")),
                         script(src("/static/money/theme.js")),
                         pageTitle(current),
                         link(rel("stylesheet"), href("/static/money/app.css")),
@@ -99,6 +108,8 @@ public final class Layout {
                                 themeSwitch()
                         ),
                         main(id("content"), content),
+                        div(id(ENTRY_MODAL), cls("modal"), hxGet(ENTRY_EDITOR), hxTrigger(ENTRY_DISMISS),
+                                hxSwap(HxSwap.INNER_HTML)),
                         footer(small(text(message("Dados em memória"))))
                 )
         ));
@@ -117,16 +128,27 @@ public final class Layout {
                 ariaLabel(message("Menu")),
                 ul(each(
                         List.of(Screen.values()),
-                        screen -> li(
-                                a(
-                                        href(screen.path()),
-                                        cls(screen == current ? "current" : ""),
-                                        span(cls("icon"), ariaHidden(true), screen.icon().svg()),
-                                        span(cls("label"), data("label", screen.label()), text(message(screen.label())))
-                                )
-                        )
+                        screen -> li(menuLink(screen, current))
                 ))
         );
+    }
+
+    /**
+     * A link of the menu. The quick entry is not a screen to go to: it opens as a dialog over the one the user is on
+     * ({@link #ENTRY_MODAL}); its {@code href} stays for a browser without htmx.
+     */
+    private static Node menuLink(Screen screen, Screen current) {
+        val attributes = new ArrayList<Content>();
+        attributes.add(href(screen.path()));
+        attributes.add(cls(screen == current ? "current" : ""));
+        if (screen == Screen.ENTRY) {
+            attributes.add(hxGet(screen.path()));
+            attributes.add(hxTarget("#" + ENTRY_MODAL));
+            attributes.add(hxSwap(HxSwap.INNER_HTML));
+        }
+        attributes.add(span(cls("icon"), ariaHidden(true), screen.icon().svg()));
+        attributes.add(span(cls("label"), data("label", screen.label()), text(message(screen.label()))));
+        return a(attributes.toArray(Content[]::new));
     }
 
     /**
