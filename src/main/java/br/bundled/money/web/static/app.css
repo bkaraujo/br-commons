@@ -970,6 +970,13 @@ tr:hover .actions button,
     width: 12.5rem;
 }
 
+/* da altura das setas, abaixo do tema: surgir no topo não muda a altura da barra */
+.month-nav select,
+.month-nav .combo input {
+    height: 2.25rem;
+    padding-block: 0;
+}
+
 /* o mês escolhido no centro, como um título; a lista abre com todos os meses */
 .month-nav .combo input {
     background: var(--card);
