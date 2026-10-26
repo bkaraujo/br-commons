@@ -32,6 +32,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.function.Function;
 
@@ -45,7 +46,8 @@ import static br.bundled.money.web.ui.Ui.pathId;
  * deleting answer with the whole {@code #accounts} and, out of band, the month beside it and the month navigation;
  * invalid, the form or the panel with its errors; refused by the services (a rule of the domain), the tree with the
  * reason; over an account already gone, the tree with a notice.
- * {@code /accounts/empty}: the empty book from the personal chart of accounts (INTENT F8), confirmed first. Beside the
+ * {@code /accounts/empty}: the empty book from the personal chart of accounts (INTENT F8), confirmed first.
+ * {@code /accounts/closing}: the closing month (INTENT F9) in the editor; moving it back is confirmed first. Beside the
  * tree, the month of an account ({@code /accounts?account=3&month=2026-10}, only {@code #account-panel} when the tree
  * or the month navigation asks); without one, the first financial account. Literal routes come before {@code {id}}:
  * the first match wins.
@@ -53,6 +55,8 @@ import static br.bundled.money.web.ui.Ui.pathId;
 @NullMarked
 public final class AccountRoutes implements WebResource {
 
+    /** The closing date (INTENT F9): GET the dialog, POST to set it; the other screens link here. */
+    public static final String CLOSING = "/accounts/closing";
 
     private final Book book = Context.get(Book.class);
 
@@ -65,6 +69,8 @@ public final class AccountRoutes implements WebResource {
         router.get(RegisterViews.EMPTY, MediaType.TEXT_HTML, String.class, this::confirmEmpty).getOrThrow();
         router.post(RegisterViews.EMPTY, MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::empty)
                 .getOrThrow();
+        router.get(CLOSING, MediaType.TEXT_HTML, String.class, this::closing).getOrThrow();
+        router.post(CLOSING, MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::close).getOrThrow();
         router.post("/accounts", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();
         router.get("/accounts/{id}/edit", MediaType.TEXT_HTML, String.class, this::edit).getOrThrow();
         router.put("/accounts/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::update).getOrThrow();
@@ -143,6 +149,45 @@ public final class AccountRoutes implements WebResource {
         val started = book.startEmpty();
         if (!HtmxRequest.of(request).isHtmx()) return redirected(request, started);
         return saved(request, started, Ui.message("forms.account.empty_created"));
+    }
+
+    // ---------- closing (INTENT F9)
+
+    private HTTPResponse closing(WebRequest request) {
+        return editor(request, RegisterViews.closingPanel(book, null, null));
+    }
+
+    /**
+     * Closes up to the end of the month asked ({@link RegisterViews#threshold}); empty, or "Remover fechamento", nothing
+     * is closed. Moving it back (or removing it) reopens transactions, so it asks for the confirmation first. Done: the
+     * tree without a notice (the button shows the month), or with the reason it was refused; without htmx:
+     * post/redirect/get.
+     */
+    private HTTPResponse close(WebRequest request) {
+        val form = request.body(Form.class).getOrThrow();
+        val raw = form.value(RegisterViews.REMOVE).isEmpty() ? form.value(RegisterViews.MONTH).strip() : "";
+        final YearMonth month;
+        try {
+            month = raw.isEmpty() ? null : YearMonth.parse(raw);
+        } catch (DateTimeParseException _) {
+            return dialog(request, RegisterViews.closingPanel(book, null, Ui.message("forms.closing.invalid_month")), true);
+        }
+        val date = month == null ? null : RegisterViews.threshold(month);
+        val current = book.threshold();
+        val reopens = current != null && (date == null || date.isBefore(current));
+        if (reopens && form.value(RegisterViews.CONFIRM).isEmpty()) {
+            return dialog(request, RegisterViews.closingPanel(book, raw, null), false);
+        }
+        val closed = book.close(date);
+        if (!HtmxRequest.of(request).isHtmx()) return redirected(request, closed);
+        return closed instanceof Result.Failure<?, BusinessError>(var error)
+                ? withNotice(request, Text.message(error.render())) : refreshed(request, Html.fragment());
+    }
+
+    /** The closing dialog again: into the editor for htmx; without, on the page ({@code refused}: 422). */
+    private HTTPResponse dialog(WebRequest request, Node panel, boolean refused) {
+        return HtmxRequest.of(request).isHtmx() ? invalid(panel, "#account-editor")
+                : page(request, refused ? HTTPStatus.UNPROCESSABLE_CONTENT : HTTPStatus.OK, panel);
     }
 
     // ---------- create, update, delete
@@ -245,9 +290,14 @@ public final class AccountRoutes implements WebResource {
      * {@code month=} in the URL it is the book's, which the write may have moved.
      */
     private HTTPResponse withNotice(WebRequest request, Text text) {
+        return refreshed(request, RegisterViews.notice(text));
+    }
+
+    /** The tree with {@code editor} and, out of band, the panel and the month navigation ({@link #withNotice}). */
+    private HTTPResponse refreshed(WebRequest request, Node editor) {
         val account = chosen(name -> Ui.shown(request, name));
         val month = month(name -> Ui.shown(request, name));
-        return ok(Html.fragment(RegisterViews.screen(book, RegisterViews.notice(text), account),
+        return ok(Html.fragment(RegisterViews.screen(book, editor, account),
                 RegisterViews.panel(book, account, month, true),
                 Layout.monthChanged(request, Ledger.monthNav(book, month))).render());
     }
@@ -267,8 +317,12 @@ public final class AccountRoutes implements WebResource {
     }
 
     private HTTPResponse page(WebRequest request, Node editor) {
+        return page(request, HTTPStatus.OK, editor);
+    }
+
+    private HTTPResponse page(WebRequest request, HTTPStatus status, Node editor) {
         val month = month(request::parameter);
-        return Layout.page(request, Screen.ACCOUNTS, Ledger.monthNav(book, month),
+        return Layout.page(request, status, Screen.ACCOUNTS, Ledger.monthNav(book, month),
                 RegisterViews.layout(book, editor, chosen(request::parameter), month));
     }
 }

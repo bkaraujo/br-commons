@@ -446,7 +446,7 @@ flowchart TD
     Month -- "não" --> Content["Layout#page: título + main#content + month-slot oob se a chave mudou; HX-Retarget #content, 200"]
 ```
 
-As telas `report` (lista e fechamento) e `HomeRoutes#home` seguem o mesmo padrão; `/reports` responde sempre por
+As telas `report` e `HomeRoutes#home` seguem o mesmo padrão; `/reports` responde sempre por
 `Layout.page`.
 
 ### 8.3 Navegação de mês no cabeçalho
@@ -488,11 +488,11 @@ sequenceDiagram
 - **Retorno de `read`**: `Result<Entrada, List<Violation>>`. A rota faz `switch` sobre o `Result`; em sucesso chama
   `Book`, em falha re-renderiza o formulário com `Ui.errorOf` ao lado do campo (texto por `Forms.violation`).
 - **Erro de regra** (vindo do serviço) é mostrado com `error.render()`: aviso no painel (extrato), mensagem no formulário
-  (lançamento rápido) ou cartão (fechamento).
+  (lançamento rápido) ou nota na árvore (plano de contas, inclusive o fechamento).
 - **Com htmx**, formulário inválido sai com `HX-Retarget` e `reswap` `outerHTML` no próprio formulário
   (`StatementRoutes#invalid`, alvo `#transaction-form`); sucesso devolve o painel com aviso e a lista de contas
   *out of band*.
-- **Sem htmx**: sucesso faz post/redirect/get (`WebResponse.redirect`) para o extrato, o início ou o fechamento; falha de
+- **Sem htmx**: sucesso faz post/redirect/get (`WebResponse.redirect`) para o extrato, o início ou o plano de contas; falha de
   regra no extrato volta a página inteira com status 422 (`after`). Formulário inválido sem htmx: `EntryRoutes` re-renderiza
   a tela inteira; `StatementRoutes#invalid` não distingue htmx (usa sempre o retarget).
 - `PUT`/`DELETE` são enviados por htmx; `/accounts/{id}` aceita `POST` também, para formulário sem htmx.

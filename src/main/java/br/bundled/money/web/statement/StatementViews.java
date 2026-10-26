@@ -2,6 +2,7 @@ package br.bundled.money.web.statement;
 
 import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.business._0_domain.model.Transaction;
+import br.bundled.money.web.account.AccountRoutes;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.book.LedgerLine;
 import br.bundled.money.web.ui.Forms;
@@ -225,6 +226,12 @@ final class StatementViews {
 
     static Node notice(Text notice) {
         return p(cls("notice"), role("status"), text(notice));
+    }
+
+    /** A transaction in the closed period: the notice, with the way to the closing date. */
+    static Node closedNotice() {
+        return p(cls("notice"), role("status"), text(message("forms.statement.closed")), text(Text.data(" ")),
+                a(href(AccountRoutes.CLOSING), text(message("forms.closing.change"))));
     }
 
     // ---------- edit

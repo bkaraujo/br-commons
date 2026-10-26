@@ -20,11 +20,13 @@ import br.commons.lang.htmx.HxSwap;
 import br.commons.lang.htmx.ScrollEdge;
 import br.commons.lang.htmx.SwapSpec;
 import br.commons.locale.i18n.Text;
+import br.commons.web.ui.FontAwesome;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -75,7 +77,7 @@ final class RegisterViews {
         return section(
                 id("accounts"), cls("registry"),
                 div(cls("ledger-head"),
-                        h2(text(message("forms.account.chart"))),
+                        div(cls("title-line"), h2(text(message("forms.account.chart"))), closingButton(book)),
                         div(cls("buttons"),
                                 button(type(ButtonType.BUTTON), cls("link"), hxGet(EMPTY), hxTarget("#account-editor"),
                                         hxSwap(INTO_EDITOR), text(message("forms.account.new_empty_book"))),
@@ -254,7 +256,8 @@ final class RegisterViews {
         if (book.closedUses(account)) {
             return div(cls("delete-panel card"), role("dialog"), ariaLabel(label), title,
                     p(text(message("forms.account.closed_uses"))),
-                    div(cls("buttons"), cancel()));
+                    div(cls("buttons"), button(type(ButtonType.BUTTON), hxGet(CLOSING), hxTarget("#account-editor"),
+                            hxSwap(INTO_EDITOR), text(message("forms.closing.change"))), cancel()));
         }
         return form(
                 cls("delete-panel card"), role("dialog"), ariaLabel(label), hxDelete("/accounts/" + account.identity()),
@@ -287,6 +290,77 @@ final class RegisterViews {
                 div(cls("buttons"),
                         button(type(ButtonType.SUBMIT), cls("danger"), text(message("forms.account.create_empty"))),
                         cancel())
+        );
+    }
+
+    // ---------- closing (INTENT F9)
+
+    static final String CLOSING = AccountRoutes.CLOSING;
+    static final String MONTH = "month";
+    static final String CONFIRM = "confirm";
+    static final String REMOVE = "remove";
+
+    /**
+     * The closing is by month: closing a month closes everything up to its last day, so the closing date is the first
+     * day of the next one. The last month closed, or null when nothing is.
+     */
+    static @Nullable YearMonth closedMonth(Book book) {
+        val threshold = book.threshold();
+        return threshold == null ? null : YearMonth.from(threshold.minusDays(1));
+    }
+
+    /** The first day open once {@code month} is closed: the closing date of the book. */
+    static LocalDate threshold(YearMonth month) {
+        return month.plusMonths(1).atDay(1);
+    }
+
+    /** {@code 2025/10}: the month on the button, year first. */
+    private static Text yearMonth(YearMonth month) {
+        return Text.data(month.getYear() + "/" + String.format("%02d", month.getMonthValue()));
+    }
+
+    /** The button of the closing dialog: a lock and the last month closed (open, when nothing is). */
+    private static Node closingButton(Book book) {
+        val closed = closedMonth(book);
+        val heading = message("forms.closing.title");
+        return button(type(ButtonType.BUTTON), cls("link closing-button"), hxGet(CLOSING), hxTarget("#account-editor"),
+                hxSwap(INTO_EDITOR), title(heading), ariaLabel(heading),
+                span(cls("icon"), ariaHidden(true), (closed == null ? FontAwesome.Solid.LOCK_OPEN : FontAwesome.Solid.LOCK).svg()),
+                span(text(closed == null ? message("forms.closing.button_none") : yearMonth(closed))));
+    }
+
+    /**
+     * The closing month: every transaction up to its end is immutable. {@code reopening}: the month asked, earlier
+     * than the current one (or none, removing the closing), waiting for the confirmation; moving it back is an explicit
+     * act. {@code error}: why the month was refused. Saving answers with the whole {@code #accounts}, as the other writes.
+     */
+    static Node closingPanel(Book book, @Nullable String reopening, @Nullable Text error) {
+        val closed = closedMonth(book);
+        val shown = reopening != null ? reopening : closed == null ? "" : closed.toString();
+        val heading = message("forms.closing.title");
+        return form(
+                cls("closing-form card"), role("dialog"), ariaLabel(heading), method(FormMethod.POST), action(CLOSING),
+                hxPost(CLOSING), hxTarget("#accounts"), hxSwap(HxSwap.OUTER_HTML),
+                h3(text(heading)),
+                p(cls("caption"), text(closed == null ? message("forms.closing.none_closed")
+                        : message("forms.closing.closed_before", Ui.month(closed)))),
+                label(text(message("forms.closing.month")),
+                        reopening == null ? input(type("month"), name(MONTH), value(shown))
+                                : input(type("month"), name(MONTH), value(shown), readonly())),
+                error == null ? fragment() : p(cls("error"), role("alert"), text(error)),
+                reopening == null
+                        ? div(cls("buttons"), button(type(ButtonType.SUBMIT), text(message("forms.common.save"))),
+                                when(closed != null, () -> button(type(ButtonType.SUBMIT), cls("link danger"), name(REMOVE),
+                                        value("1"), text(message("forms.closing.remove")))),
+                                cancel())
+                        : fragment(
+                                p(cls("error"), role("alert"), text(message(reopening.isEmpty()
+                                        ? "forms.closing.remove_warning" : "forms.closing.reopen_warning"))),
+                                input(type("hidden"), name(CONFIRM), value("1")),
+                                div(cls("buttons"),
+                                        button(type(ButtonType.SUBMIT), cls("danger"), text(message(reopening.isEmpty()
+                                                ? "forms.closing.confirm_remove" : "forms.closing.confirm_reopen"))),
+                                        cancel()))
         );
     }
 

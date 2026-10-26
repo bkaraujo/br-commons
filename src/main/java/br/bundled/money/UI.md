@@ -18,8 +18,9 @@ Os `*Views` só montam o HTML a partir de dados prontos; as regras ficam no dom�
 não tem regras para tela estreita: o layout é de desktop, e o cabeçalho com o menu fica sempre no topo.
 
 **UI-04** — Melhoria progressiva, **com limites**: sem JavaScript os links (menu, relatórios, links de mês) e os
-formulários de Lançar, de conta e de fechamento funcionam como GET/POST comum. Dependem de htmx e não funcionam sem ele:
-os botões do Extrato ("+ Novo lançamento", editar, excluir), os do Plano de contas ("+ Nova conta", editar, excluir),
+formulários de Lançar, de conta e de fechamento (abertos pelo endereço) funcionam como GET/POST comum. Dependem de htmx e não funcionam sem ele:
+os botões do Extrato ("+ Novo lançamento", editar, excluir), os do Plano de contas ("+ Nova conta", editar, excluir,
+fechamento),
 "Dividir em várias contas" e "+ Linha", as caixas de seleção da Visão Geral, do Extrato e de Parcelamentos (os
 formulários não têm botão de envio) e a lista de meses. O JS também traz o filtro de listas, o gráfico e os totais ao
 digitar.
@@ -80,7 +81,7 @@ de abertura (RN-62).
 **UI-23 — Sem htmx.** Só algumas escritas fazem post/redirect/get para a tela de origem: criar lançamento, criar
 conta, salvar a conta (ou o livro vazio), Lançar e o fechamento. Alterar e excluir lançamento e excluir conta respondem
 sempre o fragmento, sem redirecionar. Recusa do serviço sem htmx mostra a página inteira com o motivo e **status 422**
-no Extrato, no Plano de contas e no Fechamento; em Lançar o erro volta como `200`. Com htmx (inclusive *boosted*) as
+no Extrato e no Plano de contas (com o fechamento); em Lançar o erro volta como `200`. Com htmx (inclusive *boosted*) as
 respostas são sempre `200`. Só o Plano de contas aceita `POST` no mesmo caminho do `PUT` (formulário sem htmx); o
 Extrato não tem equivalente para alterar nem excluir.
 
@@ -93,7 +94,7 @@ nota tem "Ver em <conta>".
 **UI-30 — Um seletor, no cabeçalho.** `Ledger.monthNav` é o único: "←" (mês anterior), a lista de meses, "→" (próximo)
 e "Hoje" (só aparece fora do mês atual). Todas as telas que têm mês o usam: **Extrato, Parcelamentos, Plano de contas
 e os relatórios de mês** (balanço, resultado, evolução). Nenhuma desenha o seu. Telas sem mês (Visão Geral, Lançar,
-lista de Relatórios, Fechamento) deixam o espaço vazio. Trocar de tela troca o espaço junto, fora de banda, só quando a
+lista de Relatórios) deixam o espaço vazio. Trocar de tela troca o espaço junto, fora de banda, só quando a
 navegação de mês muda: o `#month-slot` guarda uma chave do que mostra (`data-key`), `month.js` a manda em todo pedido
 htmx (cabeçalho `Month-Key`) e o servidor só o reenvia quando a chave é outra (UI-21).
 
@@ -160,7 +161,7 @@ o servidor faz a mesma conta e confere ao salvar (RN-24). Débito e crédito nun
 
 **UI-49 — Depois de salvar/excluir.** A resposta é o painel (com a nota do que foi feito) e, fora de banda, a lista com
 os novos saldos. Notas: "Lançamento "X" criado." / "atualizado." / "excluído."; "O lançamento não existe mais." (sumiu
-entre a abertura e o envio); "Lançamento em período fechado: recue a data-limite para alterá-lo."; "Lançamento com mais
+entre a abertura e o envio); "Lançamento em período fechado: recue o fechamento para alterá-lo." (com o link "Alterar fechamento", UI-57a); "Lançamento com mais
 de duas contas: use a divisão em várias contas." (editar como simples um que não é). Erros de validação do formulário
 voltam só o formulário no lugar (UI-72).
 
@@ -212,7 +213,7 @@ descendente: RN-11, RN-12), Nome e, **só criando uma conta financeira** (BANK, 
 ou subcontas o tipo aparece fixo: "<tipo> · fixo: a conta tem lançamentos ou subcontas" (RN-14).
 
 **UI-56 — Excluir.** Com subcontas: só o aviso, sem botão de excluir. Com lançamentos em período fechado: aviso
-pedindo recuar a data-limite. Com lançamentos: "N lançamento(s) serão movidos para a conta escolhida" e o campo
+pedindo recuar o fechamento, com o botão "Alterar fechamento" (UI-57a). Com lançamentos: "N lançamento(s) serão movidos para a conta escolhida" e o campo
 "Mover lançamentos para" (obrigatório), botão "Mover e excluir". Sem lançamentos: "A conta não tem lançamentos." e "Excluir". Salvar e excluir trocam
 a árvore inteira, com a nota do resultado ("Conta "X" criada." / "atualizada." / "excluída.", ou "excluída; N
 lançamento(s) movidos para "Y"") ou o motivo da recusa, e, fora de banda, o painel ao lado: da conta e do mês da página
@@ -221,10 +222,25 @@ lançamento(s) movidos para "Y"") ou o motivo da recusa, e, fora de banda, o pai
 **UI-57 — Novo livro vazio.** "Novo livro vazio" (e, ao criar, a nota "Livro vazio criado com o plano de contas pessoal.") abre a confirmação com quantas contas e lançamentos em memória serão
 descartados ("Nenhum arquivo é alterado.") e o tamanho do plano (RN-18); "Criar livro vazio" confirma.
 
+**UI-57a — Fechamento de período (`/accounts/closing`).** Uma ação do livro, não um relatório, e **por mês**: fechar
+um mês fecha tudo até o último dia dele (a data-limite do livro, RN-40, passa a ser o dia 1 do mês seguinte); o dia não
+se escolhe. Na barra do Plano de contas, ao lado de "Novo livro vazio", o botão tem o cadeado à esquerda e, à direita, o
+último mês fechado como `2025/10` (nada fechado: cadeado aberto e "Fechar período"); abre a janela no
+`#account-editor`, como o formulário de conta. A janela tem a legenda "Nenhum período fechado." ou "Lançamentos até o fim
+de outubro de 2025 estão fechados: não podem ser criados, editados nem excluídos."; o campo "Fechado até (mês)"
+(`input type="month"`), "Salvar", "Remover fechamento" (só com algo fechado) e "Cancelar". Recuar o mês pede confirmação
+na própria janela ("Recuar o mês de fechamento reabre os lançamentos do período para alteração.", "Confirmar
+reabertura"); remover também ("Remover o fechamento reabre todos os lançamentos para alteração.", "Confirmar remoção"),
+com o campo travado e "Cancelar". Mês inválido: "Mês inválido." (`role="alert"`, na janela). Salvar fecha a janela e troca a árvore
+inteira, **sem nota** (o próprio botão mostra o mês); recusa do serviço aparece como nota, como nas outras escritas (UI-56). Sem htmx: o endereço abre a página com a janela, salvar faz
+post/redirect/get para `/accounts`, e o mês inválido volta com 422. "Alterar fechamento" leva a ela de onde o período
+fechado barra: a nota do Extrato (lançamento fechado, UI-49) e a exclusão de conta com lançamentos fechados (UI-56).
+Uma data-limite que não cai no dia 1 (vinda do GnuCash) aparece como o mês do dia anterior a ela.
+
 ### 5.6 Relatórios (`/reports`)
 
-**UI-58 — Lista.** Um cartão com uma lista de quatro links, cada um com nome e resumo (ex.: "Ativo, passivo e patrimônio líquido no fim do mês"): Balanço patrimonial, Demonstração do resultado, Evolução de gastos,
-Fechamento de período. Cada relatório de mês abre em `/reports/balance|income|evolution?month=…` com o link "←
+**UI-58 — Lista.** Um cartão com uma lista de três links, cada um com nome e resumo (ex.: "Ativo, passivo e patrimônio líquido no fim do mês"): Balanço patrimonial, Demonstração do resultado e Evolução de gastos.
+O fechamento de período não é relatório: fica no Plano de contas (UI-57a); `/reports/closing` redireciona para ele. Cada relatório de mês abre em `/reports/balance|income|evolution?month=…` com o link "←
 Relatórios"; o mês é navegado no cabeçalho (UI-30). A troca de mês, sendo *boosted*, troca a tela inteira.
 
 **UI-59 — Conteúdo.** Cálculos em RN-60 a RN-62. Balanço: cada grupo com **todos** os descendentes (indentados), cada um levando ao extrato (sem mês); só folhas e contas
@@ -233,12 +249,6 @@ financeiras mostram valor; "Resultado acumulado" no PL e os totais "Total do ati
 valor zero é "—" sem link; cada mãe tem
 botão que abre e fecha as subcontas (`outline.js`: nasce com o primeiro nível aberto, e as abertas passam para a tabela
 do mês seguinte).
-
-**UI-60 — Fechamento.** Legenda "Nenhum período fechado." ou "Lançamentos antes de dd/MM/aaaa estão fechados: não podem ser
-criados, editados nem excluídos."; data-limite num campo de data e "Salvar"; vazio, nada fecha. Notas: "Período fechado
-antes de…", "Período reaberto a partir de…", "Período reaberto: nada está fechado." Recuar ou limpar a data pede
-confirmação: "Recuar a data-limite reabre os lançamentos do período para alteração.", com o campo travado e os botões
-"Confirmar reabertura" / "Cancelar". Data inválida: "Data inválida." Não tem mês no cabeçalho.
 
 ## 6. Formulários e validação
 

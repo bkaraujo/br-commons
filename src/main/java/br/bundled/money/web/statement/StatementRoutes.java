@@ -54,9 +54,6 @@ import static br.bundled.money.web.ui.Ui.pathId;
 @NullMarked
 public final class StatementRoutes implements WebResource {
 
-    /** A transaction before the closing date (INTENT F9) is neither edited nor deleted. */
-    private static final String CLOSED = "forms.statement.closed";
-
     /** The transaction is not there anymore (deleted meanwhile, or a wrong id). */
     private static final String GONE = "forms.statement.gone";
 
@@ -195,7 +192,7 @@ public final class StatementRoutes implements WebResource {
             return changed(account, month, Ui.message(GONE));
         }
         if (book.closed(found.get())) {
-            return changed(account, month, Ui.message(CLOSED));
+            return changed(account, month, StatementViews.closedNotice());
         }
         if (SplitFields.SPLITS.equals(form.value(SplitFields.MODE))) {
             val lines = SplitFields.lines(form::all);
@@ -237,7 +234,7 @@ public final class StatementRoutes implements WebResource {
         val month = month(request::parameter);
         val found = book.transaction(pathId(request));
         if (found.isPresent() && book.closed(found.get())) {
-            return changed(account, month, Ui.message(CLOSED));
+            return changed(account, month, StatementViews.closedNotice());
         }
         return changed(account, month, found.map(transaction -> outcome(book.discard(transaction),
                 Ui.message("forms.statement.deleted", transaction.label()))).orElseGet(() -> Ui.message(GONE)));
@@ -270,7 +267,11 @@ public final class StatementRoutes implements WebResource {
 
     /** The panel with a notice in the editor, and the list with the new balances. */
     private HTTPResponse changed(Account account, YearMonth month, Text notice) {
-        Node view = Html.fragment(StatementViews.panel(book, account, month, StatementViews.notice(notice)),
+        return changed(account, month, StatementViews.notice(notice));
+    }
+
+    private HTTPResponse changed(Account account, YearMonth month, Node notice) {
+        Node view = Html.fragment(StatementViews.panel(book, account, month, notice),
                 StatementViews.accounts(book, account, month, true));
         return ok(view.render());
     }

@@ -790,7 +790,8 @@ body:has(.modal > .card) {
 .account-form h3,
 .transaction-form h3,
 .quick-form h3,
-.delete-panel h3 {
+.delete-panel h3,
+.closing-form h3 {
     margin: 0;
     color: var(--text);
     font-size: 1rem;
@@ -1301,12 +1302,37 @@ tr:hover .actions button,
     margin-top: .75rem;
 }
 
-/* Fechamento de período (F9): a data-limite e o botão; reabrir pede confirmação no próprio cartão. */
+/* Fechamento de período (F9), janela do Plano de contas: a data-limite e o botão; reabrir pede confirmação nela. */
 .closing-form {
     display: grid;
     gap: .75rem;
-    max-width: 22rem;
-    margin-top: .75rem;
+    padding: 1.1rem 1.25rem;
+}
+
+.modal > .closing-form {
+    width: min(100%, 26rem);
+}
+
+.closing-form .caption {
+    margin: 0;
+}
+
+/* O título do Plano de contas com o botão do fechamento logo à direita dele, à esquerda da barra. */
+.title-line {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+/* O botão do fechamento: o cadeado à esquerda e o último mês fechado (2025/10) à direita. */
+.closing-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+}
+
+.closing-button .icon {
+    display: inline-flex;
 }
 
 .closing-form label input {

@@ -255,7 +255,8 @@ mês (1 casa, HALF_UP; "—" se a receita é zero) e, quando não é zero, leva 
 como "—", sem link. Total = soma dos 12 meses, com a % sobre a receita do período. Média = soma dos meses **até o mês
 atual (hoje)** ÷ quantidade desses meses (2 casas, HALF_UP); sem nenhum mês decorrido, ou zero, aparece "—".
 
-**RN-63 — Fechamento.** Tela para ver e mudar a data-limite (RN-40, RN-41); data inválida é recusada.
+**RN-63 — Fechamento.** Janela do Plano de contas para ver e mudar a data-limite (RN-40, RN-41; UI-57a), por mês:
+fechar um mês põe a data-limite no dia 1 do mês seguinte; mês inválido é recusado.
 
 ## 9. Carga do livro
 

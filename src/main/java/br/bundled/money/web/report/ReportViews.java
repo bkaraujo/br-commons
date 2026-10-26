@@ -32,8 +32,7 @@ import static br.commons.lang.Htmx.*;
 /**
  * The list of the reports, and each report on its own page: the balance sheet (Ativo = Passivo + PL + resultado
  * acumulado) and the DRE of the month, each group with its accounts one level down, the evolution of income and
- * expenses over twelve months, and the closing date. Everything that changes with the month is inside
- * {@code #reports}.
+ * expenses over twelve months. Everything that changes with the month is inside {@code #reports}.
  */
 @NullMarked
 final class ReportViews {
@@ -43,19 +42,13 @@ final class ReportViews {
     static final String INCOME = "/reports/income";
     static final String EVOLUTION = "/reports/evolution";
 
-    /** The closing form (INTENT F9): where it posts and its fields. */
-    static final String CLOSING = "/reports/closing";
-    static final String THRESHOLD = "threshold";
-    static final String CONFIRM = "confirm";
-
     /** A report of the list: where it is, and the keys of its name and of what it shows. */
     private record Report(String path, String name, String summary) {}
 
     private static final List<Report> REPORTS = List.of(
             new Report(BALANCE, "forms.report.balance_name", "forms.report.balance_summary"),
             new Report(INCOME, "forms.report.income_name", "forms.report.income_summary"),
-            new Report(EVOLUTION, "forms.report.evolution_name", "forms.report.evolution_summary"),
-            new Report(CLOSING, "forms.report.closing_name", "forms.report.closing_summary"));
+            new Report(EVOLUTION, "forms.report.evolution_name", "forms.report.evolution_summary"));
 
     /** How many months the evolution shows, from the one picked. */
     private static final int SPAN = 12;
@@ -88,11 +81,6 @@ final class ReportViews {
         return monthly(evolutionTable(book, from));
     }
 
-    /** The closing card ({@link #closing}) on its own page; the card swaps itself, so there is no month to navigate. */
-    static Node closingPage(Node card) {
-        return section(id("reports"), cls("reports"), div(cls("ledger-head"), back()), card);
-    }
-
     /** A report of a month: the way back to the list and the report; the month is navigated in the header. */
     private static Node monthly(Node report) {
         return section(
@@ -105,42 +93,6 @@ final class ReportViews {
     private static Node back() {
         return a(cls("back"), href(LIST), text(message("forms.report.back")));
     }
-
-    // ---------- closing (INTENT F9)
-
-    /**
-     * The closing date: every transaction before it is immutable. {@code reopening}: the date asked, earlier than the
-     * current one (or none), waiting for the confirmation; moving it back is an explicit act. {@code notice}: what the
-     * last change did.
-     */
-    static Node closing(Book book, @Nullable String reopening, @Nullable Text notice) {
-        val threshold = book.threshold();
-        val shown = reopening != null ? reopening : threshold == null ? "" : threshold.toString();
-        return article(
-                id("closing"), cls("report card closing"),
-                h3(text(message("forms.report.closing_name"))),
-                p(cls("caption"), text(threshold == null ? message("forms.report.none_closed")
-                        : message("forms.report.closed_before", Ui.fullDay(threshold)))),
-                notice == null ? fragment() : p(cls("notice"), role("status"), text(notice)),
-                form(
-                        cls("closing-form"), method(FormMethod.POST), action(CLOSING),
-                        hxPost(CLOSING), hxTarget("#closing"), hxSwap(HxSwap.OUTER_HTML),
-                        label(text(message("forms.report.threshold")),
-                                reopening == null ? input(type("date"), name(THRESHOLD), value(shown))
-                                        : input(type("date"), name(THRESHOLD), value(shown), readonly())),
-                        reopening == null
-                                ? div(cls("buttons"), button(type(ButtonType.SUBMIT), text(message("forms.common.save"))))
-                                : fragment(
-                                        p(cls("error"), role("alert"), text(message("forms.report.reopen_warning"))),
-                                        input(type("hidden"), name(CONFIRM), value("1")),
-                                        div(cls("buttons"),
-                                                button(type(ButtonType.SUBMIT), cls("danger"), text(message("forms.report.confirm_reopen"))),
-                                                button(type(ButtonType.BUTTON), cls("link"), hxGet(CLOSING), hxTarget("#closing"),
-                                                        hxSwap(HxSwap.OUTER_HTML), text(message("forms.common.cancel")))))
-                )
-        );
-    }
-
 
     // ---------- balance sheet
 
