@@ -102,8 +102,10 @@ htmx (cabeçalho `Month-Key`) e o servidor só o reenvia quando a chave é outra
 controle para a URL atual com só `month=` trocado, mantendo o resto (a conta do extrato, as contas marcadas). O clique é
 tratado antes do htmx e faz `htmx.ajax` com o próprio link como origem, o que dá a mesma navegação *boosted* (UI-21):
 a tela decide o que volta (`Ui.monthOnly`: mesmo caminho, só o `month` diferente). No Extrato e nos relatórios, o
-conteúdo inteiro (a lista de contas do Extrato tem valores do mês); no Plano de contas e em Parcelamentos, só o painel
-(`Layout.region`), sem a árvore nem as caixas, que não dependem do mês, e sem rolar a janela. A lista de meses usa o
+conteúdo inteiro (a lista de contas do Extrato tem valores do mês), assim como no Plano de contas; em Parcelamentos,
+só o painel (`Layout.region`), sem as caixas, que não dependem do mês, e sem rolar a janela. No Plano de contas o
+clique no nome de uma conta troca só o painel ao lado (`#account-panel`), e o cabeçalho (`#accounts-head`) só muda pelo
+fechamento (e pelo livro vazio, que zera o fechamento). A lista de meses usa o
 link oculto `.month-go` para seguir o mesmo caminho. Sem JavaScript, os links levam só o mês e a lista de meses não faz
 nada (reage apenas ao evento de mudança).
 

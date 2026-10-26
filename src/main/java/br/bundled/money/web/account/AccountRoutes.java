@@ -43,14 +43,15 @@ import static br.bundled.money.web.ui.Ui.pathId;
  * The chart of accounts and its register. {@code GET /accounts}: the tree. The editor
  * ({@code #account-editor}) receives the form ({@code /accounts/new}, {@code /accounts/{id}/edit}, re-rendered by
  * {@code /accounts/form} when the type changes) or the delete panel ({@code /accounts/{id}/delete}). Saving and
- * deleting answer with the whole {@code #accounts} and, out of band, the month beside it and the month navigation;
- * invalid, the form or the panel with its errors; refused by the services (a rule of the domain), the tree with the
- * reason; over an account already gone, the tree with a notice.
- * {@code /accounts/empty}: the empty book from the personal chart of accounts (INTENT F8), confirmed first.
- * {@code /accounts/closing}: the closing month (INTENT F9) in the editor; moving it back is confirmed first. Beside the
- * tree, the month of an account ({@code /accounts?account=3&month=2026-10}, only {@code #account-panel} when the tree
- * or the month navigation asks); without one, the first financial account. Literal routes come before {@code {id}}:
- * the first match wins.
+ * deleting answer with the tree ({@code #accounts-tree}) and, out of band, the notice in the editor, the month beside
+ * it and the month navigation, never the head; invalid, the form or the panel with its errors; refused by the
+ * services (a rule of the domain), the tree with the reason; over an account already gone, the tree with a notice.
+ * {@code /accounts/empty}: the empty book from the personal chart of accounts (INTENT F8), confirmed first; it resets
+ * the closing, so the head goes too. {@code /accounts/closing}: the closing month (INTENT F9) in the editor; moving it
+ * back is confirmed first; saved, only the head ({@code #accounts-head}) comes back. Beside the tree, the month of an
+ * account ({@code /accounts?account=3&month=2026-10}): only {@code #account-panel} when a name in the tree asks; the
+ * month navigation gets the whole screen. Without one, the first financial account. Literal routes come before
+ * {@code {id}}: the first match wins.
  */
 @NullMarked
 public final class AccountRoutes implements WebResource {
@@ -83,11 +84,8 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse tree(WebRequest request) {
         val account = chosen(request::parameter);
         val month = month(request::parameter);
-        if (Ui.partial(request) || Ui.monthOnly(request)) {
-            val panel = RegisterViews.panel(book, account, month, false);
-            return Ui.partial(request) ? ok(panel.render())
-                    : Layout.region(request, Ledger.monthNav(book, month), "#" + RegisterViews.PANEL, panel);
-        }
+        // a name in the tree: only the panel; the month navigation is a navigation like any other (the whole screen)
+        if (Ui.partial(request)) return ok(RegisterViews.panel(book, account, month, false).render());
         return page(request, Html.fragment());
     }
 
@@ -148,7 +146,10 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse empty(WebRequest request) {
         val started = book.startEmpty();
         if (!HtmxRequest.of(request).isHtmx()) return redirected(request, started);
-        return saved(request, started, Ui.message("forms.account.empty_created"));
+        val notice = started instanceof Result.Failure<?, BusinessError>(var error) ? Text.message(error.render())
+                : Ui.message("forms.account.empty_created");
+        // the empty book resets the closing: its button, in the head, goes too
+        return refreshed(request, RegisterViews.notice(notice), true);
     }
 
     // ---------- closing (INTENT F9)
@@ -181,7 +182,8 @@ public final class AccountRoutes implements WebResource {
         val closed = book.close(date);
         if (!HtmxRequest.of(request).isHtmx()) return redirected(request, closed);
         return closed instanceof Result.Failure<?, BusinessError>(var error)
-                ? withNotice(request, Text.message(error.render())) : refreshed(request, Html.fragment());
+                ? dialog(request, RegisterViews.closingPanel(book, null, Text.message(error.render())), true)
+                : ok(RegisterViews.closed(book).render());
     }
 
     /** The closing dialog again: into the editor for htmx; without, on the page ({@code refused}: 422). */
@@ -290,14 +292,18 @@ public final class AccountRoutes implements WebResource {
      * {@code month=} in the URL it is the book's, which the write may have moved.
      */
     private HTTPResponse withNotice(WebRequest request, Text text) {
-        return refreshed(request, RegisterViews.notice(text));
+        return refreshed(request, RegisterViews.notice(text), false);
     }
 
-    /** The tree with {@code editor} and, out of band, the panel and the month navigation ({@link #withNotice}). */
-    private HTTPResponse refreshed(WebRequest request, Node editor) {
+    /**
+     * The tree and, out of band, {@code editor} in the editor, the panel and the month navigation ({@link #withNotice});
+     * {@code head}: the head too. The head is not sent otherwise: only the closing changes it.
+     */
+    private HTTPResponse refreshed(WebRequest request, Node editor, boolean head) {
         val account = chosen(name -> Ui.shown(request, name));
         val month = month(name -> Ui.shown(request, name));
-        return ok(Html.fragment(RegisterViews.screen(book, editor, account),
+        return ok(Html.fragment(RegisterViews.tree(book, account), RegisterViews.editorContent(editor),
+                head ? RegisterViews.head(book, true) : Html.fragment(),
                 RegisterViews.panel(book, account, month, true),
                 Layout.monthChanged(request, Ledger.monthNav(book, month))).render());
     }

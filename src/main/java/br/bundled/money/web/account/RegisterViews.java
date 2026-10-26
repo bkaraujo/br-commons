@@ -39,16 +39,23 @@ import static br.commons.lang.Htmx.*;
 /**
  * The chart of accounts with its register: "Nova conta" and, on each row below the top level, edit and delete. The
  * form and the delete panel open in {@code #account-editor}, shown as a modal dialog over a frosted tree (CSS: the
- * editor holding a card); Escape or a click on the backdrop empties it. Saving or deleting answers with the whole
- * {@code #accounts}, the tree updated and a notice in the editor, and the panel out of band. Beside the tree,
- * {@code #account-panel}: the month of the account picked in it, as in the statement (navigation, summary,
- * transactions), read only; a name in the tree loads only the panel, with the month ({@code #account-month}).
+ * editor holding a card); Escape or a click on the backdrop empties it. Three parts change alone: the head
+ * ({@code #accounts-head}), only by the closing; the tree ({@code #accounts-tree}), by saving, deleting and the empty
+ * book, with a notice in the editor and the panel out of band; beside the tree, {@code #account-panel}: the month of
+ * the account picked in it (summary, transactions), read only, the only thing a name in the tree loads, with the
+ * month ({@code #account-month}). The month navigation reloads the whole screen.
  */
 @NullMarked
 final class RegisterViews {
 
-    /** The id of the month beside the tree: the tree and the month navigation load only it. */
+    /** The id of the month beside the tree: a name in the tree loads only it. */
     static final String PANEL = "account-panel";
+
+    /** The head of the chart (title, closing button, actions): only the closing swaps it. */
+    static final String HEAD = "accounts-head";
+
+    /** The tree: saving, deleting and the empty book swap it. */
+    static final String TREE = "accounts-tree";
 
     /** Loading into the editor scrolls it into view: a row may be far below. */
     private static final SwapSpec INTO_EDITOR = SwapSpec.of(HxSwap.INNER_HTML).show("#account-editor", ScrollEdge.TOP);
@@ -71,31 +78,46 @@ final class RegisterViews {
         return div(cls("chart"), screen(book, editor, account), panel(book, account, month, false));
     }
 
-    /** The tree; {@code current}: the account whose month is beside it. */
+    /** The head, the editor and the tree; {@code current}: the account whose month is beside it. */
     static Node screen(Book book, Node editor, Account current) {
-        val balances = book.balances();
-        return section(
-                id("accounts"), cls("registry"),
-                div(cls("ledger-head"),
-                        div(cls("title-line"), h2(text(message("forms.account.chart"))), closingButton(book)),
-                        div(cls("buttons"),
-                                button(type(ButtonType.BUTTON), cls("link"), hxGet(EMPTY), hxTarget("#account-editor"),
-                                        hxSwap(INTO_EDITOR), text(message("forms.account.new_empty_book"))),
-                                button(type(ButtonType.BUTTON), hxGet("/accounts/new"), hxTarget("#account-editor"),
-                                        hxSwap(INTO_EDITOR), text(message("forms.account.new_account_button"))))),
+        return section(id("accounts"), cls("registry"), head(book, false),
                 div(id("account-editor"), cls("modal"), hxGet("/accounts/editor"), hxTrigger(DISMISS),
                         hxSwap(HxSwap.INNER_HTML), editor),
-                table(
-                        cls("records tree"), hxOnHtmx("before-request", MARK),
-                        thead(tr(th(text(message("forms.common.account"))), th(text(message("forms.account.type"))),
-                                th(cls("num"), text(message("forms.common.balance"))), th(ariaLabel(message("forms.common.actions"))))),
-                        each(branches(book), branch -> {
-                            val rows = each(branch, account -> row(book, account, balances.getOrDefault(account, BigDecimal.ZERO),
-                                    account.equals(current)));
-                            return branch.size() > 1 ? tbody(id(BRANCH + branch.getFirst().identity()), cls("branch collapsed"), rows) : tbody(rows);
-                        })
-                )
+                tree(book, current));
+    }
+
+    /**
+     * The title with the closing button, and the actions: only the closing changes it ({@link #closed}); {@code oob}:
+     * beside the tree, when the empty book resets the closing.
+     */
+    static Node head(Book book, boolean oob) {
+        return div(id(HEAD), cls("ledger-head"), oob ? hxSwapOob() : fragment(),
+                div(cls("title-line"), h2(text(message("forms.account.chart"))), closingButton(book)),
+                div(cls("buttons"),
+                        button(type(ButtonType.BUTTON), cls("link"), hxGet(EMPTY), hxTarget("#account-editor"),
+                                hxSwap(INTO_EDITOR), text(message("forms.account.new_empty_book"))),
+                        button(type(ButtonType.BUTTON), hxGet("/accounts/new"), hxTarget("#account-editor"),
+                                hxSwap(INTO_EDITOR), text(message("forms.account.new_account_button")))));
+    }
+
+    /** The tree: what saving, deleting and the empty book swap; a name loads only the panel ({@link #PANEL}). */
+    static Node tree(Book book, Account current) {
+        val balances = book.balances();
+        return table(
+                id(TREE), cls("records tree"), hxOnHtmx("before-request", MARK),
+                thead(tr(th(text(message("forms.common.account"))), th(text(message("forms.account.type"))),
+                        th(cls("num"), text(message("forms.common.balance"))), th(ariaLabel(message("forms.common.actions"))))),
+                each(branches(book), branch -> {
+                    val rows = each(branch, account -> row(book, account, balances.getOrDefault(account, BigDecimal.ZERO),
+                            account.equals(current)));
+                    return branch.size() > 1 ? tbody(id(BRANCH + branch.getFirst().identity()), cls("branch collapsed"), rows) : tbody(rows);
+                })
         );
+    }
+
+    /** The editor's content out of band: a notice after a write, or nothing (the dialog closes). */
+    static Node editorContent(Node content) {
+        return div(hxSwapOob(HxSwap.INNER_HTML, "#account-editor"), content);
     }
 
     /**
@@ -201,7 +223,7 @@ final class RegisterViews {
                 id("account-form"), cls("account-form card"), role("dialog"), ariaLabel(title),
                 method(FormMethod.POST), action(current == null ? "/accounts" : "/accounts/" + current.identity()),
                 current == null ? hxPost("/accounts") : hxPut("/accounts/" + current.identity()),
-                hxTarget("#accounts"), hxSwap(HxSwap.OUTER_HTML),
+                hxTarget("#" + TREE), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(title)),
                 current == null ? fragment() : input(type("hidden"), name("editing"), value(current.identity().toString())),
                 locked
@@ -261,7 +283,7 @@ final class RegisterViews {
         }
         return form(
                 cls("delete-panel card"), role("dialog"), ariaLabel(label), hxDelete("/accounts/" + account.identity()),
-                hxTarget("#accounts"),
+                hxTarget("#" + TREE),
                 hxSwap(HxSwap.OUTER_HTML),
                 title,
                 uses > 0
@@ -283,7 +305,7 @@ final class RegisterViews {
         val label = message("forms.account.new_empty_book");
         return form(
                 cls("delete-panel card"), role("dialog"), ariaLabel(label), method(FormMethod.POST), action(EMPTY),
-                hxPost(EMPTY), hxTarget("#accounts"), hxSwap(HxSwap.OUTER_HTML),
+                hxPost(EMPTY), hxTarget("#" + TREE), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(label)),
                 p(text(message("forms.account.empty_template", template))),
                 p(text(message("forms.account.empty_discard", book.tree().size(), book.count()))),
@@ -319,6 +341,11 @@ final class RegisterViews {
         return Text.data(month.getYear() + "/" + String.format("%02d", month.getMonthValue()));
     }
 
+    /** After the closing: the head with the new month and, out of band, the editor emptied (the dialog closes). */
+    static Node closed(Book book) {
+        return fragment(head(book, false), editorContent(fragment()));
+    }
+
     /** The button of the closing dialog: a lock and the last month closed (open, when nothing is). */
     private static Node closingButton(Book book) {
         val closed = closedMonth(book);
@@ -332,7 +359,7 @@ final class RegisterViews {
     /**
      * The closing month: every transaction up to its end is immutable. {@code reopening}: the month asked, earlier
      * than the current one (or none, removing the closing), waiting for the confirmation; moving it back is an explicit
-     * act. {@code error}: why the month was refused. Saving answers with the whole {@code #accounts}, as the other writes.
+     * act. {@code error}: why the month was refused. Saving swaps only the head ({@link #closed}).
      */
     static Node closingPanel(Book book, @Nullable String reopening, @Nullable Text error) {
         val closed = closedMonth(book);
@@ -340,7 +367,7 @@ final class RegisterViews {
         val heading = message("forms.closing.title");
         return form(
                 cls("closing-form card"), role("dialog"), ariaLabel(heading), method(FormMethod.POST), action(CLOSING),
-                hxPost(CLOSING), hxTarget("#accounts"), hxSwap(HxSwap.OUTER_HTML),
+                hxPost(CLOSING), hxTarget("#" + HEAD), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(heading)),
                 p(cls("caption"), text(closed == null ? message("forms.closing.none_closed")
                         : message("forms.closing.closed_before", Ui.month(closed)))),
