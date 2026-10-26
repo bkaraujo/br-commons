@@ -252,6 +252,21 @@ class ApplicationModuleTest {
     }
 
     @Test
+    void theNoteIsOptionalAndSurvivesARevision() {
+        val bank = bank("Nubank", "1000");
+        val market = named("Mercado");
+        val noted = transactions().transfer(TODAY, "Feira", bank.identity(), market.identity(), BigDecimal.TEN,
+                "Dividido com a vizinha").getOrThrow();
+        assertEquals("Dividido com a vizinha", noted.note());
+        assertNull(transactions().transfer(TODAY, "Pão", bank.identity(), market.identity(), BigDecimal.ONE, "  ")
+                .getOrThrow().note(), "blank is no note");
+
+        val revised = transactions().revise(noted.identity(), TODAY, "Feira grande", TransactionService.moving(bank, market,
+                new BigDecimal("12"))).getOrThrow();
+        assertEquals("Dividido com a vizinha", revised.note());
+    }
+
+    @Test
     void revisingKeepsTheIdentityOfTheSplits() {
         val bank = bank("Nubank", "1000");
         val market = named("Mercado");

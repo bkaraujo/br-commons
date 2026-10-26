@@ -25,6 +25,9 @@ public abstract class Transaction extends Entity implements Auditable {
     /** Day the purchase was made, when it differs from {@link #date()} (a card purchase is posted on the bill's due date); null when unknown */
     public @Nullable LocalDate purchased() { return null; }
 
+    /** What the user wrote about it, free text beyond the description; null when there is none */
+    public @Nullable String note() { return null; }
+
     public abstract TransactionStatus status();
 
     public abstract List<TransactionSplit> splits();

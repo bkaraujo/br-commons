@@ -16,18 +16,28 @@ import java.util.UUID;
 @NullMarked
 public final class BookTransaction extends Transaction {
 
-    /** What a transaction has besides its identity, date, description and splits (INTENT F10 installments). */
+    /** What a transaction has besides its identity, date, description and splits (INTENT F10 installments, the note). */
     public record Details(TransactionStatus status, int installment, int installmentTotal, BigDecimal installmentAmount,
-                          @Nullable UUID purchase, @Nullable LocalDate purchased) {
+                          @Nullable UUID purchase, @Nullable LocalDate purchased, @Nullable String note) {
+
+        /** The note stripped; blank is no note. */
+        public Details {
+            note = note == null || note.isBlank() ? null : note.strip();
+        }
+
+        public Details(TransactionStatus status, int installment, int installmentTotal, BigDecimal installmentAmount,
+                       @Nullable UUID purchase, @Nullable LocalDate purchased) {
+            this(status, installment, installmentTotal, installmentAmount, purchase, purchased, null);
+        }
 
         public Details(TransactionStatus status, int installment, int installmentTotal, BigDecimal installmentAmount,
                        @Nullable UUID purchase) {
-            this(status, installment, installmentTotal, installmentAmount, purchase, null);
+            this(status, installment, installmentTotal, installmentAmount, purchase, null, null);
         }
 
         /** Not an installment: one of one, worth the whole {@code value}. */
         public static Details single(BigDecimal value) {
-            return new Details(TransactionStatus.CONFIRMED, 1, 1, value, null, null);
+            return new Details(TransactionStatus.CONFIRMED, 1, 1, value, null, null, null);
         }
     }
 
@@ -57,18 +67,24 @@ public final class BookTransaction extends Transaction {
     /** A new transaction, now, bought on {@code purchased} (null: the same day as {@code date}). */
     public static BookTransaction of(LocalDate date, String description, List<? extends TransactionSplit> splits,
                                      @Nullable LocalDate purchased) {
+        return of(date, description, splits, purchased, null);
+    }
+
+    /** A new transaction, now, bought on {@code purchased} (null: the same day as {@code date}), with a note (or none). */
+    public static BookTransaction of(LocalDate date, String description, List<? extends TransactionSplit> splits,
+                                     @Nullable LocalDate purchased, @Nullable String note) {
         val now = System.currentTimeMillis();
         val single = Details.single(value(splits));
-        val details = new Details(single.status(), 1, 1, single.installmentAmount(), null, purchased);
+        val details = new Details(single.status(), 1, 1, single.installmentAmount(), null, purchased, note);
         return new BookTransaction(UUID.randomUUID(), date, description, splits, details, now, now);
     }
 
-    /** The same transaction (identity, creation, status) with new date, description and splits, changed now. */
+    /** The same transaction (identity, creation, status, note) with new date, description and splits, changed now. */
     public BookTransaction revised(LocalDate date, String description, List<? extends TransactionSplit> splits) {
         // the purchase day belongs to the date it was posted on: moving the date drops it
         val purchased = date.equals(this.date) ? details.purchased() : null;
         val kept = details.installmentTotal() == 1
-                ? new Details(details.status(), 1, 1, value(splits), null, purchased) : details;
+                ? new Details(details.status(), 1, 1, value(splits), null, purchased, details.note()) : details;
         return new BookTransaction(id, date, description, splits, kept, createdAt, System.currentTimeMillis());
     }
 
@@ -87,6 +103,7 @@ public final class BookTransaction extends Transaction {
     @Override public BigDecimal installmentAmount() { return details.installmentAmount(); }
     @Override public @Nullable UUID purchase() { return details.purchase(); }
     @Override public @Nullable LocalDate purchased() { return details.purchased(); }
+    @Override public @Nullable String note() { return details.note(); }
     @Override public TransactionStatus status() { return details.status(); }
     @Override public List<TransactionSplit> splits() { return splits; }
     @Override public long createdAt() { return createdAt; }

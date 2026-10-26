@@ -31,7 +31,7 @@ public final class StorageTransactionRepository implements TransactionRepository
 
     record TransactionRow(UUID id, String date, String description, TransactionStatus status, int installment,
                           int installmentTotal, String installmentAmount, @Nullable UUID purchase, List<SplitRow> splits,
-                          long createdAt, long updatedAt, @Nullable String purchased) {}
+                          long createdAt, long updatedAt, @Nullable String purchased, @Nullable String note) {}
 
     private static final Comparator<Transaction> CHRONOLOGICAL = Comparator.comparing(Transaction::date)
             .thenComparingLong(Transaction::createdAt).thenComparing(Comparator.naturalOrder());
@@ -78,19 +78,20 @@ public final class StorageTransactionRepository implements TransactionRepository
         }
         val details = new BookTransaction.Details(row.status(), row.installment(), row.installmentTotal(),
                 new BigDecimal(row.installmentAmount()), row.purchase(),
-                row.purchased() == null ? null : LocalDate.parse(row.purchased()));
+                row.purchased() == null ? null : LocalDate.parse(row.purchased()), row.note());
         return Result.success(new BookTransaction(row.id(), LocalDate.parse(row.date()), row.description(), splits, details,
                 row.createdAt(), row.updatedAt()));
     }
 
     private static TransactionRow row(Transaction transaction) {
+        val purchased = transaction.purchased();
         val splits = transaction.splits().stream().map(split -> new SplitRow(split.identity(), split.account().identity(),
                 split.amount().toPlainString(), split.createdAt(), split.updatedAt())).toList();
         return new TransactionRow(transaction.identity(), transaction.date().toString(), transaction.description(),
                 transaction.status(), transaction.installment(), transaction.installmentTotal(),
                 transaction.installmentAmount().toPlainString(), transaction.purchase(), splits,
                 transaction.createdAt(), transaction.updatedAt(),
-                transaction.purchased() == null ? null : transaction.purchased().toString());
+                purchased == null ? null : purchased.toString(), transaction.note());
     }
 
     /** Written in the file of its month; then, if the date moved from another month, removed from that one. */

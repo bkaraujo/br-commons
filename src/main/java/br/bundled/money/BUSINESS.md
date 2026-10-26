@@ -178,6 +178,10 @@ Um livro importado pode parar meses atrás, e abrir num mês vazio o esconderia.
 transação mais antiga (ou do mês pedido, se anterior) até 12 meses depois do mês atual (ou do pedido, se posterior).
 Fonte: `Book#month`, `#firstMonth`, `Ledger#monthSelect`.
 
+**RN-36 — Anotação.** Texto livre opcional da transação, além da descrição: aparado, em branco = nenhuma; até 500
+caracteres na tela. Entra pelo lançamento rápido e se mantém nas revisões (o extrato não a altera). Fonte:
+`Transaction#note`, `BookTransaction.Details`.
+
 ## 6. Fechamento de período (F9)
 
 **RN-40 — Data-limite.** Criar, editar ou excluir transação com data **anterior** à data-limite é rejeitado

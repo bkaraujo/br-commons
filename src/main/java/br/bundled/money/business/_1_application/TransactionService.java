@@ -59,10 +59,16 @@ public final class TransactionService {
 
     /** A complete transaction: any number of splits (INTENT F2). */
     public Result<Transaction, BusinessError> post(LocalDate date, String description, List<SplitInput> splits) {
+        return post(date, description, splits, null);
+    }
+
+    /** {@link #post(LocalDate, String, List)} with a note (null or blank: none). */
+    public Result<Transaction, BusinessError> post(LocalDate date, String description, List<SplitInput> splits,
+                                                   @Nullable String note) {
         return Rules.locked(lock, () -> {
             val built = splits(splits);
             if (built instanceof Result.Failure<List<BookSplit>, BusinessError>(var error)) return Result.failure(error);
-            return save(BookTransaction.of(date, description.strip(), built.getOrThrow()), null);
+            return save(BookTransaction.of(date, description.strip(), built.getOrThrow(), null, note), null);
         });
     }
 
@@ -72,12 +78,18 @@ public final class TransactionService {
      */
     public Result<Transaction, BusinessError> transfer(LocalDate date, String description, UUID from, UUID to,
                                                        BigDecimal value) {
+        return transfer(date, description, from, to, value, null);
+    }
+
+    /** {@link #transfer(LocalDate, String, UUID, UUID, BigDecimal)} with a note (null or blank: none). */
+    public Result<Transaction, BusinessError> transfer(LocalDate date, String description, UUID from, UUID to,
+                                                       BigDecimal value, @Nullable String note) {
         if (value.signum() <= 0) return Result.failure(DomainErrors.validation(DomainErrors.AMOUNT_POSITIVE, value));
         return Rules.locked(lock, () -> {
             val origin = accounts.findById(from);
             val destination = accounts.findById(to);
             if (origin.isEmpty() || destination.isEmpty()) return Result.failure(missing(origin.isEmpty() ? from : to));
-            return post(date, description, moving(origin.get(), destination.get(), value));
+            return post(date, description, moving(origin.get(), destination.get(), value), note);
         });
     }
 
