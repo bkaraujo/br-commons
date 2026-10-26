@@ -8,11 +8,11 @@ import org.jspecify.annotations.NullMarked;
 public enum Screen {
 
     HOME("/", FontAwesome.Solid.HOME_USER),
+    ACCOUNTS("/accounts", FontAwesome.Solid.SITEMAP),
     STATEMENT("/statement", FontAwesome.Solid.LIST),
     INSTALLMENTS("/installments", FontAwesome.Solid.CREDIT_CARD),
-    ENTRY("/entries/new", FontAwesome.Solid.PLUS),
-    ACCOUNTS("/accounts", FontAwesome.Solid.SITEMAP),
-    REPORTS("/reports", FontAwesome.Solid.CHART_PIE);
+    REPORTS("/reports", FontAwesome.Solid.CHART_PIE),
+    ENTRY("/entries/new", FontAwesome.Solid.PLUS);
 
     private final String path;
     private final FontAwesome.Icon icon;
