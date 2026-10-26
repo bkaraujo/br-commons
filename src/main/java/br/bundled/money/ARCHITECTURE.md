@@ -514,6 +514,7 @@ conteúdo trocado. Detalhes de comportamento em [UI.md](UI.md).
 | `tree.js` | Ramos recolhíveis do plano de contas (localStorage) | `defer` |
 | `outline.js` | Linhas recolhíveis em qualquer nível (`table.outline`) | `defer` |
 | `splits.js` | Totais do formulário de divisões enquanto se digita | `defer` |
+| `money.js` | Valor em reais formatado ao digitar (2 casas, `1.234,56`) | `defer` |
 | `history.js` | Caixas marcadas guardadas como estão no histórico do htmx | `defer` |
 
 O script do htmx vem de `htmxScript()` (`HtmxScript` registrado no servidor). O tema só existe no navegador: o servidor
@@ -561,10 +562,11 @@ flowchart TD
   `Infrastructure(message)`. Só `render()`/`render(Locale)` vira texto; `Infrastructure` já traz o texto pronto (os
   repositórios o geram com `DomainErrors.rule(...).render()` em `Records#unreadable`).
 - **Onde o texto aparece**: nas rotas, com `error.render()` (por exemplo `StatementRoutes#outcome`). Textos fixos de UI
-  são `Text.message(...)` via `Ui.message`; dados do usuário entram por `Text.data(...)` (o tipo `Text` separa texto de
+  são chaves `forms.*` resolvidas por `Ui.message`; dados do usuário entram por `Text.data(...)` (o tipo `Text` separa texto de
   interface de dado).
-- **Mensagens de validação de formulário** (`Forms.violation`, `Forms.CLOSED`, `*Fields#message`) são strings
-  em português no próprio código web, não chaves do bundle.
+- **Textos de interface e mensagens de validação** (`Forms.violation`, `Forms.CLOSED`, `*Fields#message`) são chaves
+  `forms.*` do bundle `forms` (pt_BR, en_US), resolvidas por `Ui.message`/`Ui.string` (`I18N.of`, prefixo registrado em
+  `Ui`); `FormsBundleTest` confere que os dois idiomas têm as mesmas chaves e que toda chave citada existe.
 
 ## 12. Testes
 

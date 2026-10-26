@@ -9,7 +9,6 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,13 +24,16 @@ import java.util.function.Function;
 @NullMarked
 final class EntryFields {
 
-    static final Field AMOUNT = FieldSpec.of("amount", InputType.NUMBER).asRequired().withMin("0.01").withStep("0.01").build().getOrThrow();
+    /** Text in reais ({@code 1.234,56}): {@code money.js} formats it while typing; {@link Forms#money} reads it. */
+    static final Field AMOUNT = FieldSpec.of("amount", InputType.TEXT).asRequired().withMaxLength(20).build().getOrThrow();
     static final Field CATEGORY = FieldSpec.of("category", InputType.TEXT).asRequired().build().getOrThrow();
     static final Field ACCOUNT = FieldSpec.of("account", InputType.TEXT).asRequired().build().getOrThrow();
     static final Field DESCRIPTION = FieldSpec.of("description", InputType.TEXT).asRequired().withMaxLength(80).build().getOrThrow();
     static final Field DATE = FieldSpec.of("date", InputType.DATE).asRequired().build().getOrThrow();
+    /** Optional free text, shown only here and in the transaction's detail. */
+    static final Field NOTE = FieldSpec.of("note", InputType.TEXT).withMaxLength(500).build().getOrThrow();
 
-    static final List<Field> ALL = List.of(AMOUNT, CATEGORY, ACCOUNT, DESCRIPTION, DATE);
+    static final List<Field> ALL = List.of(DATE, AMOUNT, ACCOUNT, CATEGORY, DESCRIPTION, NOTE);
 
     private EntryFields() {}
 
@@ -42,15 +44,18 @@ final class EntryFields {
             return new Result.Failure<>(fields);
         }
         val violations = new ArrayList<Violation>();
+        val amount = Forms.money(value.apply(AMOUNT.name()));
+        if (amount == null) violations.add(new Violation(AMOUNT.name(), ValidationRule.INVALID));
+        else if (amount.signum() <= 0) violations.add(new Violation(AMOUNT.name(), ValidationRule.BELOW_MIN));
         val category = Forms.account(CATEGORY, value, book, Book::category, violations);
         val account = Forms.account(ACCOUNT, value, book, Account::financial, violations);
         val date = LocalDate.parse(value.apply(DATE.name()));
         Forms.open(DATE, date, book, violations);
-        if (category == null || account == null || !violations.isEmpty()) {
+        if (amount == null || category == null || account == null || !violations.isEmpty()) {
             return new Result.Failure<>(List.copyOf(violations));
         }
-        return Result.success(new QuickEntry(date,
-                new BigDecimal(value.apply(AMOUNT.name())), account, category, value.apply(DESCRIPTION.name()).strip()));
+        return Result.success(new QuickEntry(date, amount, account, category, value.apply(DESCRIPTION.name()).strip(),
+                value.apply(NOTE.name())));
     }
 
     static String message(Violation violation) {
@@ -58,8 +63,9 @@ final class EntryFields {
     }
 
     private static final Map<String, String> INVALID_MESSAGES = Map.of(
-            CATEGORY.name(), "Escolha uma categoria.",
-            ACCOUNT.name(), "Escolha uma conta.",
+            AMOUNT.name(), "forms.entry.amount_format",
+            CATEGORY.name(), "forms.entry.choose_category",
+            ACCOUNT.name(), "forms.entry.choose_account",
             DATE.name(), Forms.CLOSED);
 
     /** The submitted values, by field name, to show them again with the errors. */

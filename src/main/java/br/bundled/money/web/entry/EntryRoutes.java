@@ -67,7 +67,8 @@ public final class EntryRoutes implements WebResource {
         return switch (EntryFields.read(form::value, book)) {
             case Result.Success<QuickEntry, List<Violation>>(var value) -> {
                 val entry = Objects.requireNonNull(value);
-                val saved = book.quick(entry.date(), entry.description(), entry.account(), entry.category(), entry.amount());
+                val saved = book.quick(entry.date(), entry.description(), entry.account(), entry.category(), entry.amount(),
+                        entry.note());
                 if (saved instanceof Result.Failure<Transaction, BusinessError>(var error)) {
                     val view = view(modal, EntryFields.values(form::value), List.of(), error.render());
                     yield htmx ? ok(view.render()) : Layout.page(request, Screen.ENTRY, view);

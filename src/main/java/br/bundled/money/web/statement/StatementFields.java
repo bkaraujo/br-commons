@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
 /**
@@ -32,6 +33,11 @@ final class StatementFields {
     static final Field TO = FieldSpec.of("to", InputType.TEXT).asRequired().build().getOrThrow();
 
     static final List<Field> ALL = List.of(DATE, DESCRIPTION, AMOUNT, FROM, TO);
+
+    /** Shown only in the detail, read only: the day of the purchase, the installment and the note. */
+    static final Field PURCHASED = FieldSpec.of("purchased", InputType.DATE).build().getOrThrow();
+    static final Field INSTALLMENT = FieldSpec.of("installment", InputType.TEXT).build().getOrThrow();
+    static final Field NOTE = FieldSpec.of("note", InputType.TEXT).build().getOrThrow();
 
     /** The hidden id of the transaction being edited, carried to the form of splits. */
     static final String EDITING = "editing";
@@ -66,8 +72,8 @@ final class StatementFields {
     }
 
     private static final Map<String, String> INVALID_MESSAGES = Map.of(
-            FROM.name(), "Escolha uma conta.",
-            TO.name(), "Escolha uma conta diferente da origem.",
+            FROM.name(), "forms.statement.choose_account",
+            TO.name(), "forms.statement.choose_other_account",
             DATE.name(), Forms.CLOSED);
 
     /** The submitted values, by field name, to show them again with the errors. */
@@ -85,6 +91,16 @@ final class StatementFields {
         return Map.of(DATE.name(), transaction.date().toString(), DESCRIPTION.name(), transaction.description(),
                 AMOUNT.name(), book.value(transaction).toPlainString(),
                 FROM.name(), book.from(transaction).identity().toString(), TO.name(), book.to(transaction).identity().toString());
+    }
+
+    /** {@link #values(Book, Transaction)} plus what only the detail shows ({@link #PURCHASED}, {@link #INSTALLMENT}, {@link #NOTE}). */
+    static Map<String, String> shown(Book book, Transaction transaction) {
+        val values = new HashMap<>(values(book, transaction));
+        val purchased = transaction.purchased();
+        if (purchased != null) values.put(PURCHASED.name(), purchased.toString());
+        values.put(INSTALLMENT.name(), transaction.installment() + "/" + transaction.installmentTotal());
+        values.put(NOTE.name(), Objects.requireNonNullElse(transaction.note(), ""));
+        return values;
     }
 
     /** A new transaction: the date given and, below the top level, the account of the statement as the origin. */

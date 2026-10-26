@@ -9,6 +9,7 @@ import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.Result;
 import br.commons.business.BusinessError;
+import br.commons.locale.i18n.Text;
 import br.commons.cdi.Context;
 import br.commons.lang.html.Html;
 import br.commons.lang.html.core.Node;
@@ -47,13 +48,17 @@ import static br.bundled.money.web.ui.Ui.pathId;
  * creating, saving and deleting answer with the panel of the account and month sent along, plus the list out of
  * band; invalid, the form with its errors. The simple form or the form of splits (marked by {@link SplitFields#MODE}),
  * re-rendered by {@code /statement/transactions/split} as lines are added or removed. Literal routes come before
- * {@code {id}}.
+ * {@code {id}}. {@code GET /statement/transactions/{id}?account=…&month=…}: the detail of a transaction (its note
+ * shows only there), a page reached from the description of a line ({@link Ledger#described}).
  */
 @NullMarked
 public final class StatementRoutes implements WebResource {
 
     /** A transaction before the closing date (INTENT F9) is neither edited nor deleted. */
-    private static final String CLOSED = "Lançamento em período fechado: recue a data-limite para alterá-lo.";
+    private static final String CLOSED = "forms.statement.closed";
+
+    /** The transaction is not there anymore (deleted meanwhile, or a wrong id). */
+    private static final String GONE = "forms.statement.gone";
 
     private final Book book = Context.get(Book.class);
 
@@ -65,6 +70,7 @@ public final class StatementRoutes implements WebResource {
         router.get(StatementViews.SPLIT, MediaType.TEXT_HTML, String.class, this::split).getOrThrow();
         router.post("/statement/transactions", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();
         router.get("/statement/transactions/{id}/edit", MediaType.TEXT_HTML, String.class, this::edit).getOrThrow();
+        router.get("/statement/transactions/{id}", MediaType.TEXT_HTML, String.class, this::detail).getOrThrow();
         router.put("/statement/transactions/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::update).getOrThrow();
         router.get("/statement/transactions/{id}/delete", MediaType.TEXT_HTML, String.class, this::confirm).getOrThrow();
         router.delete("/statement/transactions/{id}", MediaType.TEXT_HTML, String.class, this::delete).getOrThrow();
@@ -87,6 +93,23 @@ public final class StatementRoutes implements WebResource {
         val date = YearMonth.from(book.today()).equals(month) ? book.today() : month.atDay(1);
         return ok(StatementViews.transactionForm(book, null, StatementFields.blank(date, account), List.of(), account,
                 month).render());
+    }
+
+    /**
+     * The transaction in full, seen from the account and month sent along: with htmx, only the dialog
+     * ({@link Layout#ENTRY_MODAL}); gone: a 404 with the way back (in the dialog, a 200: htmx does not swap a 404).
+     */
+    private HTTPResponse detail(WebRequest request) {
+        val account = chosen(request::parameter);
+        val month = month(request::parameter);
+        if (Ui.partial(request)) {
+            return ok(book.transaction(pathId(request))
+                    .map(transaction -> StatementViews.detail(book, transaction, account, month, true))
+                    .orElseGet(() -> StatementViews.gone(account, month)).render());
+        }
+        return book.transaction(pathId(request))
+                .map(transaction -> Layout.page(request, Screen.STATEMENT, StatementViews.detail(book, transaction, account, month, false)))
+                .orElseGet(() -> Layout.page(request, HTTPStatus.NOT_FOUND, Screen.STATEMENT, StatementViews.gone(account, month)));
     }
 
     /** A simple transaction in the simple form; any other in the form of splits. */
@@ -146,7 +169,7 @@ public final class StatementRoutes implements WebResource {
                 case Result.Success<SplitFields.Entry, List<Violation>>(var value) -> {
                     val entry = Objects.requireNonNull(value);
                     val posted = book.enter(entry.date(), entry.description(), entry.splits());
-                    yield after(request, account, month, posted, "Lançamento \"" + entry.description() + "\" criado.");
+                    yield after(request, account, month, posted, Ui.message("forms.statement.created", entry.description()));
                 }
                 case Result.Failure<SplitFields.Entry, List<Violation>>(var errors) -> invalid(StatementViews.splitForm(
                         book, null, StatementFields.values(form::value), lines, errors, account, month));
@@ -156,7 +179,7 @@ public final class StatementRoutes implements WebResource {
             case Result.Success<StatementFields.Revision, List<Violation>>(var value) -> {
                 val revision = Objects.requireNonNull(value);
                 val posted = book.move(revision.date(), revision.description(), revision.from(), revision.to(), revision.value());
-                yield after(request, account, month, posted, "Lançamento \"" + revision.description() + "\" criado.");
+                yield after(request, account, month, posted, Ui.message("forms.statement.created", revision.description()));
             }
             case Result.Failure<StatementFields.Revision, List<Violation>>(var errors) -> invalid(
                     StatementViews.transactionForm(book, null, StatementFields.values(form::value), errors, account, month));
@@ -169,10 +192,10 @@ public final class StatementRoutes implements WebResource {
         val account = chosen(form::value);
         val month = month(form::value);
         if (found.isEmpty()) {
-            return changed(account, month, "O lançamento não existe mais.");
+            return changed(account, month, Ui.message(GONE));
         }
         if (book.closed(found.get())) {
-            return changed(account, month, CLOSED);
+            return changed(account, month, Ui.message(CLOSED));
         }
         if (SplitFields.SPLITS.equals(form.value(SplitFields.MODE))) {
             val lines = SplitFields.lines(form::all);
@@ -180,21 +203,21 @@ public final class StatementRoutes implements WebResource {
                 case Result.Success<SplitFields.Entry, List<Violation>>(var value) -> {
                     val entry = Objects.requireNonNull(value);
                     val revised = book.rewrite(found.get(), entry.date(), entry.description(), entry.splits());
-                    yield changed(account, month, outcome(revised, "Lançamento \"" + entry.description() + "\" atualizado."));
+                    yield changed(account, month, outcome(revised, Ui.message("forms.statement.updated", entry.description())));
                 }
                 case Result.Failure<SplitFields.Entry, List<Violation>>(var errors) -> invalid(StatementViews.splitForm(
                         book, found.get(), StatementFields.values(form::value), lines, errors, account, month));
             };
         }
         if (!book.simple(found.get())) {
-            return changed(account, month, "Lançamento com mais de duas contas: use a divisão em várias contas.");
+            return changed(account, month, Ui.message("forms.statement.not_simple"));
         }
         return switch (StatementFields.read(form::value, book)) {
             case Result.Success<StatementFields.Revision, List<Violation>>(var value) -> {
                 val revision = Objects.requireNonNull(value);
                 val revised = book.revise(found.get(), revision.date(), revision.description(), revision.from(),
                         revision.to(), revision.value());
-                yield changed(account, month, outcome(revised, "Lançamento \"" + revision.description() + "\" atualizado."));
+                yield changed(account, month, outcome(revised, Ui.message("forms.statement.updated", revision.description())));
             }
             case Result.Failure<StatementFields.Revision, List<Violation>>(var errors) -> invalid(
                     StatementViews.transactionForm(book, found.get(), StatementFields.values(form::value), errors,
@@ -212,15 +235,15 @@ public final class StatementRoutes implements WebResource {
         val month = month(request::parameter);
         val found = book.transaction(pathId(request));
         if (found.isPresent() && book.closed(found.get())) {
-            return changed(account, month, CLOSED);
+            return changed(account, month, Ui.message(CLOSED));
         }
         return changed(account, month, found.map(transaction -> outcome(book.discard(transaction),
-                "Lançamento \"" + transaction.description() + "\" excluído.")).orElse("O lançamento não existe mais."));
+                Ui.message("forms.statement.deleted", transaction.description()))).orElseGet(() -> Ui.message(GONE)));
     }
 
     /** {@code done} when the service did it; otherwise the reason it gave (a rule of the domain). */
-    private static String outcome(Result<?, BusinessError> result, String done) {
-        return result instanceof Result.Failure<?, BusinessError>(var error) ? error.render() : done;
+    private static Text outcome(Result<?, BusinessError> result, Text done) {
+        return result instanceof Result.Failure<?, BusinessError>(var error) ? Text.message(error.render()) : done;
     }
 
     /**
@@ -228,17 +251,17 @@ public final class StatementRoutes implements WebResource {
      * statement when the service did it, or the whole page with the reason (422) when it refused.
      */
     private HTTPResponse after(WebRequest request, Account account, YearMonth month, Result<?, BusinessError> result,
-                               String done) {
+                               Text done) {
         if (HtmxRequest.of(request).isHtmx()) return changed(account, month, outcome(result, done));
         if (result instanceof Result.Failure<?, BusinessError>(var error)) {
             return Layout.page(request, HTTPStatus.UNPROCESSABLE_CONTENT, Screen.STATEMENT, Ledger.monthNav(book, month),
-                    StatementViews.screen(book, account, month, StatementViews.notice(error.render())));
+                    StatementViews.screen(book, account, month, StatementViews.notice(Text.message(error.render()))));
         }
         return WebResponse.redirect("/statement?account=" + account.identity() + "&" + Ledger.MONTH + "=" + month);
     }
 
     /** The panel with a notice in the editor, and the list with the new balances. */
-    private HTTPResponse changed(Account account, YearMonth month, String notice) {
+    private HTTPResponse changed(Account account, YearMonth month, Text notice) {
         Node view = Html.fragment(StatementViews.panel(book, account, month, StatementViews.notice(notice)),
                 StatementViews.accounts(book, account, month, true));
         return ok(view.render());

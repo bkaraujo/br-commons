@@ -1,9 +1,11 @@
 package br.bundled.money.web.ui;
 
 import br.bundled.money.business._0_domain.model.Account;
+import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.book.LedgerLine;
 import br.commons.lang.html.core.Node;
+import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
@@ -15,6 +17,7 @@ import java.util.stream.Stream;
 
 import static br.bundled.money.web.ui.Ui.message;
 import static br.commons.lang.Html5.*;
+import static br.commons.lang.Htmx.*;
 
 /** What the ledger, the statement and the reports share: the month's summary, the columns and the month navigation (in the header). */
 @NullMarked
@@ -33,16 +36,36 @@ public final class Ledger {
         val out = lines.stream().map(LedgerLine::amount).filter(amount -> amount.signum() < 0)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return dl(cls("summary"),
-                div(dt(text(message("Saldo inicial"))), dd(Ui.amount(opening, false))),
-                div(dt(text(message("Aumentos"))), dd(Ui.amount(in, true))),
-                div(dt(text(message("Reduções"))), dd(Ui.amount(out, true))),
-                div(cls("closing"), dt(text(message("Saldo final"))), dd(Ui.amount(opening.add(in).add(out), false))));
+                div(dt(text(message("forms.ledger.opening"))), dd(Ui.amount(opening, false))),
+                div(dt(text(message("forms.ledger.increases"))), dd(Ui.amount(in, true))),
+                div(dt(text(message("forms.ledger.reductions"))), dd(Ui.amount(out, true))),
+                div(cls("closing"), dt(text(message("forms.ledger.closing"))), dd(Ui.amount(opening.add(in).add(out), false))));
     }
 
-    /** Date, description, value and running balance; {@code extra} columns after them. */
+    /** Date, description and value; {@code extra} columns after them. No running balance: the summary has the month's. */
     public static Node columns(Node... extra) {
-        return thead(tr(th(text(message("Data"))), th(text(message("Descrição"))),
-                th(cls("num"), text(message("Valor"))), th(cls("num"), text(message("Saldo"))), fragment(extra)));
+        return thead(tr(th(text(message("forms.common.date"))), th(text(message("forms.common.description"))),
+                th(cls("num"), text(message("forms.common.value"))), fragment(extra)));
+    }
+
+    /**
+     * The detail of a transaction ({@code StatementRoutes}), opened from {@code account} in {@code month}: its link to
+     * the statement goes back there.
+     */
+    public static String detail(Transaction transaction, Account account, YearMonth month) {
+        return "/statement/transactions/" + transaction.identity() + "?account=" + account.identity() + "&" + MONTH + "="
+                + month;
+    }
+
+    /**
+     * The description cell of a line: a link to the transaction's {@link #detail}, opened as a dialog over the screen
+     * ({@link Layout#ENTRY_MODAL}; without JavaScript, its page), the counterpart below it.
+     */
+    public static Node described(Transaction transaction, String counterpart, Account account, YearMonth month) {
+        val url = detail(transaction, account, month);
+        return td(a(cls("detail-link"), href(url), hxGet(url), hxTarget("#" + Layout.ENTRY_MODAL), hxSwap(HxSwap.INNER_HTML),
+                        strong(text(Text.data(transaction.description())))),
+                small(cls("sub"), text(Text.data(counterpart))));
     }
 
     /**
@@ -74,11 +97,11 @@ public final class Ledger {
         public Node node() {
             return nav(
                     cls("month-nav"),
-                    ariaLabel(message("Mês")),
-                    monthLink(month.minusMonths(1), "←", "Mês anterior"),
+                    ariaLabel(message("forms.common.month")),
+                    monthLink(month.minusMonths(1), "←", "forms.ledger.previous_month"),
                     monthSelect(),
-                    monthLink(month.plusMonths(1), "→", "Próximo mês"),
-                    when(!month.equals(current), () -> monthLink(current, "Hoje", "Mês atual")),
+                    monthLink(month.plusMonths(1), "→", "forms.ledger.next_month"),
+                    when(!month.equals(current), () -> monthLink(current, Ui.string("forms.ledger.today"), "forms.ledger.current_month")),
                     a(cls("month-go"), href("?" + MONTH + "=" + month), hidden(), ariaHidden(true))
             );
         }
@@ -90,7 +113,7 @@ public final class Ledger {
         private Node monthSelect() {
             val last = (current.isAfter(month) ? current : month).plusMonths(12);
             val months = Stream.iterate(last, shown -> !shown.isBefore(first), shown -> shown.minusMonths(1)).toList();
-            return select(name(MONTH), data("month-pick", ""), ariaLabel(message("Mês")),
+            return select(name(MONTH), data("month-pick", ""), ariaLabel(message("forms.common.month")),
                     each(months, shown -> shown.equals(month)
                             ? option(value(shown.toString()), selected(), text(Text.data(Ui.month(shown))))
                             : option(value(shown.toString()), text(Text.data(Ui.month(shown))))));

@@ -3,6 +3,7 @@ package br.bundled.money.web.book;
 import br.bundled.money.business._0_domain.model.*;
 import br.bundled.money.business._1_application.*;
 import br.commons.Result;
+import br.commons.locale.i18n.I18N;
 import br.commons.business.BusinessError;
 import br.commons.cdi.Context;
 import lombok.val;
@@ -392,7 +393,7 @@ public final class Book {
     public String label(Transaction transaction) {
         val categories = transaction.splits().stream().map(TransactionSplit::account)
                 .filter(account -> !account.financial()).map(Account::name).toList();
-        return categories.isEmpty() ? "Transferência" : String.join(", ", categories);
+        return categories.isEmpty() ? I18N.of("forms.book.transfer") : String.join(", ", categories);
     }
 
     /** The value of a transaction (see {@link BookTransaction#value}). */
@@ -427,11 +428,13 @@ public final class Book {
         return transactionService.transfer(date, description, from.identity(), to.identity(), value);
     }
 
-    /** Expense: the account pays the category. Income: the category pays the account. */
+    /** Expense: the account pays the category. Income: the category pays the account. {@code note}: none when blank. */
     public Result<Transaction, BusinessError> quick(LocalDate date, String description, Account account, Account category,
-                                                    BigDecimal value) {
+                                                    BigDecimal value, @Nullable String note) {
         val expense = category.type() == AccountType.EXPENSE;
-        return move(date, description, expense ? account : category, expense ? category : account, value);
+        val from = expense ? account : category;
+        val to = expense ? category : account;
+        return transactionService.transfer(date, description, from.identity(), to.identity(), value, note);
     }
 
     /** A complete transaction (INTENT F2). */

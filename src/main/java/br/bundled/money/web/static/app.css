@@ -270,7 +270,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
     width: 100%;
     padding: .6rem .7rem;
     border: 1px solid var(--line-strong);
@@ -282,6 +283,7 @@ select {
 
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 button:focus-visible,
 a:focus-visible {
     outline: 3px solid var(--accent);
@@ -1160,17 +1162,23 @@ tr:hover .actions button,
     padding: 1.25rem;
 }
 
-.quick-form .field-amount,
+/* Data e Valor lado a lado; o resto, uma linha cada. */
+.quick-form {
+    align-items: end;
+}
+
+.quick-form .field-account,
+.quick-form .field-category,
 .quick-form .field-description,
+.quick-form .field-note,
 .quick-form > button,
 .quick-form h3,
 .quick-form .wide {
     grid-column: 1 / -1;
 }
 
+/* Valor: mesma altura dos outros campos (ao lado da Data); só o negrito e o alinhamento à direita o destacam. */
 .amount-input {
-    padding: .75rem;
-    font-size: 1.75rem;
     font-weight: 700;
     text-align: right;
 }
@@ -1187,6 +1195,41 @@ tr:hover .actions button,
     background: var(--soft);
     color: var(--pos);
     font-weight: 600;
+}
+
+/* ---------- detalhe do lançamento */
+
+/* A descrição de cada linha leva ao detalhe; fica com a cor do texto, sublinhada só sob o cursor. */
+.ledger-table a.detail-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.ledger-table a.detail-link:hover {
+    text-decoration: underline;
+}
+
+.transaction-detail {
+    max-width: 48rem;
+    padding: 1.25rem;
+}
+
+.transaction-detail .ledger-head {
+    margin-bottom: 0;
+}
+
+/* O mesmo formulário da edição, somente leitura: o fieldset desabilita os campos sem quebrar a grade. */
+.transaction-detail .read-only {
+    display: contents;
+}
+
+.transaction-detail :disabled,
+.transaction-detail [readonly] {
+    opacity: 1;
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+    background: var(--soft);
+    cursor: default;
 }
 
 /* ---------- relatórios */

@@ -11,8 +11,8 @@
 **UI-01** — HTML renderizado no servidor com htmx (`br.commons.lang.htmx` + `Html5`); nenhum framework de mercado.
 Os `*Views` só montam o HTML a partir de dados prontos; as regras ficam no domínio, nos serviços e no `web.book.Book`.
 
-**UI-02** — Textos de interface em pt-BR, via `Ui.message(...)`; dados do usuário (nomes, descrições) entram com
-`Text.data(...)`, sem tradução.
+**UI-02** — Textos de interface por chave no bundle `forms_pt_BR`/`forms_en_US.properties` (`src/main/resources/br/bundled/money`, prefixo `forms.`, registrado no `I18N` como o `messages`; idioma do processo por `L10N`, pt-BR por padrão), via `Ui.message(...)`; dados do usuário (nomes, descrições) entram com
+`Text.data(...)`, sem tradução. Formatos de data e dinheiro seguem pt-BR.
 
 **UI-03** — Somente web, em navegador de desktop: não há requisito nem desejo de uso em celular (INTENT §1, §7). O CSS
 não tem regras para tela estreita: o layout é de desktop, e o cabeçalho com o menu fica sempre no topo.
@@ -138,10 +138,12 @@ atual; senão o último dia do mês) e "Cartões" com o valor do mês (RN-46). S
 o mês, marca a escolhida sem refazer a lista (preserva a rolagem) e empurra a URL.
 
 **UI-44 — Painel do mês.** Cabeçalho "Extrato · tipo" + caminho da conta, "+ Novo lançamento" e o resumo (saldo inicial,
-aumentos, reduções, saldo final: RN-32). Tabela Data, Descrição (com a contraparte embaixo), Valor, Saldo, ações. Mês vazio: "Nenhum lançamento previsto para <mês>."
+aumentos, reduções, saldo final: RN-32). Tabela Data, Descrição (com a contraparte embaixo), Valor, ações; sem coluna de saldo
+(o resumo já mostra o do mês). Mês vazio: "Nenhum lançamento previsto para <mês>."
 
 **UI-45 — Linhas.** Data depois de hoje: classe `planned` e "previsto". Data antes da data-limite: "fechado" e **sem
-botões** de editar/excluir (RN-40). Em conta de cartão, a data é a da compra, quando existe (RN-47).
+botões** de editar/excluir (RN-40). Em conta de cartão, a data é a da compra, quando existe (RN-47). A descrição é um
+link para o detalhe do lançamento (UI-60); o mesmo vale nas linhas do Plano de contas (UI-54) e dos Parcelamentos.
 
 **UI-46 — Editor em janela (`#statement-editor`).** "+ Novo lançamento" e os botões Editar e Excluir de cada linha
 (botões só com `hx-get`: sem htmx não abrem) abrem o formulário numa janela modal; fecha com Cancelar, clique no fundo ou Escape. Novo lançamento: data de hoje se o mês é o atual, senão o dia 1;
@@ -176,8 +178,10 @@ Vazio: "Marque uma conta para ver as parcelas." ou "Nenhuma parcela em <mês>.".
 **UI-51 — Lançamento rápido, numa janela.** "Lançar" no menu **não troca de tela**: abre o formulário numa janela
 modal sobre a tela em que o usuário está (`hx-get` de `/entries/new` em `#entry-modal`; a URL não muda), **sem listar os
 lançamentos anteriores**. Fecha com Cancelar, clique no fundo ou Esc. Sem htmx o link leva à página `/entries/new`, com o
-mesmo formulário. Campos nesta ordem: Valor (grande, com foco), Categoria, Conta, Descrição, Data.
-Título "Lançamento rápido"; o campo Valor tem o marcador "0,00" e Descrição "Ex.: mercado, salário…". Categoria lista só as folhas de Receita/Despesa, pelo caminho; Conta lista as financeiras, por "nome · tipo" (só o nome
+mesmo formulário. Campos nesta ordem: Data e Valor (com foco, em negrito, mesma altura dos demais; formatado ao digitar, sempre com 2 casas,
+os dígitos entrando pela direita: `1` → `0,01`, `123456` → `1.234,56`; `money.js`) lado a lado, Conta, Categoria, Descrição e
+Anotação (opcional, várias linhas, até 500 caracteres; RN-36).
+Título "Lançamento rápido"; o campo Valor tem o marcador "0,00" e Descrição "Ex.: mercado, salário…". Categoria lista só as folhas de Receita/Despesa, pelo caminho; Conta lista as financeiras, por "tipo · nome" (só o nome
 quando já é o tipo). Data padrão: hoje (RN-23). Botões "Lançar" e "Cancelar".
 
 **UI-52 — Depois de lançar.** Na janela (o formulário leva o marcador `modal=1`), salvar com sucesso **fecha a janela e
@@ -309,7 +313,14 @@ inline em fragmentos (marcar a linha ou o link atual) e expressões de gatilho d
 | `tree.js` | ramos recolhíveis do plano de contas, lembrados (UI-53) |
 | `outline.js` | linhas recolhíveis da evolução (UI-59) |
 | `splits.js` | totais do formulário de splits (UI-47) |
+| `money.js` | valor do Lançar formatado ao digitar, sempre com 2 casas (UI-51) |
 | `history.js` | voltar no histórico mostra as caixas como estavam (Visão Geral, Parcelamentos) |
+
+**UI-60 — Detalhe do lançamento.** `GET /statement/transactions/{id}?account=…&month=…`, aberto pela descrição de
+uma linha (UI-45): página da tela Extrato, somente leitura, com legenda "Lançamento", a descrição como título, "Ver no
+extrato" (a conta e o mês de onde veio), Data, "Compra em" (quando há), Parcela (quando é parcelada), Valor, Anotação
+("Sem anotação." quando não há; é o único lugar, além do Lançar, onde ela aparece) e a tabela Conta, Valor de cada
+split. Lançamento que não existe mais: 404 com "O lançamento não existe mais." e o "Ver no extrato".
 
 ## 11. Intenções do INTENT §7 sem código
 

@@ -151,12 +151,12 @@ final class SplitFields {
     /** The message of a violation: the head fields as in the simple form, the lines and the total their own. */
     static String message(Violation violation) {
         if (TOTAL.equals(violation.field())) {
-            return violation.rule() == ValidationRule.REQUIRED ? "Informe ao menos duas contas."
-                    : "O que entra precisa ser igual ao que sai.";
+            return violation.rule() == ValidationRule.REQUIRED ? "forms.statement.two_accounts"
+                    : "forms.statement.unbalanced";
         }
         if (violation.field().startsWith("split-")) {
-            return violation.rule() == ValidationRule.REQUIRED ? "Escolha uma conta."
-                    : "Informe Entra ou Sai (só um), maior que zero, com até 2 casas.";
+            return violation.rule() == ValidationRule.REQUIRED ? "forms.statement.choose_account"
+                    : "forms.statement.line_value";
         }
         return StatementFields.message(violation);
     }

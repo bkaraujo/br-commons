@@ -6,6 +6,8 @@
  * formulários trocados pelo servidor (erros, hx-boost) também ganham o filtro. Teclado: ↑ ↓ Enter Esc.
  */
 (() => {
+    // os textos vêm do bundle forms, no <html data-texts> (Layout)
+    const TEXTS = JSON.parse(document.documentElement.dataset.texts || '{}');
     let sequence = 0;
 
     const normalize = text => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
@@ -64,7 +66,7 @@
 
         const empty = document.createElement('li');
         empty.className = 'combo-empty';
-        empty.textContent = 'Nenhum resultado';
+        empty.textContent = TEXTS.noResults;
         empty.hidden = true;
         list.append(empty);
 
@@ -76,7 +78,7 @@
         let active = null;
 
         const validate = () => {
-            input.setCustomValidity(input.value.trim() !== '' && select.value === '' ? 'Escolha um item da lista.' : '');
+            input.setCustomValidity(input.value.trim() !== '' && select.value === '' ? TEXTS.chooseFromList : '');
         };
 
         const activate = item => {

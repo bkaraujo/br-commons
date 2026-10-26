@@ -56,12 +56,12 @@ final class InstallmentViews {
 
     /** A checkbox per account; a change sends the checked ones (and the month) and loads the panel. */
     private static Node accounts(List<Account> accounts, List<Account> selected) {
-        return form(id(SCREEN + "-accounts"), cls("statement-accounts card"), ariaLabel(message("Contas")),
+        return form(id(SCREEN + "-accounts"), cls("statement-accounts card"), ariaLabel(message("forms.common.accounts")),
                 method(FormMethod.GET), action(Screen.INSTALLMENTS.path()),
                 hxGet(Screen.INSTALLMENTS.path()), hxTrigger("change"),
                 hxInclude("#" + SCREEN + "-accounts, #" + SCREEN + "-month"),
                 hxTarget("#" + PANEL), hxSwap(HxSwap.OUTER_HTML), hxPushUrl(true),
-                h3(text(message("Contas"))),
+                h3(text(message("forms.common.accounts"))),
                 input(type("hidden"), name(FILTERED), value("1")),
                 ul(each(accounts, account -> li(label(cls("account-option"),
                         input(type("checkbox"), name(ACCOUNT + account.identity()), value("1"),
@@ -75,19 +75,22 @@ final class InstallmentViews {
                 id(PANEL), cls("statement-panel installments-panel"),
                 input(type("hidden"), id(SCREEN + "-month"), name(Ledger.MONTH), value(month.toString())),
                 div(cls("ledger-head"),
-                        div(p(cls("caption"), text(message("Parcelamentos"))),
-                                h2(text(message(selected.isEmpty() ? "Nenhuma conta selecionada"
-                                        : selected.size() + (selected.size() == 1 ? " conta" : " contas") + " e os cartões"))))),
+                        div(p(cls("caption"), text(message("forms.installment.title"))),
+                                h2(text(selected.isEmpty() ? message("forms.installment.none_selected")
+                                        : selected.size() == 1 ? message("forms.installment.selected_one")
+                                        : message("forms.installment.selected_many", selected.size()))))),
                 summary(installments),
                 div(cls("ledger-scroll"), table(
                         cls("records ledger-table"),
-                        thead(tr(th(text(message("Data"))), th(text(message("Conta"))), th(text(message("Descrição"))),
-                                th(cls("num"), text(message("Parcela"))), th(cls("num"), text(message("Valor"))))),
+                        thead(tr(th(text(message("forms.common.date"))), th(text(message("forms.common.account"))),
+                                th(text(message("forms.common.description"))),
+                                th(cls("num"), text(message("forms.installment.number"))),
+                                th(cls("num"), text(message("forms.common.value"))))),
                         tbody(
-                                each(installments, installment -> line(book, installment)),
-                                when(installments.isEmpty(), () -> tr(cls("empty"), td(colspan(5), text(message(
-                                        selected.isEmpty() ? "Marque uma conta para ver as parcelas."
-                                                : "Nenhuma parcela em " + Ui.month(month) + ".")))))))
+                                each(installments, installment -> line(book, installment, month)),
+                                when(installments.isEmpty(), () -> tr(cls("empty"), td(colspan(5), text(
+                                        selected.isEmpty() ? message("forms.installment.check_account")
+                                                : message("forms.installment.none_in_month", Ui.month(month))))))))
                 )
         );
     }
@@ -99,25 +102,24 @@ final class InstallmentViews {
         val remaining = installments.stream().map(Installment::remaining).reduce(BigDecimal.ZERO, BigDecimal::add);
         val ending = installments.stream().filter(installment -> installment.left() == 0).count();
         return dl(cls("summary"),
-                div(dt(text(message("Parcelas"))), dd(text(Text.data(String.valueOf(installments.size()))))),
-                div(dt(text(message("Valor do mês"))), dd(Ui.amount(value.abs(), false))),
-                div(dt(text(message("Última parcela"))), dd(text(Text.data(String.valueOf(ending))))),
-                div(cls("closing"), dt(text(message("Restante"))), dd(Ui.amount(remaining.abs(), false))));
+                div(dt(text(message("forms.installment.count"))), dd(text(Text.data(String.valueOf(installments.size()))))),
+                div(dt(text(message("forms.installment.month_value"))), dd(Ui.amount(value.abs(), false))),
+                div(dt(text(message("forms.installment.ending"))), dd(text(Text.data(String.valueOf(ending))))),
+                div(cls("closing"), dt(text(message("forms.installment.remaining"))), dd(Ui.amount(remaining.abs(), false))));
     }
 
     /** A line dated after today is planned, shown apart; the account the installment is in; the last one is marked. */
-    private static Node line(Book book, Installment installment) {
+    private static Node line(Book book, Installment installment, YearMonth month) {
         val transaction = installment.line().transaction();
         val planned = transaction.date().isAfter(book.today());
         return tr(
                 cls(planned ? "planned" : ""),
                 td(time(datetime(transaction.date().toString()), text(Text.data(Ui.day(transaction.date())))),
-                        when(planned, () -> small(cls("sub"), text(message("previsto"))))),
+                        when(planned, () -> small(cls("sub"), text(message("forms.common.planned"))))),
                 td(cls("account"), text(Text.data(installment.account().name()))),
-                td(strong(text(Text.data(transaction.description()))),
-                        small(cls("sub"), text(Text.data(installment.line().counterpart())))),
+                Ledger.described(transaction, installment.line().counterpart(), installment.account(), month),
                 td(cls("num"), text(Text.data(installment.number() + "/" + installment.total())),
-                        when(installment.left() == 0, () -> small(cls("sub"), text(message("última"))))),
+                        when(installment.left() == 0, () -> small(cls("sub"), text(message("forms.installment.last"))))),
                 td(cls("num"), Ui.amount(installment.line().amount().abs(), false))
         );
     }

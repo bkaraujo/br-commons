@@ -32,7 +32,8 @@ import static br.commons.lang.Html5.*;
 import static br.commons.lang.Htmx.*;
 
 /**
- * The quick entry: the value first and big, then category, account, description and date. It opens as a dialog over
+ * The quick entry: date and value (bold, as tall as the others) side by side, then account, category, description and an optional note. It
+ * opens as a dialog over
  * the screen the user is on ({@link #modal}, from the menu), without the latest transactions; the page
  * ({@link #screen}) is only what a browser without htmx gets from {@code /entries/new}. In the page, the whole
  * {@code #quick} is swapped on saving: the notice of what was saved and the form ready for the next one.
@@ -50,7 +51,7 @@ final class EntryViews {
                        @Nullable String refused) {
         return section(
                 id("quick"), cls("quick"),
-                h2(text(message("Lançamento rápido"))),
+                h2(text(message("forms.entry.page_title"))),
                 saved == null ? fragment() : notice(book, saved),
                 refused == null ? fragment() : p(cls("error"), role("alert"), text(Text.data(refused))),
                 entryForm(book, values, errors, null, false)
@@ -68,31 +69,30 @@ final class EntryViews {
                 id("entry-form"), cls("quick-form card"), method(FormMethod.POST), action("/entries"),
                 hxPost("/entries"), hxTarget(modal ? "#entry-form" : "#quick"), hxSwap(HxSwap.OUTER_HTML),
                 modal ? role("dialog") : fragment(),
-                modal ? fragment(input(type("hidden"), name(MODAL), value("1")), h3(text(message("Lançamento rápido"))))
-                        : fragment(),
+                modal ? fragment(input(type("hidden"), name(MODAL), value("1")), h3(text(message("forms.entry.title")))) : fragment(),
                 modal && refused != null ? p(cls("error wide"), role("alert"), text(Text.data(refused))) : fragment(),
-                labeled(EntryFields.AMOUNT, "Valor (R$)", values, errors, null,
-                        cls("amount-input"), inputmode(InputMode.DECIMAL), placeholder(Text.data("0,00")), autofocus()),
-                labeled(EntryFields.CATEGORY, "Categoria", values, errors, options(book, book.categories(), true)),
-                labeled(EntryFields.ACCOUNT, "Conta", values, errors, options(book, book.moneyAccounts(), false)),
-                labeled(EntryFields.DESCRIPTION, "Descrição", values, errors, null,
-                        placeholder(message("Ex.: mercado, salário…"))),
-                labeled(EntryFields.DATE, "Data", values, errors, null),
+                labeled(EntryFields.DATE, "forms.common.date", values, errors, null),
+                labeled(EntryFields.AMOUNT, "forms.entry.amount", values, errors, null, cls("amount-input"), inputmode(InputMode.NUMERIC), data("money", ""), placeholder(Text.data("0,00")), autofocus()),
+                labeled(EntryFields.ACCOUNT, "forms.common.account", values, errors, options(book, book.moneyAccounts(), false)),
+                labeled(EntryFields.CATEGORY, "forms.common.category", values, errors, options(book, book.categories(), true)),
+                labeled(EntryFields.DESCRIPTION, "forms.common.description", values, errors, null, placeholder(message("forms.entry.description_hint"))),
+
+                Forms.labeledText("quick", EntryFields.NOTE, "forms.entry.note", values, errors, EntryFields::message, rows(10)),
                 modal ? div(cls("buttons wide"),
-                        button(type(ButtonType.SUBMIT), text(message("Lançar"))),
+                        button(type(ButtonType.SUBMIT), text(message("forms.entry.submit"))),
                         button(type(ButtonType.BUTTON), cls("link"), hxGet(Layout.ENTRY_EDITOR),
                                 hxTarget("#" + Layout.ENTRY_MODAL), hxSwap(HxSwap.INNER_HTML),
-                                text(message("Cancelar"))))
-                        : button(type(ButtonType.SUBMIT), text(message("Lançar")))
+                                text(message("forms.common.cancel"))))
+                        : button(type(ButtonType.SUBMIT), text(message("forms.entry.submit")))
         );
     }
 
     private static Node notice(Book book, Transaction saved) {
         val account = saved.splits().stream().map(TransactionSplit::account).filter(Account::financial).findFirst();
         return p(cls("notice"), role("status"),
-                text(message("Lançado: " + saved.description() + " · " + Ui.money(book.value(saved)) + ". ")),
+                text(message("forms.entry.saved", saved.description(), Ui.money(book.value(saved)))),
                 account.map(found -> (Node) a(href(Screen.STATEMENT.path() + "?account=" + found.identity()),
-                        text(message("Ver em " + found.name())))).orElseGet(Html::fragment));
+                        text(message("forms.entry.view_in", found.name())))).orElseGet(Html::fragment));
     }
 
     private static Node labeled(Field field, String label, Map<String, String> values, List<Violation> errors,
@@ -100,13 +100,13 @@ final class EntryViews {
         return Forms.labeled("quick", field, label, values, errors, options, EntryFields::message, extra);
     }
 
-    /** A prompt, then the accounts: categories by their path, financial ones by name and type (when it adds). */
+    /** A prompt, then the accounts: categories by their path, financial ones by type and name (the type when it adds). */
     private static List<Option> options(Book book, List<Account> accounts, boolean path) {
         val options = new ArrayList<Option>();
-        options.add(new Option("", message("Escolha…")));
+        options.add(new Option("", message("forms.common.choose")));
         accounts.forEach(account -> options.add(new Option(account.identity().toString(), Text.data(path ? book.path(account)
                 : account.name().equals(Ui.typeLabel(account.type())) ? account.name()
-                : account.name() + " · " + Ui.typeLabel(account.type())))));
+                : Ui.string("forms.entry.account_option", Ui.typeLabel(account.type()), account.name())))));
         return options;
     }
 }

@@ -7,20 +7,18 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 public enum Screen {
 
-    HOME("/", "Visão Geral", FontAwesome.Solid.HOME_USER),
-    STATEMENT("/statement", "Extrato", FontAwesome.Solid.LIST),
-    INSTALLMENTS("/installments", "Parcelamentos", FontAwesome.Solid.CREDIT_CARD),
-    ENTRY("/entries/new", "Lançar", FontAwesome.Solid.PLUS),
-    ACCOUNTS("/accounts", "Plano de contas", FontAwesome.Solid.SITEMAP),
-    REPORTS("/reports", "Relatórios", FontAwesome.Solid.CHART_PIE);
+    HOME("/", FontAwesome.Solid.HOME_USER),
+    STATEMENT("/statement", FontAwesome.Solid.LIST),
+    INSTALLMENTS("/installments", FontAwesome.Solid.CREDIT_CARD),
+    ENTRY("/entries/new", FontAwesome.Solid.PLUS),
+    ACCOUNTS("/accounts", FontAwesome.Solid.SITEMAP),
+    REPORTS("/reports", FontAwesome.Solid.CHART_PIE);
 
     private final String path;
-    private final String label;
     private final FontAwesome.Icon icon;
 
-    Screen(String path, String label, FontAwesome.Icon icon) {
+    Screen(String path, FontAwesome.Icon icon) {
         this.path = path;
-        this.label = label;
         this.icon = icon;
     }
 
@@ -28,8 +26,9 @@ public enum Screen {
         return path;
     }
 
+    /** The name on the menu and in the title ({@code forms.screen.<SCREEN>}). */
     public String label() {
-        return label;
+        return Ui.string(Ui.PREFIX + "screen." + name());
     }
 
     public FontAwesome.Icon icon() {

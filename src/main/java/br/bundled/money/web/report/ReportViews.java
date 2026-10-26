@@ -48,14 +48,14 @@ final class ReportViews {
     static final String THRESHOLD = "threshold";
     static final String CONFIRM = "confirm";
 
-    /** A report of the list: where it is, its name and what it shows. */
+    /** A report of the list: where it is, and the keys of its name and of what it shows. */
     private record Report(String path, String name, String summary) {}
 
     private static final List<Report> REPORTS = List.of(
-            new Report(BALANCE, "Balanço patrimonial", "Ativo, passivo e patrimônio líquido no fim do mês"),
-            new Report(INCOME, "Demonstração do resultado", "Receitas e despesas do mês, com o superávit ou déficit"),
-            new Report(EVOLUTION, "Evolução de gastos", "Receitas e despesas por conta em doze meses, com o % da receita"),
-            new Report(CLOSING, "Fechamento de período", "Data-limite antes da qual os lançamentos não mudam"));
+            new Report(BALANCE, "forms.report.balance_name", "forms.report.balance_summary"),
+            new Report(INCOME, "forms.report.income_name", "forms.report.income_summary"),
+            new Report(EVOLUTION, "forms.report.evolution_name", "forms.report.evolution_summary"),
+            new Report(CLOSING, "forms.report.closing_name", "forms.report.closing_summary"));
 
     /** How many months the evolution shows, from the one picked. */
     private static final int SPAN = 12;
@@ -68,8 +68,8 @@ final class ReportViews {
     static Node list() {
         return section(
                 id("reports"), cls("reports"),
-                div(cls("ledger-head"), h2(text(message("Relatórios")))),
-                nav(cls("report-list card"), ariaLabel(message("Relatórios disponíveis")),
+                div(cls("ledger-head"), h2(text(message("forms.report.title")))),
+                nav(cls("report-list card"), ariaLabel(message("forms.report.available")),
                         ul(each(REPORTS, report -> li(a(href(report.path()),
                                 span(cls("report-name"), text(message(report.name()))),
                                 span(cls("caption"), text(message(report.summary()))))))))
@@ -103,7 +103,7 @@ final class ReportViews {
     }
 
     private static Node back() {
-        return a(cls("back"), href(LIST), text(message("← Relatórios")));
+        return a(cls("back"), href(LIST), text(message("forms.report.back")));
     }
 
     // ---------- closing (INTENT F9)
@@ -113,32 +113,30 @@ final class ReportViews {
      * current one (or none), waiting for the confirmation; moving it back is an explicit act. {@code notice}: what the
      * last change did.
      */
-    static Node closing(Book book, @Nullable String reopening, @Nullable String notice) {
+    static Node closing(Book book, @Nullable String reopening, @Nullable Text notice) {
         val threshold = book.threshold();
         val shown = reopening != null ? reopening : threshold == null ? "" : threshold.toString();
         return article(
                 id("closing"), cls("report card closing"),
-                h3(text(message("Fechamento de período"))),
-                p(cls("caption"), text(message(threshold == null ? "Nenhum período fechado."
-                        : "Lançamentos antes de " + Ui.fullDay(threshold) + " estão fechados: não podem ser criados, "
-                        + "editados nem excluídos."))),
-                notice == null ? fragment() : p(cls("notice"), role("status"), text(message(notice))),
+                h3(text(message("forms.report.closing_name"))),
+                p(cls("caption"), text(threshold == null ? message("forms.report.none_closed")
+                        : message("forms.report.closed_before", Ui.fullDay(threshold)))),
+                notice == null ? fragment() : p(cls("notice"), role("status"), text(notice)),
                 form(
                         cls("closing-form"), method(FormMethod.POST), action(CLOSING),
                         hxPost(CLOSING), hxTarget("#closing"), hxSwap(HxSwap.OUTER_HTML),
-                        label(text(message("Data-limite")),
+                        label(text(message("forms.report.threshold")),
                                 reopening == null ? input(type("date"), name(THRESHOLD), value(shown))
                                         : input(type("date"), name(THRESHOLD), value(shown), readonly())),
                         reopening == null
-                                ? div(cls("buttons"), button(type(ButtonType.SUBMIT), text(message("Salvar"))))
+                                ? div(cls("buttons"), button(type(ButtonType.SUBMIT), text(message("forms.common.save"))))
                                 : fragment(
-                                        p(cls("error"), role("alert"), text(message(
-                                                "Recuar a data-limite reabre os lançamentos do período para alteração."))),
+                                        p(cls("error"), role("alert"), text(message("forms.report.reopen_warning"))),
                                         input(type("hidden"), name(CONFIRM), value("1")),
                                         div(cls("buttons"),
-                                                button(type(ButtonType.SUBMIT), cls("danger"), text(message("Confirmar reabertura"))),
+                                                button(type(ButtonType.SUBMIT), cls("danger"), text(message("forms.report.confirm_reopen"))),
                                                 button(type(ButtonType.BUTTON), cls("link"), hxGet(CLOSING), hxTarget("#closing"),
-                                                        hxSwap(HxSwap.OUTER_HTML), text(message("Cancelar")))))
+                                                        hxSwap(HxSwap.OUTER_HTML), text(message("forms.common.cancel")))))
                 )
         );
     }
@@ -153,16 +151,16 @@ final class ReportViews {
         val result = total(book, AccountType.INCOME, day).subtract(total(book, AccountType.EXPENSE, day));
         return article(
                 cls("report card"),
-                h3(text(message("Balanço patrimonial"))),
-                p(cls("caption"), text(message("em " + Ui.fullDay(day)))),
+                h3(text(message("forms.report.balance_name"))),
+                p(cls("caption"), text(message("forms.report.as_of", Ui.fullDay(day)))),
                 table(cls("report-table"),
                         tbody(group(book, AccountType.ASSET, day)),
                         tbody(group(book, AccountType.LIABILITY, day)),
                         tbody(group(book, AccountType.EQUITY, day),
-                                tr(cls("item"), td(text(message("Resultado acumulado"))), td(cls("num"), Ui.amount(result, false)))),
+                                tr(cls("item"), td(text(message("forms.report.accumulated_result"))), td(cls("num"), Ui.amount(result, false)))),
                         tbody(cls("totals-row"),
-                                tr(th(text(message("Total do ativo"))), td(cls("num"), Ui.amount(asset, false))),
-                                tr(th(text(message("Passivo + PL + resultado"))),
+                                tr(th(text(message("forms.report.total_assets"))), td(cls("num"), Ui.amount(asset, false))),
+                                tr(th(text(message("forms.report.liabilities_equity_result"))),
                                         td(cls("num"), Ui.amount(liability.add(equity).add(result), false)))))
         );
     }
@@ -198,16 +196,16 @@ final class ReportViews {
         val result = income.subtract(expense);
         return article(
                 cls("report card"),
-                h3(text(message("Demonstração do resultado"))),
+                h3(text(message("forms.report.income_name"))),
                 p(cls("caption"), text(Text.data(Ui.month(month)))),
                 table(cls("report-table"),
                         tbody(flows(book, AccountType.INCOME, month, income)),
                         tbody(flows(book, AccountType.EXPENSE, month, expense)),
                         tbody(cls("totals-row"),
-                                tr(th(text(message(result.signum() < 0 ? "Déficit do mês" : "Superávit do mês"))),
+                                tr(th(text(message(result.signum() < 0 ? "forms.report.deficit" : "forms.report.surplus"))),
                                         td(cls("num"), Ui.amount(result, true))))),
-                when(income.signum() > 0, () -> p(cls("caption"), text(message("Taxa de poupança: "
-                        + result.multiply(BigDecimal.valueOf(100)).divide(income, 0, RoundingMode.HALF_UP) + "%"))))
+                when(income.signum() > 0, () -> p(cls("caption"), text(message("forms.report.saving_rate",
+                        result.multiply(HUNDRED).divide(income, 0, RoundingMode.HALF_UP)))))
         );
     }
 
@@ -251,14 +249,14 @@ final class ReportViews {
         val evolution = new Evolution(months, flows, revenue, sum(revenue), elapsed);
         return article(
                 cls("report card"),
-                h3(text(message("Evolução de gastos"))),
-                p(cls("caption"), text(message(Ui.month(from) + " a " + Ui.month(months.getLast())
-                        + " · % da receita do mês; média dos meses até " + Ui.month(current)))),
+                h3(text(message("forms.report.evolution_name"))),
+                p(cls("caption"), text(message("forms.report.evolution_caption",
+                        Ui.month(from), Ui.month(months.getLast()), Ui.month(current)))),
                 div(cls("scroller"),
                         table(cls("report-table evolution outline"),
-                                thead(tr(th(text(message("Conta"))),
+                                thead(tr(th(text(message("forms.common.account"))),
                                         each(months, month -> th(cls("num"), text(Text.data(Ui.shortMonth(month))))),
-                                        th(cls("num"), text(message("Total"))), th(cls("num"), text(message("Média"))))),
+                                        th(cls("num"), text(message("forms.report.total"))), th(cls("num"), text(message("forms.report.average"))))),
                                 tbody(each(rows, account -> evolutionRow(book, account, parents.contains(account), evolution)))))
         );
     }
@@ -287,7 +285,7 @@ final class ReportViews {
                 data("row", account.identity().toString()),
                 above == null ? fragment() : data("parent", above.identity().toString()),
                 td(when(parent, () -> button(type(ButtonType.BUTTON), cls("toggle"), ariaExpanded(false),
-                                ariaLabel(message("Mostrar ou ocultar subcontas de " + account.name())),
+                                ariaLabel(message("forms.report.toggle", account.name())),
                                 span(cls("chevron"), ariaHidden(true)))),
                         text(Text.data(account.name()))),
                 each(IntStream.range(0, SPAN).boxed().toList(), index -> td(cls("num"), values.get(index).signum() == 0

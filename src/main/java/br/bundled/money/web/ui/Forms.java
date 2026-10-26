@@ -12,6 +12,8 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import static br.bundled.money.web.ui.Ui.message;
 import static br.commons.lang.Html5.*;
@@ -27,10 +30,10 @@ import static br.commons.lang.Html5.*;
 @NullMarked
 public final class Forms {
 
-    private static final String INVALID_VALUE = "Valor inválido.";
+    private static final String INVALID_VALUE = "forms.common.invalid";
 
     /** The message of a date in the closed period (INTENT F9). */
-    public static final String CLOSED = "Período fechado: escolha uma data a partir da data-limite.";
+    public static final String CLOSED = "forms.common.period_closed";
 
     private Forms() {}
 
@@ -39,13 +42,26 @@ public final class Forms {
         if (book.closed(date)) violations.add(new Violation(field.name(), ValidationRule.INVALID));
     }
 
+    /**
+     * A value typed in reais, as {@code money.js} shows it ({@code 1.234,56}) or as typed without JavaScript
+     * ({@code 1234,5}, {@code 1234.50}): with a comma, the dots group thousands; without one, a dot is the decimal
+     * point. Two decimal places at most; {@code null} for anything else.
+     */
+    public static @Nullable BigDecimal money(String text) {
+        val plain = text.replace("R$", "").strip();
+        val decimal = plain.contains(",") ? plain.replace(".", "").replace(',', '.') : plain;
+        return MONEY.matcher(decimal).matches() ? new BigDecimal(decimal).setScale(2, RoundingMode.UNNECESSARY) : null;
+    }
+
+    private static final Pattern MONEY = Pattern.compile("\\d{1,13}(\\.\\d{1,2})?");
+
     /** The message of a violation; an invalid field says what is expected by {@code invalid} (field name → text). */
     public static String violation(Violation violation, Map<String, String> invalid) {
         return switch (violation.rule()) {
-            case REQUIRED -> "Obrigatório.";
-            case TOO_LONG -> "Texto longo demais.";
-            case BELOW_MIN -> "Informe um valor maior que zero.";
-            case STEP -> "Use no máximo 2 casas decimais.";
+            case REQUIRED -> "forms.common.required";
+            case TOO_LONG -> "forms.common.too_long";
+            case BELOW_MIN -> "forms.common.below_min";
+            case STEP -> "forms.common.step";
             case INVALID -> invalid.getOrDefault(violation.field(), INVALID_VALUE);
             default -> INVALID_VALUE;
         };
@@ -66,16 +82,32 @@ public final class Forms {
      */
     public static Node labeled(String prefix, Field field, String label, Map<String, String> values, List<Violation> errors,
                                @Nullable List<Option> options, Function<Violation, String> messages, Content... extra) {
-        val fieldId = prefix + "-" + field.name();
-        val attributes = new ArrayList<Content>(List.of(extra));
-        attributes.add(id(fieldId));
         val current = values.getOrDefault(field.name(), "");
+        val attributes = attributes(prefix, field, extra);
+        return labeled(prefix, field, label, errors, messages, options == null
+                ? input(DIALECT, field, current, attributes)
+                : select(DIALECT, field, options, Set.of(current), attributes));
+    }
+
+    /** {@link #labeled} for free text over several lines: a {@code textarea}. */
+    public static Node labeledText(String prefix, Field field, String label, Map<String, String> values,
+                                   List<Violation> errors, Function<Violation, String> messages, Content... extra) {
+        return labeled(prefix, field, label, errors, messages,
+                textarea(DIALECT, field, values.getOrDefault(field.name(), ""), attributes(prefix, field, extra)));
+    }
+
+    private static Content[] attributes(String prefix, Field field, Content... extra) {
+        val attributes = new ArrayList<>(List.of(extra));
+        attributes.add(id(prefix + "-" + field.name()));
+        return attributes.toArray(Content[]::new);
+    }
+
+    private static Node labeled(String prefix, Field field, String label, List<Violation> errors,
+                                Function<Violation, String> messages, Node control) {
         return div(
                 cls("field field-" + field.name()),
-                label(htmlFor(fieldId), text(message(label))),
-                options == null
-                        ? input(DIALECT, field, current, attributes.toArray(Content[]::new))
-                        : select(DIALECT, field, options, Set.of(current), attributes.toArray(Content[]::new)),
+                label(htmlFor(prefix + "-" + field.name()), text(message(label))),
+                control,
                 Ui.errorOf(field, errors, messages)
         );
     }

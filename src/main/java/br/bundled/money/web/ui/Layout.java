@@ -1,6 +1,7 @@
 package br.bundled.money.web.ui;
 
 import br.commons.Strings;
+import br.commons.lang.Json;
 import br.commons.lang.Html5;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.Html;
@@ -11,6 +12,7 @@ import br.commons.lang.htmx.HxSwap;
 import br.commons.lang.htmx.ScrollEdge;
 import br.commons.lang.htmx.SwapSpec;
 import br.commons.locale.i18n.Text;
+import br.commons.locale.l10n.L10N;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.message.HTTPRequest;
 import br.commons.protocol.http.message.HTTPResponse;
@@ -20,6 +22,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static br.bundled.money.web.ui.Ui.message;
 import static br.commons.lang.Html5.*;
@@ -38,7 +41,7 @@ import static br.commons.lang.Htmx.*;
  * ({@code static/money/month.js}). Every {@code <select>} gets a live filter in the browser
  * ({@code static/money/combo.js}); the home's chart is drawn from its table ({@code static/money/chart.js}); the form of splits sums its
  * columns while typing ({@code static/money/splits.js}); the rows of an outline open and close at any level
- * ({@code static/money/outline.js}); the checkboxes go to the history as they are ({@code static/money/history.js}).
+ * ({@code static/money/outline.js}); a value in reais is formatted while typed ({@code static/money/money.js}); the checkboxes go to the history as they are ({@code static/money/history.js}).
  */
 @NullMarked
 public final class Layout {
@@ -125,7 +128,8 @@ public final class Layout {
 
     private static String document(Screen current, Ledger.@Nullable MonthNav months, Node content) {
         return Html5.document(html(
-                lang("pt-BR"),
+                lang(L10N.locale().toLanguageTag()),
+                data("texts", scriptTexts()),
                 head(
                         metaCharset("utf-8"),
                         script(src("/static/money/theme.js")),
@@ -139,6 +143,7 @@ public final class Layout {
                         script(src("/static/money/tree.js"), defer()),
                         script(src("/static/money/outline.js"), defer()),
                         script(src("/static/money/splits.js"), defer()),
+                        script(src("/static/money/money.js"), defer()),
                         script(src("/static/money/history.js"), defer())
                 ),
                 body(
@@ -153,13 +158,27 @@ public final class Layout {
                         contentOf(current, content),
                         div(id(ENTRY_MODAL), cls("modal"), hxGet(ENTRY_EDITOR), hxTrigger(ENTRY_DISMISS),
                                 hxSwap(HxSwap.INNER_HTML)),
-                        footer(small(text(message("Dados em memória"))))
+                        footer(small(text(message("forms.layout.in_memory"))))
                 )
         ));
     }
 
+    /**
+     * The texts the scripts write in the browser ({@code combo.js}, {@code chart.js}, {@code splits.js}), from the
+     * bundle, as JSON in {@code <html data-texts>}: the scripts never hold interface text; {@code %s} is theirs to fill.
+     */
+    private static String scriptTexts() {
+        return Json.write(Map.of(
+                "noResults", Ui.string("forms.script.no_results"),
+                "chooseFromList", Ui.string("forms.script.choose_from_list"),
+                "income", Ui.string("forms.home.income"),
+                "expenses", Ui.string("forms.home.expenses"),
+                "balanced", Ui.string("forms.statement.balanced"),
+                "difference", Ui.string("forms.statement.difference")));
+    }
+
     private static Node pageTitle(Screen current) {
-        return title(text(message(current.label() + " · br.money")));
+        return title(text(message("forms.layout.title", current.label())));
     }
 
     /**
@@ -174,7 +193,7 @@ public final class Layout {
     private static Node navigation(Screen current) {
         return nav(
                 cls("menu"),
-                ariaLabel(message("Menu")),
+                ariaLabel(message("forms.layout.menu")),
                 ul(each(List.of(Screen.values()), screen -> li(menuLink(screen, screen == current))))
         );
     }
@@ -195,7 +214,7 @@ public final class Layout {
             attributes.add(hxSwap(HxSwap.INNER_HTML));
         }
         attributes.add(span(cls("icon"), ariaHidden(true), screen.icon().svg()));
-        attributes.add(span(cls("label"), data("label", screen.label()), text(message(screen.label()))));
+        attributes.add(span(cls("label"), data("label", screen.label()), text(Text.message(screen.label()))));
         return a(attributes.toArray(Content[]::new));
     }
 
@@ -227,11 +246,11 @@ public final class Layout {
      */
     private static Node themeSwitch() {
         return div(
-                cls("theme"), hidden(), role("group"), ariaLabel(message("Tema")),
+                cls("theme"), hidden(), role("group"), ariaLabel(message("forms.layout.theme")),
                 each(
                         List.of(Theme.values()), theme -> button(type(ButtonType.BUTTON), data("theme-choice", theme.token()),
-                        title(message("Tema " + Strings.lower(theme.label()))),
-                        ariaLabel(message("Tema " + theme.label())), theme.icon().svg())
+                        title(message("forms.layout.theme_choice", Strings.lower(theme.label()))),
+                        ariaLabel(message("forms.layout.theme_choice", theme.label())), theme.icon().svg())
                 )
         );
     }

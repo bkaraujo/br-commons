@@ -11,15 +11,13 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 enum Theme {
 
-    AUTO("Automático", FontAwesome.Solid.CIRCLE_HALF_STROKE),
-    LIGHT("Claro", FontAwesome.Solid.SUN),
-    DARK("Escuro", FontAwesome.Solid.MOON);
+    AUTO(FontAwesome.Solid.CIRCLE_HALF_STROKE),
+    LIGHT(FontAwesome.Solid.SUN),
+    DARK(FontAwesome.Solid.MOON);
 
-    private final String label;
     private final FontAwesome.Icon icon;
 
-    Theme(String label, FontAwesome.Icon icon) {
-        this.label = label;
+    Theme(FontAwesome.Icon icon) {
         this.icon = icon;
     }
 
@@ -28,8 +26,9 @@ enum Theme {
         return Strings.lower(name());
     }
 
+    /** Its name ({@code forms.theme.<THEME>}). */
     String label() {
-        return label;
+        return Ui.string(Ui.PREFIX + "theme." + name());
     }
 
     FontAwesome.Icon icon() {

@@ -53,12 +53,12 @@ final class HomeViews {
      * home, loads the chart and pushes the URL; without htmx the form goes to the home itself.
      */
     private static Node accounts(Book book, Set<Account> selected) {
-        return form(cls("home-accounts"), ariaLabel(message("Contas")), method(FormMethod.GET),
+        return form(cls("home-accounts"), ariaLabel(message("forms.common.accounts")), method(FormMethod.GET),
                 action(Screen.HOME.path()), hxGet(Screen.HOME.path()), hxTrigger("change"), hxTarget("#home-chart"),
                 hxSwap(HxSwap.OUTER_HTML), hxPushUrl(true),
                 input(type("hidden"), name(FILTERED), value("1")),
-                group("Contas", book.bankAccounts(), selected),
-                group("Cartões", book.cards(), selected));
+                group("forms.common.accounts", book.bankAccounts(), selected),
+                group("forms.common.cards", book.cards(), selected));
     }
 
     /** A titled card of checkable accounts. */
@@ -82,14 +82,14 @@ final class HomeViews {
         val months = IntStream.range(0, MONTHS).mapToObj(back -> current.minusMonths(MONTHS - 1 - back)).toList();
         return div(
                 id("home-chart"), cls("home-chart card"),
-                h2(text(message("Receitas x Despesas"))),
-                p(cls("caption"), text(message(selected.isEmpty() ? "Nenhuma conta selecionada."
-                        : "Últimos 12 meses · " + selected.size() + (selected.size() == 1 ? " conta" : " contas")))),
+                h2(text(message("forms.home.chart_title"))),
+                p(cls("caption"), text(selected.isEmpty() ? message("forms.home.none_selected")
+                        : message(selected.size() == 1 ? "forms.home.last_months_one" : "forms.home.last_months", selected.size()))),
                 div(cls("line-chart"), ariaHidden(true)),
                 table(
                         cls("records chart-data"),
-                        thead(tr(th(text(message("Mês"))), th(cls("num"), text(message("Receitas"))),
-                                th(cls("num"), text(message("Despesas"))))),
+                        thead(tr(th(text(message("forms.common.month"))), th(cls("num"), text(message("forms.home.income"))),
+                                th(cls("num"), text(message("forms.home.expenses"))))),
                         tbody(each(months.reversed(), month -> row(book, selected, month)))
                 )
         );

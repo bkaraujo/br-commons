@@ -104,9 +104,9 @@ final class AccountFields {
     }
 
     private static final Map<String, String> INVALID_MESSAGES = Map.of(
-            NAME.name(), "Já existe uma conta com este nome aqui.",
-            PARENT.name(), "Conta-mãe não aceita este tipo.",
-            TARGET.name(), "Escolha a conta de destino.");
+            NAME.name(), "forms.account.name_taken",
+            PARENT.name(), "forms.account.parent_invalid",
+            TARGET.name(), "forms.account.target_required");
 
     /** The values of an account, by field name, as the form shows them. */
     static Map<String, String> values(Account account) {

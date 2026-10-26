@@ -6,6 +6,7 @@ import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.Field;
 import br.commons.lang.html.form.Violation;
 import br.commons.lang.htmx.HtmxRequest;
+import br.commons.locale.i18n.I18N;
 import br.commons.locale.i18n.Text;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.message.HTTPRequest;
@@ -50,8 +51,25 @@ public final class Ui {
 
     private Ui() {}
 
-    public static Text message(String text) {
-        return Text.message(text);
+    /** Key prefix of the interface texts: they resolve in {@link #BUNDLE}, as {@code money.} resolves in {@code messages}. */
+    public static final String PREFIX = "forms.";
+
+    /** The interface texts of the web, {@code forms_<locale>.properties} (pt_BR, en_US). */
+    public static final String BUNDLE = "br/bundled/money/forms";
+
+    static { I18N.register(PREFIX, BUNDLE); }
+
+    /**
+     * The interface text of {@code key} ({@link #BUNDLE}) in the locale of the process ({@code L10N}, pt-BR by
+     * default), {@code args} filling its {@code %s} ({@link I18N#of}). Data shown as is goes by {@code Text.data}.
+     */
+    public static Text message(String key, Object... args) {
+        return Text.message(string(key, args));
+    }
+
+    /** {@link #message} as a {@code String}: for a text passed along before it is shown. */
+    public static String string(String key, Object... args) {
+        return I18N.of(key, args);
     }
 
     /** {@code R$ 1.234,56}; negative with a minus sign. */
@@ -100,26 +118,10 @@ public final class Ui {
         }
     }
 
+    /** The name of the type on the screens ({@code forms.account_type.<TYPE>}). */
     public static String typeLabel(AccountType type) {
-        return TYPE_LABELS.getOrDefault(type, type.name());
+        return string(PREFIX + "account_type." + type.name());
     }
-
-    /** A lookup, not a switch: one label per type would exceed the complexity gate (PMD). */
-    private static final Map<AccountType, String> TYPE_LABELS = new EnumMap<>(Map.ofEntries(
-            Map.entry(AccountType.BANK, "Banco"),
-            Map.entry(AccountType.CASH, "Dinheiro"),
-            Map.entry(AccountType.CREDIT, "Cartão de crédito"),
-            Map.entry(AccountType.STOCK, "Ações"),
-            Map.entry(AccountType.MUTUAL, "Fundos"),
-            Map.entry(AccountType.ASSET, "Ativo"),
-            Map.entry(AccountType.LIABILITY, "Passivo"),
-            Map.entry(AccountType.EQUITY, "Patrimônio líquido"),
-            Map.entry(AccountType.INCOME, "Receita"),
-            Map.entry(AccountType.EXPENSE, "Despesa"),
-            Map.entry(AccountType.ROOT, "Raiz"),
-            Map.entry(AccountType.RECEIVABLE, "A receber"),
-            Map.entry(AccountType.PAYABLE, "A pagar"),
-            Map.entry(AccountType.TRADING, "Câmbio")));
 
     /** The message of the field's violation next to it, or nothing. */
     public static Node errorOf(Field field, List<Violation> errors, Function<Violation, String> messages) {

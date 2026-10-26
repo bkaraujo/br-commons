@@ -5,12 +5,14 @@
  * do htmx (htmx:load), então a troca de contas redesenha o gráfico.
  */
 (() => {
+    // os textos vêm do bundle forms, no <html data-texts> (Layout)
+    const TEXTS = JSON.parse(document.documentElement.dataset.texts || '{}');
     const NS = 'http://www.w3.org/2000/svg';
     const WIDTH = 640, HEIGHT = 240;
     const PAD = {top: 16, right: 16, bottom: 28, left: 64};
     const SERIES = [
-        {key: 'income', label: 'Receitas', css: 'income'},
-        {key: 'expense', label: 'Despesas', css: 'expense'}
+        {key: 'income', label: TEXTS.income, css: 'income'},
+        {key: 'expense', label: TEXTS.expenses, css: 'expense'}
     ];
     const money = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
     const compact = new Intl.NumberFormat('pt-BR', {notation: 'compact', maximumFractionDigits: 1});

@@ -10,6 +10,7 @@ import br.commons.business.BusinessError;
 import br.commons.cdi.Context;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.htmx.HtmxRequest;
+import br.commons.locale.i18n.Text;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
@@ -83,7 +84,7 @@ public final class ReportRoutes implements WebResource {
         try {
             date = raw.isEmpty() ? null : LocalDate.parse(raw);
         } catch (DateTimeParseException e) {
-            return card(request, ReportViews.closing(book, null, "Data inválida."), true);
+            return card(request, ReportViews.closing(book, null, Ui.message("forms.report.invalid_date")), true);
         }
         val current = book.threshold();
         val reopens = current != null && (date == null || date.isBefore(current));
@@ -92,11 +93,11 @@ public final class ReportRoutes implements WebResource {
         }
         val closed = book.close(date);
         if (closed instanceof Result.Failure<?, BusinessError>(var error)) {
-            return card(request, ReportViews.closing(book, null, error.render()), true);
+            return card(request, ReportViews.closing(book, null, Text.message(error.render())), true);
         }
         if (!HtmxRequest.of(request).isHtmx()) return WebResponse.redirect(ReportViews.CLOSING);
-        return ok(ReportViews.closing(book, null, date == null ? "Período reaberto: nada está fechado."
-                : (reopens ? "Período reaberto a partir de " : "Período fechado antes de ") + Ui.fullDay(date) + ".").render());
+        return ok(ReportViews.closing(book, null, date == null ? Ui.message("forms.report.reopened_all")
+                : Ui.message(reopens ? "forms.report.reopened_from" : "forms.report.closed_until", Ui.fullDay(date))).render());
     }
 
     /** The closing card: alone for htmx; without, on its page ({@code refused}: 422). */

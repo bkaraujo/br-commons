@@ -18,6 +18,7 @@ import br.commons.lang.html.form.Violation;
 import br.commons.lang.htmx.HtmxRequest;
 import br.commons.lang.htmx.HtmxResponse;
 import br.commons.lang.htmx.HxSwap;
+import br.commons.locale.i18n.Text;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
@@ -52,8 +53,6 @@ import static br.bundled.money.web.ui.Ui.pathId;
 @NullMarked
 public final class AccountRoutes implements WebResource {
 
-    /** Saving or deleting an account deleted meanwhile (another tab): the tree comes back with it. */
-    private static final String GONE = "A conta não existe mais.";
 
     private final Book book = Context.get(Book.class);
 
@@ -143,7 +142,7 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse empty(WebRequest request) {
         val started = book.startEmpty();
         if (!HtmxRequest.of(request).isHtmx()) return redirected(request, started);
-        return saved(request, started, "Livro vazio criado com o plano de contas pessoal.");
+        return saved(request, started, Ui.message("forms.account.empty_created"));
     }
 
     // ---------- create, update, delete
@@ -156,7 +155,7 @@ public final class AccountRoutes implements WebResource {
             case Result.Success<AccountInput, List<Violation>>(var value) -> {
                 val input = Objects.requireNonNull(value);
                 val created = book.create(input);
-                yield htmx ? saved(request, created, created.map(account -> "Conta \"" + book.path(account) + "\" criada.").getOrElse(""))
+                yield htmx ? saved(request, created, created.map(account -> Ui.message("forms.account.created", book.path(account))).getOrElse(Text.data("")))
                         : redirected(request, created);
             }
             case Result.Failure<AccountInput, List<Violation>>(var errors) -> {
@@ -171,14 +170,14 @@ public final class AccountRoutes implements WebResource {
         val htmx = HtmxRequest.of(request).isHtmx();
         val current = below(request);
         if (current.isEmpty()) {
-            return htmx ? withNotice(request, GONE) : WebResponse.redirect("/accounts");
+            return htmx ? withNotice(request, gone()) : WebResponse.redirect("/accounts");
         }
         val form = request.body(Form.class).getOrThrow();
         return switch (AccountFields.read(form::value, book, current.get())) {
             case Result.Success<AccountInput, List<Violation>>(var value) -> {
                 val input = Objects.requireNonNull(value);
                 val updated = book.update(current.get(), input);
-                yield htmx ? saved(request, updated, updated.map(account -> "Conta \"" + book.path(account) + "\" atualizada.").getOrElse(""))
+                yield htmx ? saved(request, updated, updated.map(account -> Ui.message("forms.account.updated", book.path(account))).getOrElse(Text.data("")))
                         : redirected(request, updated);
             }
             case Result.Failure<AccountInput, List<Violation>>(var errors) -> {
@@ -195,7 +194,7 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse delete(WebRequest request) {
         val found = below(request);
         if (found.isEmpty()) {
-            return withNotice(request, GONE);
+            return withNotice(request, gone());
         }
         val account = found.get();
         if (!book.children(account).isEmpty() || book.closedUses(account)) {
@@ -212,9 +211,14 @@ public final class AccountRoutes implements WebResource {
         return saved(request, book.remove(account, moveTo), removed(path, uses, moveTo));
     }
 
-    private String removed(String path, long uses, @Nullable Account moveTo) {
-        return moveTo == null ? "Conta \"" + path + "\" excluída."
-                : "Conta \"" + path + "\" excluída; " + uses + " lançamento(s) movidos para \"" + book.path(moveTo) + "\".";
+    private Text removed(String path, long uses, @Nullable Account moveTo) {
+        return moveTo == null ? Ui.message("forms.account.removed", path)
+                : Ui.message("forms.account.removed_moved", path, uses, book.path(moveTo));
+    }
+
+    /** Saving or deleting an account deleted meanwhile (another tab): the tree comes back with it. */
+    private static Text gone() {
+        return Ui.message("forms.account.gone");
     }
 
     /** The chosen target, if it is one of {@link Book#targets}. */
@@ -232,15 +236,15 @@ public final class AccountRoutes implements WebResource {
      * beside it: of the page's account and month ({@code HX-Current-URL}), or of the first financial account when that
      * one is gone.
      */
-    private HTTPResponse saved(WebRequest request, Result<?, BusinessError> result, String notice) {
-        return withNotice(request, result instanceof Result.Failure<?, BusinessError>(var error) ? error.render() : notice);
+    private HTTPResponse saved(WebRequest request, Result<?, BusinessError> result, Text notice) {
+        return withNotice(request, result instanceof Result.Failure<?, BusinessError>(var error) ? Text.message(error.render()) : notice);
     }
 
     /**
      * The tree with {@code text} and, out of band, the panel and the month navigation of the same month: without
      * {@code month=} in the URL it is the book's, which the write may have moved.
      */
-    private HTTPResponse withNotice(WebRequest request, String text) {
+    private HTTPResponse withNotice(WebRequest request, Text text) {
         val account = chosen(name -> Ui.shown(request, name));
         val month = month(name -> Ui.shown(request, name));
         return ok(Html.fragment(RegisterViews.screen(book, RegisterViews.notice(text), account),
@@ -253,7 +257,7 @@ public final class AccountRoutes implements WebResource {
         return result instanceof Result.Failure<?, BusinessError>(var error)
                 ? Layout.page(request, HTTPStatus.UNPROCESSABLE_CONTENT, Screen.ACCOUNTS,
                         Ledger.monthNav(book, month(request::parameter)), RegisterViews.layout(book,
-                                RegisterViews.notice(error.render()), chosen(request::parameter), month(request::parameter)))
+                                RegisterViews.notice(Text.message(error.render())), chosen(request::parameter), month(request::parameter)))
                 : WebResponse.redirect("/accounts");
     }
 

@@ -4,6 +4,8 @@
  * removidas pelo servidor; aqui só se lê. Tratado por delegação no document, vale para formulários trocados pelo htmx.
  */
 (() => {
+    // os textos vêm do bundle forms, no <html data-texts> (Layout)
+    const TEXTS = JSON.parse(document.documentElement.dataset.texts || '{}');
     const money = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
 
     // Em centavos, para a soma não errar no binário; o que não é número fica fora (o servidor aponta ao salvar).
@@ -23,7 +25,8 @@
         form.querySelector('.split-sum-in').textContent = money.format(entra / 100);
         form.querySelector('.split-sum-out').textContent = money.format(sai / 100);
         const balance = form.querySelector('.split-balance');
-        balance.textContent = entra === sai ? 'Balanceado.' : `Diferença: ${money.format(Math.abs(entra - sai) / 100)}.`;
+        balance.textContent = entra === sai ? TEXTS.balanced
+            : TEXTS.difference.replace('%s', money.format(Math.abs(entra - sai) / 100));
         balance.classList.toggle('neg', entra !== sai);
     });
 })();

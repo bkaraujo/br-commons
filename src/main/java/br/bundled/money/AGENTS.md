@@ -81,7 +81,7 @@ web
 ├── <feature>          uma pasta por tela/feature
 │   ├── *Routes        WebResource: lê request, chama aplicação, escolhe resposta
 │   └── *Views         package-private: só monta Node (Html5 + Htmx DSL)
-└── static             app.css e os scripts (theme, combo, chart, header, month, tree, outline, splits, history), em /static/money/
+└── static             app.css e os scripts (theme, combo, chart, header, month, tree, outline, splits, money, history), em /static/money/
 ```
 
 - Features dependem só de `ui` (e da aplicação); `ui` não depende de feature.
@@ -120,7 +120,9 @@ web
   pelo htmx. Não crie dropdown fora de `<select>` nem filtre no servidor.
 - 100% web, só para navegador de desktop: sem requisito de uso em celular (INTENT §1, §7); o CSS
   não tem regras para tela estreita.
-- Textos de UI em pt-BR via `Ui.message(...)`.
+- Textos de UI só por chave: `Ui.message("forms.<tela>.<texto>", args...)` (ou `Ui.string`), no bundle
+  `forms_pt_BR`/`forms_en_US.properties` (`src/main/resources/br/bundled/money`, prefixo `forms.`, registrado no `I18N` como o `messages`; idioma do processo por `L10N`, pt-BR por padrão); toda chave nova nos dois idiomas (`FormsBundleTest`). Texto já traduzido (`error.render()`,
+  `Ui.typeLabel`) entra por `Text.message`; dado por `Text.data`. Os scripts leem seus textos de `<html data-texts>` (`Layout`).
 
 ### 4.1 Livro da web e seed
 
@@ -148,5 +150,5 @@ web
 - [ ] Camada certa? Dependência respeita a tabela do §1?
 - [ ] Regra contábil já está no INTENT §6? Se nova, registrar lá primeiro.
 - [ ] Na web: `*Routes` + `*Views` na pasta da feature; nada de regra na view.
-- [ ] Erro de regra do domínio com chave i18n (`DomainErrors`); texto de tela via `Ui.message`
-      (as mensagens de campo, `Forms.violation`, e os avisos de rota são texto pt-BR no código).
+- [ ] Erro de regra do domínio com chave i18n (`DomainErrors`); texto de tela por chave `forms.*` via `Ui.message`
+      (rótulos, mensagens de campo, `Forms.violation` e avisos de rota também), em pt-BR e en-US.

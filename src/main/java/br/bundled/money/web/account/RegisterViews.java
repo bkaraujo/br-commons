@@ -75,18 +75,18 @@ final class RegisterViews {
         return section(
                 id("accounts"), cls("registry"),
                 div(cls("ledger-head"),
-                        h2(text(message("Plano de contas"))),
+                        h2(text(message("forms.account.chart"))),
                         div(cls("buttons"),
                                 button(type(ButtonType.BUTTON), cls("link"), hxGet(EMPTY), hxTarget("#account-editor"),
-                                        hxSwap(INTO_EDITOR), text(message("Novo livro vazio"))),
+                                        hxSwap(INTO_EDITOR), text(message("forms.account.new_empty_book"))),
                                 button(type(ButtonType.BUTTON), hxGet("/accounts/new"), hxTarget("#account-editor"),
-                                        hxSwap(INTO_EDITOR), text(message("+ Nova conta"))))),
+                                        hxSwap(INTO_EDITOR), text(message("forms.account.new_account_button"))))),
                 div(id("account-editor"), cls("modal"), hxGet("/accounts/editor"), hxTrigger(DISMISS),
                         hxSwap(HxSwap.INNER_HTML), editor),
                 table(
                         cls("records tree"), hxOnHtmx("before-request", MARK),
-                        thead(tr(th(text(message("Conta"))), th(text(message("Tipo"))),
-                                th(cls("num"), text(message("Saldo"))), th(ariaLabel(message("Ações"))))),
+                        thead(tr(th(text(message("forms.common.account"))), th(text(message("forms.account.type"))),
+                                th(cls("num"), text(message("forms.common.balance"))), th(ariaLabel(message("forms.common.actions"))))),
                         each(branches(book), branch -> {
                             val rows = each(branch, account -> row(book, account, balances.getOrDefault(account, BigDecimal.ZERO),
                                     account.equals(current)));
@@ -107,33 +107,33 @@ final class RegisterViews {
                 oob ? hxSwapOob() : fragment(),
                 input(type("hidden"), id("account-month"), name(Ledger.MONTH), value(month.toString())),
                 div(cls("ledger-head"),
-                        div(p(cls("caption"), text(message("Lançamentos · " + Ui.typeLabel(account.type())))),
+                        div(p(cls("caption"), text(message("forms.account.entries_caption", Ui.typeLabel(account.type())))),
                                 h2(text(Text.data(book.path(account))))),
                         div(cls("buttons"),
                                 a(href(Screen.STATEMENT.path() + "?account=" + account.identity() + "&" + Ledger.MONTH + "="
-                                        + month), text(message("Abrir no extrato"))))),
+                                        + month), text(message("forms.account.open_statement"))))),
                 Ledger.summary(book, account, month, lines),
                 div(cls("ledger-scroll"), table(
                         cls("records ledger-table"),
-                        thead(tr(th(text(message("Data"))), th(text(message("Descrição"))), th(cls("num"), text(message("Valor"))))),
+                        thead(tr(th(text(message("forms.common.date"))), th(text(message("forms.common.description"))),
+                                th(cls("num"), text(message("forms.common.value"))))),
                         tbody(
-                                each(lines, line -> line(book, line)),
+                                each(lines, line -> line(book, line, account, month)),
                                 when(lines.isEmpty(), () -> tr(cls("empty"),
-                                        td(colspan(3), text(message("Nenhum lançamento em " + Ui.month(month) + "."))))))
+                                        td(colspan(3), text(message("forms.account.no_entries", Ui.month(month)))))))
                 ))
         );
     }
 
     /** A line dated after today is planned: still counted, shown apart. */
-    private static Node line(Book book, LedgerLine line) {
+    private static Node line(Book book, LedgerLine line, Account account, YearMonth month) {
         val transaction = line.transaction();
         val planned = transaction.date().isAfter(book.today());
         return tr(
                 cls(planned ? "planned" : ""),
                 td(time(datetime(transaction.date().toString()), text(Text.data(Ui.day(transaction.date())))),
-                        when(planned, () -> small(cls("sub"), text(message("previsto"))))),
-                td(strong(text(Text.data(transaction.description()))),
-                        small(cls("sub"), text(Text.data(line.counterpart())))),
+                        when(planned, () -> small(cls("sub"), text(message("forms.common.planned"))))),
+                Ledger.described(transaction, line.counterpart(), account, month),
                 td(cls("num"), Ui.amount(line.amount().abs(), false))
         );
     }
@@ -161,27 +161,27 @@ final class RegisterViews {
                 cls("depth-" + Math.min(depth, 3) + (depth == 0 ? " group" : "") + (current ? " current" : "")),
                 td(when(depth == 0 && !book.children(account).isEmpty(), () -> button(
                                 type(ButtonType.BUTTON), cls("toggle"), ariaExpanded(false), ariaControls(BRANCH + account.identity()),
-                                ariaLabel(message("Mostrar ou ocultar subcontas")), span(cls("chevron"), ariaHidden(true)))),
+                                ariaLabel(message("forms.account.toggle_subaccounts")), span(cls("chevron"), ariaHidden(true)))),
                         a(href(month), hxGet(month), hxTarget("#" + PANEL), hxSwap(HxSwap.OUTER_HTML),
                                 hxInclude("#account-month"), hxPushUrl(true),
                                 text(Text.data(account.name())))),
                 td(span(cls("badge" + (account.financial() ? " financial" : "")),
-                        text(message(Ui.typeLabel(account.type()))))),
+                        text(Text.message(Ui.typeLabel(account.type()))))),
                 td(cls("num"), Ui.amount(balance, false)),
                 td(cls("actions"), when(depth > 0, () -> fragment(
                         button(type(ButtonType.BUTTON), cls("link icon-button"), hxGet(path + "/edit"),
                                 hxTarget("#account-editor"), hxSwap(INTO_EDITOR),
-                                title(message("Editar")), ariaLabel(message("Editar " + account.name())),
+                                title(message("forms.common.edit")), ariaLabel(message("forms.account.edit_named", account.name())),
                                 span(cls("glyph glyph-edit"), ariaHidden(true))),
                         button(type(ButtonType.BUTTON), cls("link danger icon-button"), hxGet(path + "/delete"),
                                 hxTarget("#account-editor"), hxSwap(INTO_EDITOR),
-                                title(message("Excluir")), ariaLabel(message("Excluir " + account.name())),
+                                title(message("forms.common.delete")), ariaLabel(message("forms.account.delete_named", account.name())),
                                 span(cls("glyph glyph-delete"), ariaHidden(true))))))
         );
     }
 
-    static Node notice(String text) {
-        return p(cls("notice"), role("status"), text(message(text)));
+    static Node notice(Text text) {
+        return p(cls("notice"), role("status"), text(text));
     }
 
     // ---------- form
@@ -194,34 +194,34 @@ final class RegisterViews {
         val locked = current != null && book.fixedType(current);
         val type = current != null && locked ? current.type() : AccountFields.type(values);
         val financial = AccountFields.FINANCIAL.contains(type);
-        val title = current == null ? "Nova conta" : "Editar " + current.name();
+        val title = current == null ? message("forms.account.new_account") : message("forms.account.edit_named", current.name());
         return form(
-                id("account-form"), cls("account-form card"), role("dialog"), ariaLabel(message(title)),
+                id("account-form"), cls("account-form card"), role("dialog"), ariaLabel(title),
                 method(FormMethod.POST), action(current == null ? "/accounts" : "/accounts/" + current.identity()),
                 current == null ? hxPost("/accounts") : hxPut("/accounts/" + current.identity()),
                 hxTarget("#accounts"), hxSwap(HxSwap.OUTER_HTML),
-                h3(text(message(title))),
+                h3(text(title)),
                 current == null ? fragment() : input(type("hidden"), name("editing"), value(current.identity().toString())),
                 locked
-                        ? div(cls("field"), label(text(message("Tipo"))),
-                                p(cls("fixed"), text(message(Ui.typeLabel(type) + " · fixo: a conta tem lançamentos ou subcontas"))),
+                        ? div(cls("field"), label(text(message("forms.account.type"))),
+                                p(cls("fixed"), text(message("forms.account.type_fixed", Ui.typeLabel(type)))),
                                 input(type("hidden"), name(AccountFields.TYPE.name()), value(type.name())))
-                        : labeled(AccountFields.TYPE, "Tipo", Map.of(AccountFields.TYPE.name(), type.name()), errors,
+                        : labeled(AccountFields.TYPE, "forms.account.type", Map.of(AccountFields.TYPE.name(), type.name()), errors,
                                 types(), hxGet("/accounts/form"), hxTrigger("change"), hxTarget("#account-form"),
                                 hxSwap(HxSwap.OUTER_HTML), hxInclude("closest form")),
-                labeled(AccountFields.PARENT, "Conta-mãe", values, errors, parents(book, type, current)),
-                labeled(AccountFields.NAME, "Nome", values, errors, null),
-                when(current == null && financial, () -> labeled(AccountFields.OPENING, "Saldo inicial (R$)", values,
+                labeled(AccountFields.PARENT, "forms.account.parent", values, errors, parents(book, type, current)),
+                labeled(AccountFields.NAME, "forms.account.name", values, errors, null),
+                when(current == null && financial, () -> labeled(AccountFields.OPENING, "forms.account.opening", values,
                         errors, null, inputmode(InputMode.DECIMAL))),
                 div(cls("buttons wide"),
-                        button(type(ButtonType.SUBMIT), text(message("Salvar"))),
+                        button(type(ButtonType.SUBMIT), text(message("forms.common.save"))),
                         cancel())
         );
     }
 
     private static List<Option> types() {
         val options = new ArrayList<Option>();
-        AccountFields.TYPES.forEach(type -> options.add(new Option(type.name(), message(Ui.typeLabel(type)))));
+        AccountFields.TYPES.forEach(type -> options.add(new Option(type.name(), Text.message(Ui.typeLabel(type)))));
         return options;
     }
 
@@ -231,7 +231,7 @@ final class RegisterViews {
 
     private static List<Option> accounts(Book book, List<Account> accounts) {
         val options = new ArrayList<Option>();
-        options.add(new Option("", message("Escolha…")));
+        options.add(new Option("", message("forms.common.choose")));
         accounts.forEach(account -> options.add(new Option(account.identity().toString(), Text.data(book.path(account)))));
         return options;
     }
@@ -244,16 +244,16 @@ final class RegisterViews {
      */
     static Node deletePanel(Book book, Account account, Map<String, String> values, List<Violation> errors) {
         val uses = book.uses(account);
-        val label = message("Excluir " + book.path(account));
+        val label = message("forms.account.delete_named", book.path(account));
         val title = h3(text(label));
         if (!book.children(account).isEmpty()) {
             return div(cls("delete-panel card"), role("dialog"), ariaLabel(label), title,
-                    p(text(message("Esta conta tem subcontas: mova-as (editando a conta-mãe delas) ou exclua-as antes."))),
+                    p(text(message("forms.account.has_subaccounts"))),
                     div(cls("buttons"), cancel()));
         }
         if (book.closedUses(account)) {
             return div(cls("delete-panel card"), role("dialog"), ariaLabel(label), title,
-                    p(text(message("Esta conta tem lançamentos em período fechado: recue a data-limite para excluí-la."))),
+                    p(text(message("forms.account.closed_uses"))),
                     div(cls("buttons"), cancel()));
         }
         return form(
@@ -262,12 +262,12 @@ final class RegisterViews {
                 hxSwap(HxSwap.OUTER_HTML),
                 title,
                 uses > 0
-                        ? fragment(p(text(message(uses + " lançamento(s) serão movidos para a conta escolhida."))),
-                                labeled(AccountFields.TARGET, "Mover lançamentos para", values, errors,
+                        ? fragment(p(text(message("forms.account.uses_moved", uses))),
+                                labeled(AccountFields.TARGET, "forms.account.move_to", values, errors,
                                         accounts(book, book.targets(account))))
-                        : p(text(message("A conta não tem lançamentos."))),
+                        : p(text(message("forms.account.no_uses"))),
                 div(cls("buttons"),
-                        button(type(ButtonType.SUBMIT), cls("danger"), text(message(uses > 0 ? "Mover e excluir" : "Excluir"))),
+                        button(type(ButtonType.SUBMIT), cls("danger"), text((uses > 0 ? message("forms.account.move_and_delete") : message("forms.common.delete")))),
                         cancel())
         );
     }
@@ -277,25 +277,22 @@ final class RegisterViews {
 
     /** Starting over discards everything in memory, so it is confirmed first; no file is touched. */
     static Node emptyPanel(Book book, int template) {
-        val label = message("Novo livro vazio");
+        val label = message("forms.account.new_empty_book");
         return form(
                 cls("delete-panel card"), role("dialog"), ariaLabel(label), method(FormMethod.POST), action(EMPTY),
                 hxPost(EMPTY), hxTarget("#accounts"), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(label)),
-                p(text(message("O livro recomeça com o plano de contas pessoal (" + template + " contas): Ativo, Passivo, "
-                        + "Patrimônio líquido, Receitas e Despesas com suas categorias, e a Carteira. Bancos e cartões "
-                        + "você cria depois, com o saldo inicial."))),
-                p(text(message("As " + book.tree().size() + " contas e " + book.count()
-                        + " lançamento(s) em memória serão descartados. Nenhum arquivo é alterado."))),
+                p(text(message("forms.account.empty_template", template))),
+                p(text(message("forms.account.empty_discard", book.tree().size(), book.count()))),
                 div(cls("buttons"),
-                        button(type(ButtonType.SUBMIT), cls("danger"), text(message("Criar livro vazio"))),
+                        button(type(ButtonType.SUBMIT), cls("danger"), text(message("forms.account.create_empty"))),
                         cancel())
         );
     }
 
     private static Node cancel() {
         return button(type(ButtonType.BUTTON), cls("link"), hxGet("/accounts/editor"), hxTarget("#account-editor"),
-                hxSwap(HxSwap.INNER_HTML), text(message("Cancelar")));
+                hxSwap(HxSwap.INNER_HTML), text(message("forms.common.cancel")));
     }
 
     private static Node labeled(Field field, String label, Map<String, String> values, List<Violation> errors,
