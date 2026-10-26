@@ -64,7 +64,7 @@ public final class Ledger {
     public static Node described(Transaction transaction, String counterpart, Account account, YearMonth month) {
         val url = detail(transaction, account, month);
         return td(a(cls("detail-link"), href(url), hxGet(url), hxTarget("#" + Layout.ENTRY_MODAL), hxSwap(HxSwap.INNER_HTML),
-                        strong(text(Text.data(transaction.description())))),
+                        strong(text(Text.data(transaction.label())))),
                 small(cls("sub"), text(Text.data(counterpart))));
     }
 

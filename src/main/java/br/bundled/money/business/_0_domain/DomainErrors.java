@@ -27,7 +27,7 @@ public final class DomainErrors {
     /** Arg: transaction identity */
     public static final String TRANSACTION_NOT_FOUND = PREFIX + "transaction.not_found";
 
-    /** No arg: the description is required */
+    /** No arg: the description is required (unless the transaction has a PDF name) */
     public static final String TRANSACTION_DESCRIPTION = PREFIX + "transaction.description";
 
     /** Arg: the amount, zero or negative where a positive one is expected */

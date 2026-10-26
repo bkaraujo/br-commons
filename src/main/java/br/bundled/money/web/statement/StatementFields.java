@@ -8,6 +8,7 @@ import br.commons.Result;
 import br.commons.lang.html.form.*;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,16 +29,19 @@ final class StatementFields {
 
     static final Field DATE = FieldSpec.of("date", InputType.DATE).asRequired().build().getOrThrow();
     static final Field DESCRIPTION = FieldSpec.of("description", InputType.TEXT).asRequired().withMaxLength(80).build().getOrThrow();
+    /** The description of a transaction imported from a PDF: optional, its PDF name stands in when it is blank. */
+    static final Field NAMED = FieldSpec.of("description", InputType.TEXT).withMaxLength(80).build().getOrThrow();
     static final Field AMOUNT = FieldSpec.of("amount", InputType.NUMBER).asRequired().withMin("0.01").withStep("0.01").build().getOrThrow();
     static final Field FROM = FieldSpec.of("from", InputType.TEXT).asRequired().build().getOrThrow();
     static final Field TO = FieldSpec.of("to", InputType.TEXT).asRequired().build().getOrThrow();
 
     static final List<Field> ALL = List.of(DATE, DESCRIPTION, AMOUNT, FROM, TO);
 
-    /** Shown only in the detail, read only: the day of the purchase, the installment and the note. */
+    /** Shown only in the detail, read only: the day of the purchase, the installment, the note and the PDF name. */
     static final Field PURCHASED = FieldSpec.of("purchased", InputType.DATE).build().getOrThrow();
     static final Field INSTALLMENT = FieldSpec.of("installment", InputType.TEXT).build().getOrThrow();
     static final Field NOTE = FieldSpec.of("note", InputType.TEXT).build().getOrThrow();
+    static final Field PDF_NAME = FieldSpec.of("pdf-name", InputType.TEXT).build().getOrThrow();
 
     /** The hidden id of the transaction being edited, carried to the form of splits. */
     static final String EDITING = "editing";
@@ -47,8 +51,14 @@ final class StatementFields {
 
     private StatementFields() {}
 
-    static Result<Revision, List<Violation>> read(Function<String, String> value, Book book) {
-        val fields = Validation.check(ALL, name -> List.of(value.apply(name)));
+    /** The description field of {@code transaction} (null: a new one): optional when it has a PDF name. */
+    static Field description(@Nullable Transaction transaction) {
+        return transaction != null && transaction.pdfName() != null ? NAMED : DESCRIPTION;
+    }
+
+    /** {@code editing}: the transaction being edited, null for a new one. */
+    static Result<Revision, List<Violation>> read(Function<String, String> value, Book book, @Nullable Transaction editing) {
+        val fields = Validation.check(List.of(DATE, description(editing), AMOUNT, FROM, TO), name -> List.of(value.apply(name)));
         if (!fields.isEmpty()) {
             return new Result.Failure<>(fields);
         }
@@ -93,13 +103,17 @@ final class StatementFields {
                 FROM.name(), book.from(transaction).identity().toString(), TO.name(), book.to(transaction).identity().toString());
     }
 
-    /** {@link #values(Book, Transaction)} plus what only the detail shows ({@link #PURCHASED}, {@link #INSTALLMENT}, {@link #NOTE}). */
+    /**
+     * {@link #values(Book, Transaction)} plus what only the detail shows ({@link #PURCHASED}, {@link #INSTALLMENT},
+     * {@link #NOTE}, {@link #PDF_NAME}).
+     */
     static Map<String, String> shown(Book book, Transaction transaction) {
         val values = new HashMap<>(values(book, transaction));
         val purchased = transaction.purchased();
         if (purchased != null) values.put(PURCHASED.name(), purchased.toString());
         values.put(INSTALLMENT.name(), transaction.installment() + "/" + transaction.installmentTotal());
         values.put(NOTE.name(), Objects.requireNonNullElse(transaction.note(), ""));
+        values.put(PDF_NAME.name(), Objects.requireNonNullElse(transaction.pdfName(), ""));
         return values;
     }
 

@@ -128,7 +128,7 @@ public final class TransactionService {
      * balances of the accounts of both from the earlier month.
      */
     Result<Transaction, BusinessError> save(BookTransaction transaction, @Nullable Transaction previous) {
-        if (transaction.description().isBlank()) {
+        if (transaction.label().isBlank()) {
             return Result.failure(DomainErrors.validation(DomainErrors.TRANSACTION_DESCRIPTION));
         }
         books.find().open(transaction.date(), transaction.date());

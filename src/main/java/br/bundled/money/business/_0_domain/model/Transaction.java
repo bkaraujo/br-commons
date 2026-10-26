@@ -3,6 +3,7 @@ package br.bundled.money.business._0_domain.model;
 import br.bundled.money.business._0_domain.DomainErrors;
 import br.commons.annotation.Entity;
 import br.commons.business.BusinessException;
+import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -27,6 +28,15 @@ public abstract class Transaction extends Entity implements Auditable {
 
     /** What the user wrote about it, free text beyond the description; null when there is none */
     public @Nullable String note() { return null; }
+
+    /** Name read from the bank statement PDF, as it came; set only by the import, never edited; null when not imported */
+    public @Nullable String pdfName() { return null; }
+
+    /** What the transaction is called: the description given by the user or, when there is none, the {@link #pdfName()} */
+    public final String label() {
+        val pdfName = pdfName();
+        return description().isBlank() && pdfName != null ? pdfName : description();
+    }
 
     public abstract TransactionStatus status();
 

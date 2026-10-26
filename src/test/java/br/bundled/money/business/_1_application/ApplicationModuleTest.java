@@ -267,6 +267,29 @@ class ApplicationModuleTest {
     }
 
     @Test
+    void thePdfNameIsKeptAndTheDescriptionOptionalBesideIt() {
+        val bank = bank("Nubank", "1000");
+        val market = named("Mercado");
+        val splits = List.of(BookSplit.of(market, BigDecimal.TEN), BookSplit.of(bank, BigDecimal.TEN.negate()));
+        val imported = transactions().save(BookTransaction.imported(TODAY, "  PAG*FEIRA LIVRE 123  ", splits, null), null)
+                .getOrThrow();
+        assertEquals("PAG*FEIRA LIVRE 123", imported.pdfName(), "stripped");
+        assertEquals("", imported.description());
+        assertEquals("PAG*FEIRA LIVRE 123", imported.label(), "the PDF name stands in for no description");
+
+        val moving = TransactionService.moving(bank, market, new BigDecimal("12"));
+        val named = transactions().revise(imported.identity(), TODAY, "Feira", moving).getOrThrow();
+        assertEquals("Feira", named.label());
+        assertEquals("PAG*FEIRA LIVRE 123", named.pdfName(), "a revision never changes it");
+        val unnamed = transactions().revise(imported.identity(), TODAY, " ", moving).getOrThrow();
+        assertEquals("PAG*FEIRA LIVRE 123", unnamed.label());
+
+        assertEquals(DomainErrors.TRANSACTION_DESCRIPTION,
+                key(transactions().transfer(TODAY, " ", bank.identity(), market.identity(), BigDecimal.ONE)),
+                "without a PDF name the description is required");
+    }
+
+    @Test
     void revisingKeepsTheIdentityOfTheSplits() {
         val bank = bank("Nubank", "1000");
         val market = named("Mercado");

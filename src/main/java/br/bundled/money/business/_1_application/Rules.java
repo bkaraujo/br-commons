@@ -43,7 +43,7 @@ final class Rules {
         if (transaction instanceof BookTransaction kept) return kept.revised(date, description, splits);
         val details = new BookTransaction.Details(transaction.status(), transaction.installment(),
                 transaction.installmentTotal(), transaction.installmentAmount(), transaction.purchase(), transaction.purchased(),
-                transaction.note());
+                transaction.note(), transaction.pdfName());
         return new BookTransaction(transaction.identity(), date, description, splits, details, transaction.createdAt(),
                 System.currentTimeMillis());
     }

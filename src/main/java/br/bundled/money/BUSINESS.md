@@ -182,6 +182,12 @@ Fonte: `Book#month`, `#firstMonth`, `Ledger#monthSelect`.
 caracteres na tela. Entra pelo lançamento rápido e se mantém nas revisões (o extrato não a altera). Fonte:
 `Transaction#note`, `BookTransaction.Details`.
 
+**RN-37 — Nome PDF.** Nome da transação como veio no extrato bancário em PDF (F5): gravado só na importação
+(`BookTransaction#imported`), aparado, e **nunca editável** — revisões o preservam e nenhuma tela o altera. A
+descrição passa a ser o nome dado pelo usuário: opcional quando há Nome PDF (as telas mostram o Nome PDF no lugar) e
+obrigatória quando não há. Serve de chave para sugerir a mesma contrapartida a nomes repetidos (F6). Fonte:
+`Transaction#pdfName`, `Transaction#label`, `BookTransaction.Details`.
+
 ## 6. Fechamento de período (F9)
 
 **RN-40 — Data-limite.** Criar, editar ou excluir transação com data **anterior** à data-limite é rejeitado

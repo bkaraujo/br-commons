@@ -157,11 +157,11 @@ final class StatementViews {
                 td(cls("actions"), when(!closed, () -> fragment(
                         button(type(ButtonType.BUTTON), cls("link icon-button"), hxGet(path + "/edit" + context),
                                 hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
-                                title(message("forms.common.edit")), ariaLabel(message("forms.statement.edit_named", transaction.description())),
+                                title(message("forms.common.edit")), ariaLabel(message("forms.statement.edit_named", transaction.label())),
                                 span(cls("glyph glyph-edit"), ariaHidden(true))),
                         button(type(ButtonType.BUTTON), cls("link danger icon-button"), hxGet(path + "/delete" + context),
                                 hxTarget("#statement-editor"), hxSwap(HxSwap.INNER_HTML),
-                                title(message("forms.common.delete")), ariaLabel(message("forms.statement.delete_named", transaction.description())),
+                                title(message("forms.common.delete")), ariaLabel(message("forms.statement.delete_named", transaction.label())),
                                 span(cls("glyph glyph-delete"), ariaHidden(true))))))
         );
     }
@@ -177,14 +177,16 @@ final class StatementViews {
         val values = StatementFields.shown(book, transaction);
         return section(
                 cls("transaction-detail transaction-form card" + (simple ? "" : " split-form")),
-                role(modal ? "dialog" : "region"), ariaLabel(Text.data(transaction.description())),
+                role(modal ? "dialog" : "region"), ariaLabel(Text.data(transaction.label())),
                 div(cls("ledger-head wide"),
                         div(p(cls("caption"), text(message("forms.statement.transaction"))),
-                                h2(text(Text.data(transaction.description())))),
+                                h2(text(Text.data(transaction.label())))),
                         div(cls("buttons"), back(account, month), modal ? close() : fragment())),
                 fieldset(cls("read-only"), disabled(),
-                        simple ? simpleFields(book, values, List.of())
-                                : splitFields(book, values, SplitFields.lines(transaction), List.of(), false),
+                        simple ? simpleFields(book, transaction, values, List.of())
+                                : splitFields(book, transaction, values, SplitFields.lines(transaction), List.of(), false),
+                        transaction.pdfName() == null ? fragment()
+                                : div(cls("wide"), labeled(StatementFields.PDF_NAME, "forms.statement.pdf_name", values, List.of(), null)),
                         transaction.purchased() == null ? fragment()
                                 : labeled(StatementFields.PURCHASED, "forms.statement.purchased", values, List.of(), null),
                         transaction.installmentTotal() == 1 ? fragment()
@@ -241,7 +243,7 @@ final class StatementViews {
                 hxTarget("#statement-panel"), hxSwap(HxSwap.OUTER_HTML),
                 h3(text(message(title))),
                 context(account, month), editing(transaction),
-                simpleFields(book, values, errors),
+                simpleFields(book, transaction, values, errors),
                 div(cls("buttons wide"),
                         button(type(ButtonType.SUBMIT), text(message("forms.common.save"))),
                         cancel(),
@@ -252,12 +254,13 @@ final class StatementViews {
     }
 
     /** The fields of the simple form: the value from one account to another. */
-    private static Node simpleFields(Book book, Map<String, String> values, List<Violation> errors) {
+    private static Node simpleFields(Book book, @Nullable Transaction transaction, Map<String, String> values,
+                                     List<Violation> errors) {
         val accounts = options(book);
         return fragment(
                 labeled(StatementFields.DATE, "forms.common.date", values, errors, null),
                 labeled(StatementFields.AMOUNT, "forms.statement.amount_brl", values, errors, null, inputmode(InputMode.DECIMAL)),
-                div(cls("wide"), labeled(StatementFields.DESCRIPTION, "forms.common.description", values, errors, null)),
+                div(cls("wide"), description(transaction, values, errors)),
                 labeled(StatementFields.FROM, "forms.statement.from", values, errors, accounts),
                 labeled(StatementFields.TO, "forms.statement.to", values, errors, accounts));
     }
@@ -280,7 +283,7 @@ final class StatementViews {
                 h3(text(message(title))),
                 context(account, month), editing(transaction),
                 input(type("hidden"), name(SplitFields.MODE), value(SplitFields.SPLITS)),
-                splitFields(book, values, lines, errors, true),
+                splitFields(book, transaction, values, lines, errors, true),
                 div(cls("buttons wide"),
                         button(type(ButtonType.SUBMIT), text(message("forms.common.save"))),
                         cancel(),
@@ -291,14 +294,14 @@ final class StatementViews {
     }
 
     /** The fields of the form of splits: date, description and a line per split; {@code editable}: lines can be removed. */
-    private static Node splitFields(Book book, Map<String, String> values, List<SplitFields.Line> lines,
-                                    List<Violation> errors, boolean editable) {
+    private static Node splitFields(Book book, @Nullable Transaction transaction, Map<String, String> values,
+                                    List<SplitFields.Line> lines, List<Violation> errors, boolean editable) {
         val accounts = options(book);
         val in = sum(lines, SplitFields.Line::in);
         val out = sum(lines, SplitFields.Line::out);
         return fragment(
                 labeled(StatementFields.DATE, "forms.common.date", values, errors, null),
-                div(cls("wide"), labeled(StatementFields.DESCRIPTION, "forms.common.description", values, errors, null)),
+                div(cls("wide"), description(transaction, values, errors)),
                 div(cls("wide split-lines"), table(
                         cls("splits"),
                         thead(tr(th(text(message("forms.common.account"))), th(cls("num"), text(message("forms.statement.in_brl"))),
@@ -312,6 +315,13 @@ final class StatementViews {
                         p(cls("split-balance" + (in.compareTo(out) == 0 ? "" : " neg")), role("status"),
                                 text(difference(in, out))),
                         Ui.errorOf(SplitFields.TOTAL_FIELD, errors, SplitFields::message)));
+    }
+
+    /** The description of {@code transaction} (null: a new one); with a PDF name, optional and the name as its hint. */
+    private static Node description(@Nullable Transaction transaction, Map<String, String> values, List<Violation> errors) {
+        val pdfName = transaction == null ? null : transaction.pdfName();
+        return pdfName == null ? labeled(StatementFields.DESCRIPTION, "forms.common.description", values, errors, null)
+                : labeled(StatementFields.NAMED, "forms.common.description", values, errors, null, placeholder(Text.data(pdfName)));
     }
 
     private static Node splitLine(SplitFields.Line line, int index, boolean removable, List<Option> accounts,
@@ -359,7 +369,7 @@ final class StatementViews {
     // ---------- delete
 
     static Node deletePanel(Book book, Transaction transaction, Account account, YearMonth month) {
-        val label = message("forms.statement.delete_confirm", transaction.description());
+        val label = message("forms.statement.delete_confirm", transaction.label());
         return form(
                 cls("delete-panel card"), role("dialog"), ariaLabel(label),
                 hxDelete("/statement/transactions/" + transaction.identity()), hxTarget("#statement-panel"),

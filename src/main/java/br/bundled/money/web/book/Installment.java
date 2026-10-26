@@ -28,7 +28,7 @@ public record Installment(LedgerLine line, Account account, int number, int tota
         }
         Installment found = null;
         for (val pattern : new Pattern[] {FRACTION, WORDS}) {
-            val matcher = pattern.matcher(transaction.description());
+            val matcher = pattern.matcher(transaction.label());
             while (matcher.find()) {
                 val number = Integer.parseInt(matcher.group(1));
                 val total = Integer.parseInt(matcher.group(2));

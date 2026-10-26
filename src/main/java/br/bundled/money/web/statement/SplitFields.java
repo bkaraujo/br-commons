@@ -93,8 +93,10 @@ final class SplitFields {
         return "split-" + index;
     }
 
-    static Result<Entry, List<Violation>> read(Function<String, String> value, List<Line> lines, Book book) {
-        val head = List.of(StatementFields.DATE, StatementFields.DESCRIPTION);
+    /** {@code editing}: the transaction being edited, null for a new one. */
+    static Result<Entry, List<Violation>> read(Function<String, String> value, List<Line> lines, Book book,
+                                               @Nullable Transaction editing) {
+        val head = List.of(StatementFields.DATE, StatementFields.description(editing));
         val violations = new ArrayList<>(Validation.check(head, name -> List.of(value.apply(name))));
         val splits = new ArrayList<SplitInput>();
         var balance = BigDecimal.ZERO;

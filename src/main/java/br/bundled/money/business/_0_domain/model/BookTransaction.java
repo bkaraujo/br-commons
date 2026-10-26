@@ -16,13 +16,23 @@ import java.util.UUID;
 @NullMarked
 public final class BookTransaction extends Transaction {
 
-    /** What a transaction has besides its identity, date, description and splits (INTENT F10 installments, the note). */
+    /**
+     * What a transaction has besides its identity, date, description and splits (INTENT F10 installments, the note,
+     * the name read from the bank statement PDF).
+     */
     public record Details(TransactionStatus status, int installment, int installmentTotal, BigDecimal installmentAmount,
-                          @Nullable UUID purchase, @Nullable LocalDate purchased, @Nullable String note) {
+                          @Nullable UUID purchase, @Nullable LocalDate purchased, @Nullable String note,
+                          @Nullable String pdfName) {
 
-        /** The note stripped; blank is no note. */
+        /** The note and the PDF name stripped; blank is none. */
         public Details {
             note = note == null || note.isBlank() ? null : note.strip();
+            pdfName = pdfName == null || pdfName.isBlank() ? null : pdfName.strip();
+        }
+
+        public Details(TransactionStatus status, int installment, int installmentTotal, BigDecimal installmentAmount,
+                       @Nullable UUID purchase, @Nullable LocalDate purchased, @Nullable String note) {
+            this(status, installment, installmentTotal, installmentAmount, purchase, purchased, note, null);
         }
 
         public Details(TransactionStatus status, int installment, int installmentTotal, BigDecimal installmentAmount,
@@ -79,12 +89,23 @@ public final class BookTransaction extends Transaction {
         return new BookTransaction(UUID.randomUUID(), date, description, splits, details, now, now);
     }
 
-    /** The same transaction (identity, creation, status, note) with new date, description and splits, changed now. */
+    /**
+     * A new transaction, now, read from a bank statement PDF (INTENT F5): {@code pdfName} is the name the bank gave it,
+     * kept as it came; the description, the name given by the user, starts empty.
+     */
+    public static BookTransaction imported(LocalDate date, String pdfName, List<? extends TransactionSplit> splits,
+                                           @Nullable LocalDate purchased) {
+        val now = System.currentTimeMillis();
+        val details = new Details(TransactionStatus.CONFIRMED, 1, 1, value(splits), null, purchased, null, pdfName);
+        return new BookTransaction(UUID.randomUUID(), date, "", splits, details, now, now);
+    }
+
+    /** The same transaction (identity, creation, status, note, PDF name) with new date, description and splits, changed now. */
     public BookTransaction revised(LocalDate date, String description, List<? extends TransactionSplit> splits) {
         // the purchase day belongs to the date it was posted on: moving the date drops it
         val purchased = date.equals(this.date) ? details.purchased() : null;
         val kept = details.installmentTotal() == 1
-                ? new Details(details.status(), 1, 1, value(splits), null, purchased, details.note()) : details;
+                ? new Details(details.status(), 1, 1, value(splits), null, purchased, details.note(), details.pdfName()) : details;
         return new BookTransaction(id, date, description, splits, kept, createdAt, System.currentTimeMillis());
     }
 
@@ -104,6 +125,7 @@ public final class BookTransaction extends Transaction {
     @Override public @Nullable UUID purchase() { return details.purchase(); }
     @Override public @Nullable LocalDate purchased() { return details.purchased(); }
     @Override public @Nullable String note() { return details.note(); }
+    @Override public @Nullable String pdfName() { return details.pdfName(); }
     @Override public TransactionStatus status() { return details.status(); }
     @Override public List<TransactionSplit> splits() { return splits; }
     @Override public long createdAt() { return createdAt; }

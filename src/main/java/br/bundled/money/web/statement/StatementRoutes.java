@@ -165,7 +165,7 @@ public final class StatementRoutes implements WebResource {
         val month = month(form::value);
         if (SplitFields.SPLITS.equals(form.value(SplitFields.MODE))) {
             val lines = SplitFields.lines(form::all);
-            return switch (SplitFields.read(form::value, lines, book)) {
+            return switch (SplitFields.read(form::value, lines, book, null)) {
                 case Result.Success<SplitFields.Entry, List<Violation>>(var value) -> {
                     val entry = Objects.requireNonNull(value);
                     val posted = book.enter(entry.date(), entry.description(), entry.splits());
@@ -175,7 +175,7 @@ public final class StatementRoutes implements WebResource {
                         book, null, StatementFields.values(form::value), lines, errors, account, month));
             };
         }
-        return switch (StatementFields.read(form::value, book)) {
+        return switch (StatementFields.read(form::value, book, null)) {
             case Result.Success<StatementFields.Revision, List<Violation>>(var value) -> {
                 val revision = Objects.requireNonNull(value);
                 val posted = book.move(revision.date(), revision.description(), revision.from(), revision.to(), revision.value());
@@ -199,11 +199,12 @@ public final class StatementRoutes implements WebResource {
         }
         if (SplitFields.SPLITS.equals(form.value(SplitFields.MODE))) {
             val lines = SplitFields.lines(form::all);
-            return switch (SplitFields.read(form::value, lines, book)) {
+            return switch (SplitFields.read(form::value, lines, book, found.get())) {
                 case Result.Success<SplitFields.Entry, List<Violation>>(var value) -> {
                     val entry = Objects.requireNonNull(value);
                     val revised = book.rewrite(found.get(), entry.date(), entry.description(), entry.splits());
-                    yield changed(account, month, outcome(revised, Ui.message("forms.statement.updated", entry.description())));
+                    yield changed(account, month, outcome(revised, Ui.message("forms.statement.updated",
+                            named(entry.description(), found.get()))));
                 }
                 case Result.Failure<SplitFields.Entry, List<Violation>>(var errors) -> invalid(StatementViews.splitForm(
                         book, found.get(), StatementFields.values(form::value), lines, errors, account, month));
@@ -212,12 +213,13 @@ public final class StatementRoutes implements WebResource {
         if (!book.simple(found.get())) {
             return changed(account, month, Ui.message("forms.statement.not_simple"));
         }
-        return switch (StatementFields.read(form::value, book)) {
+        return switch (StatementFields.read(form::value, book, found.get())) {
             case Result.Success<StatementFields.Revision, List<Violation>>(var value) -> {
                 val revision = Objects.requireNonNull(value);
                 val revised = book.revise(found.get(), revision.date(), revision.description(), revision.from(),
                         revision.to(), revision.value());
-                yield changed(account, month, outcome(revised, Ui.message("forms.statement.updated", revision.description())));
+                yield changed(account, month, outcome(revised, Ui.message("forms.statement.updated",
+                        named(revision.description(), found.get()))));
             }
             case Result.Failure<StatementFields.Revision, List<Violation>>(var errors) -> invalid(
                     StatementViews.transactionForm(book, found.get(), StatementFields.values(form::value), errors,
@@ -238,10 +240,16 @@ public final class StatementRoutes implements WebResource {
             return changed(account, month, Ui.message(CLOSED));
         }
         return changed(account, month, found.map(transaction -> outcome(book.discard(transaction),
-                Ui.message("forms.statement.deleted", transaction.description()))).orElseGet(() -> Ui.message(GONE)));
+                Ui.message("forms.statement.deleted", transaction.label()))).orElseGet(() -> Ui.message(GONE)));
     }
 
     /** {@code done} when the service did it; otherwise the reason it gave (a rule of the domain). */
+    /** The name of an edited transaction: the {@code description} given or, when blank, its PDF name. */
+    private static String named(String description, Transaction transaction) {
+        val pdfName = transaction.pdfName();
+        return description.isBlank() && pdfName != null ? pdfName : description;
+    }
+
     private static Text outcome(Result<?, BusinessError> result, Text done) {
         return result instanceof Result.Failure<?, BusinessError>(var error) ? Text.message(error.render()) : done;
     }

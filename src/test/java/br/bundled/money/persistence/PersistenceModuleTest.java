@@ -67,6 +67,9 @@ class PersistenceModuleTest {
                 List.of(BookSplit.of(expenses, new BigDecimal("12.34")), BookSplit.of(bank, new BigDecimal("-12.34"))),
                 null, "  Feira do sábado\nsem sacola  ");
         transactions().save(transaction).getOrThrow();
+        val imported = BookTransaction.imported(LocalDate.of(2025, 11, 4), "PAG*FEIRA LIVRE",
+                List.of(BookSplit.of(expenses, BigDecimal.ONE), BookSplit.of(bank, BigDecimal.ONE.negate())), null);
+        transactions().save(imported).getOrThrow();
         balances().save(bank, new Balance(YearMonth.of(2025, 11), new BigDecimal("-12.34"))).getOrThrow();
         books().save(new Book(LocalDate.of(2025, 10, 1))).getOrThrow();
 
@@ -80,6 +83,9 @@ class PersistenceModuleTest {
         val reloaded = transactions().findById(transaction.identity()).orElseThrow();
         assertEquals("Mercado", reloaded.description());
         assertEquals("Feira do sábado\nsem sacola", reloaded.note(), "stripped, kept across a reload");
+        assertNull(reloaded.pdfName());
+        assertEquals("PAG*FEIRA LIVRE", transactions().findById(imported.identity()).orElseThrow().pdfName(),
+                "the PDF name kept across a reload");
         assertEquals(transaction.date(), reloaded.date());
         assertEquals(transaction.splits().getFirst().identity(), reloaded.splits().getFirst().identity());
         assertEquals(new BigDecimal("12.34"), reloaded.splits().getFirst().amount());
