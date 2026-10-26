@@ -25,6 +25,7 @@ import org.jspecify.annotations.NullMarked;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static br.bundled.tracker.htmx.ui.Ui.ok;
 import static br.bundled.tracker.htmx.ui.Ui.pathId;
@@ -55,7 +56,7 @@ public final class WeekRoutes implements WebResource {
 
     private HTTPResponse home(WebRequest request) {
         val filter = WeekFilter.parse(request.parameter("week"), request.parameter("person"), state.today());
-        return Ui.partial(request)
+        return HtmxRequest.of(request).fragment()
                 ? ok(WeekViews.weekContent(state, filter, blank(filter), List.of()).render())
                 : page(request, filter, blank(filter), List.of());
     }
@@ -69,7 +70,8 @@ public final class WeekRoutes implements WebResource {
         val htmx = HtmxRequest.of(request).isHtmx();
         val person = Ui.number(form.value(WeekViews.VIEW_PERSON));
         return switch (EntryFields.read(form::value, state, null)) {
-            case Result.Success<EntryInput, List<Violation>>(var input) -> {
+            case Result.Success<EntryInput, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
                 val filter = new WeekFilter(Week.of(state.entries().add(input).date()), person);
                 yield htmx ? saved(filter) : WebResponse.redirect(filter.url());
             }
@@ -104,7 +106,8 @@ public final class WeekRoutes implements WebResource {
         val form = request.body(Form.class).getOrThrow();
         val person = Ui.number(form.value(WeekViews.VIEW_PERSON));
         return switch (EntryFields.read(form::value, state, entry)) {
-            case Result.Success<EntryInput, List<Violation>>(var input) -> {
+            case Result.Success<EntryInput, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
                 val saved = state.entries().update(entry.id(), input).orElse(entry);
                 yield HtmxResponse.of(saved(new WeekFilter(Week.of(saved.date()), person)))
                         .retarget("#week").reswap(HxSwap.INNER_HTML).response();

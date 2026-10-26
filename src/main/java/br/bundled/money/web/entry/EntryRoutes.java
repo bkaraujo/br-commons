@@ -25,6 +25,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static br.bundled.money.web.ui.Ui.ok;
 
@@ -64,13 +65,15 @@ public final class EntryRoutes implements WebResource {
         val htmx = HtmxRequest.of(request).isHtmx();
         val modal = htmx && !form.value(EntryViews.MODAL).isEmpty();
         return switch (EntryFields.read(form::value, book)) {
-            case Result.Success<QuickEntry, List<Violation>>(var entry) -> {
+            case Result.Success<QuickEntry, List<Violation>>(var value) -> {
+                val entry = Objects.requireNonNull(value);
                 val saved = book.quick(entry.date(), entry.description(), entry.account(), entry.category(), entry.amount());
                 if (saved instanceof Result.Failure<Transaction, BusinessError>(var error)) {
                     val view = view(modal, EntryFields.values(form::value), List.of(), error.render());
                     yield htmx ? ok(view.render()) : Layout.page(request, Screen.ENTRY, view);
                 }
-                if (modal) yield HtmxResponse.of(ok("")).trigger(Layout.CHANGED).response();
+                // on the body: the dialog may have closed before the answer, taking the form that asked out of the DOM
+                if (modal) yield HtmxResponse.of(ok("")).trigger(Map.of(Layout.CHANGED, Map.of("target", "body"))).response();
                 yield htmx ? ok(EntryViews.screen(book, EntryFields.blank(entry.date(), entry.account()), List.of(),
                         saved.getOrThrow(), null).render()) : WebResponse.redirect(Screen.HOME.path());
             }

@@ -190,14 +190,9 @@ footer {
     color: var(--text);
 }
 
-/* A tela atual: o <main id="content"> diz qual é (data-screen) e o link do menu com o mesmo valor fica marcado; o menu
-   não volta do servidor a cada navegação. Um seletor por tela do enum Screen. */
-body:has(#content[data-screen="HOME"]) .menu a[data-screen="HOME"],
-body:has(#content[data-screen="STATEMENT"]) .menu a[data-screen="STATEMENT"],
-body:has(#content[data-screen="INSTALLMENTS"]) .menu a[data-screen="INSTALLMENTS"],
-body:has(#content[data-screen="ENTRY"]) .menu a[data-screen="ENTRY"],
-body:has(#content[data-screen="ACCOUNTS"]) .menu a[data-screen="ACCOUNTS"],
-body:has(#content[data-screen="REPORTS"]) .menu a[data-screen="REPORTS"] {
+/* A tela atual (aria-current): a página inteira vem com o link marcado; depois de uma navegação, que não traz o menu,
+   o header.js marca o link com o data-screen do <main id="content">. */
+.menu a[aria-current="page"] {
     background: var(--soft);
     color: var(--accent);
     font-weight: 600;

@@ -12,10 +12,10 @@ Referência: https://htmx.org/reference/
 |-----------------|------------------------------------------------------------|
 | `lang.Htmx`     | `hxGet`, `hxPost`, `hxTarget`, `hxSwap`, `hxTrigger`, ... → `Attribute`; `hxPartial(...)` → elemento `<hx-partial>` |
 | `HxSwap`        | `innerHTML`, `outerHTML`, `textContent`, `beforebegin`, ... `delete`, `none` |
-| `SwapSpec`      | Swap + modificadores (`swap`, `settle`, `show`, `scroll`, `transition`, `ignoreTitle`, `focusScroll`) |
+| `SwapSpec`      | Swap + modificadores (`swap`, `settle`, `show`, `noShow`, `scroll`, `transition`, `ignoreTitle`, `focusScroll`) |
 | `ScrollEdge`    | `top`/`bottom` para `scroll`/`show`                        |
 | `HxSync`        | Estratégias de `hx-sync` (`drop`, `abort`, `replace`, `queue ...`) |
-| `HtmxRequest`   | Lê `HX-Request`, `HX-Target`, `HX-Trigger`, `HX-Trigger-Name`, `HX-Boosted`, `HX-History-Restore-Request`... |
+| `HtmxRequest`   | Lê `HX-Request`, `HX-Target`, `HX-Trigger`, `HX-Trigger-Name`, `HX-Boosted`, `HX-History-Restore-Request`...; `navigation()`/`fragment()` decidem o que volta; `VARY` |
 | `HtmxResponse`  | Escreve `HX-Location`, `HX-Retarget`, `HX-Reswap`, `HX-Trigger`... |
 | `HtmxScript`    | Filtro que serve o htmx embutido (`2.0.11.min.js`) em `HtmxScript.PATH`, cache imutável |
 
@@ -56,8 +56,9 @@ div(hxSwap(SwapSpec.of(HxSwap.OUTER_HTML).settle(Duration.ofMillis(100)).show(Sc
 
 ```java
 var hx = HtmxRequest.of(request);
-if (hx.isHtmx() && !hx.boosted()) return fragmento();   // parcial
-return paginaCompleta();
+if (hx.fragment()) return fragmento();       // htmx pediu uma parte (não boosted, não history restore)
+if (hx.navigation()) return soOConteudo();   // hx-boost: título + <main>, o cabeçalho fica
+return paginaCompleta();                     // sem htmx, ou history restore
 hx.target(); hx.trigger(); hx.currentUrl(); hx.prompt();  // Optional<String>
 ```
 
@@ -80,8 +81,8 @@ HtmxResponse.of(resp).location("/orders").pushUrl("/orders").response(); // sem 
    `Attribute("hx-...")` à mão.
 2. Endpoint que serve htmx e navegação normal: decida pelo
    `HtmxRequest.isHtmx()` (e `boosted()`).
-3. Lembre do `Vary: HX-Request` se a resposta muda conforme o header e houver
-   cache.
+3. Lembre do `Vary` (`HtmxRequest.VARY`, mais os headers que a aplicação ler)
+   se a resposta muda conforme o header e houver cache.
 4. `hxOn`/`hxOnHtmx` recebem **JavaScript**: nunca concatene dado do usuário.
 5. Validação com erro: 4xx + `retarget`/`reswap` (htmx não troca conteúdo em
    4xx/5xx por padrão sem configuração do cliente).

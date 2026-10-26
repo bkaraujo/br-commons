@@ -143,7 +143,8 @@ public final class StatementRoutes implements WebResource {
         if (SplitFields.SPLITS.equals(form.value(SplitFields.MODE))) {
             val lines = SplitFields.lines(form::all);
             return switch (SplitFields.read(form::value, lines, book)) {
-                case Result.Success<SplitFields.Entry, List<Violation>>(var entry) -> {
+                case Result.Success<SplitFields.Entry, List<Violation>>(var value) -> {
+                    val entry = Objects.requireNonNull(value);
                     val posted = book.enter(entry.date(), entry.description(), entry.splits());
                     yield after(request, account, month, posted, "Lançamento \"" + entry.description() + "\" criado.");
                 }
@@ -152,7 +153,8 @@ public final class StatementRoutes implements WebResource {
             };
         }
         return switch (StatementFields.read(form::value, book)) {
-            case Result.Success<StatementFields.Revision, List<Violation>>(var revision) -> {
+            case Result.Success<StatementFields.Revision, List<Violation>>(var value) -> {
+                val revision = Objects.requireNonNull(value);
                 val posted = book.move(revision.date(), revision.description(), revision.from(), revision.to(), revision.value());
                 yield after(request, account, month, posted, "Lançamento \"" + revision.description() + "\" criado.");
             }
@@ -175,7 +177,8 @@ public final class StatementRoutes implements WebResource {
         if (SplitFields.SPLITS.equals(form.value(SplitFields.MODE))) {
             val lines = SplitFields.lines(form::all);
             return switch (SplitFields.read(form::value, lines, book)) {
-                case Result.Success<SplitFields.Entry, List<Violation>>(var entry) -> {
+                case Result.Success<SplitFields.Entry, List<Violation>>(var value) -> {
+                    val entry = Objects.requireNonNull(value);
                     val revised = book.rewrite(found.get(), entry.date(), entry.description(), entry.splits());
                     yield changed(account, month, outcome(revised, "Lançamento \"" + entry.description() + "\" atualizado."));
                 }
@@ -187,7 +190,8 @@ public final class StatementRoutes implements WebResource {
             return changed(account, month, "Lançamento com mais de duas contas: use a divisão em várias contas.");
         }
         return switch (StatementFields.read(form::value, book)) {
-            case Result.Success<StatementFields.Revision, List<Violation>>(var revision) -> {
+            case Result.Success<StatementFields.Revision, List<Violation>>(var value) -> {
+                val revision = Objects.requireNonNull(value);
                 val revised = book.revise(found.get(), revision.date(), revision.description(), revision.from(),
                         revision.to(), revision.value());
                 yield changed(account, month, outcome(revised, "Lançamento \"" + revision.description() + "\" atualizado."));

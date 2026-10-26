@@ -6,13 +6,19 @@ import org.jspecify.annotations.NullMarked;
 import java.util.Optional;
 
 /**
- * The request headers htmx sends (https://htmx.org/reference/#request_headers), read from an
+ * The <a href="https://htmx.org/reference/#request_headers">request headers htmx sends</a>, read from an
  * {@link HTTPRequest}: whether the request came from htmx, and from which element, target and page.
  *
  * @see <a href="https://htmx.org/reference/#request_headers">htmx: request headers</a>
  */
 @NullMarked
 public final class HtmxRequest {
+
+    /**
+     * The headers that change the answer of a URL read by {@link #navigation()} and {@link #fragment()}: the page, its
+     * content or a part of it. Goes in {@code Vary}, so a cache never serves one for the other.
+     */
+    public static final String VARY = "HX-Request, HX-Boosted, HX-History-Restore-Request";
 
     private final HTTPRequest request;
 
@@ -44,6 +50,18 @@ public final class HtmxRequest {
      * @see <a href="https://htmx.org/reference/#request_headers">htmx: request headers</a>
      */
     public boolean historyRestore() { return flag("HX-History-Restore-Request"); }
+
+    /**
+     * A boosted navigation ({@code hx-boost}) and not a history restore (which swaps the whole body): the page answers
+     * only what changes in it, its content.
+     */
+    public boolean navigation() { return boosted() && !historyRestore(); }
+
+    /**
+     * htmx asked for a part of the page: neither a boosted navigation ({@link #navigation()}) nor a history restore
+     * (which needs the whole page).
+     */
+    public boolean fragment() { return isHtmx() && !boosted() && !historyRestore(); }
 
     /**
      * {@code HX-Current-URL}: the URL of the browser.

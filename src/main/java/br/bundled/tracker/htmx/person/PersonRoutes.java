@@ -2,7 +2,6 @@ package br.bundled.tracker.htmx.person;
 
 import br.bundled.tracker.htmx.ui.Layout;
 import br.bundled.tracker.htmx.ui.Screen;
-import br.bundled.tracker.htmx.ui.Ui;
 import br.bundled.tracker.shared.entry.EntryStore;
 import br.bundled.tracker.shared.person.Person;
 import br.bundled.tracker.shared.person.PersonFields;
@@ -26,6 +25,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static br.bundled.tracker.htmx.ui.Ui.ok;
 import static br.bundled.tracker.htmx.ui.Ui.pathId;
@@ -54,7 +54,7 @@ public final class PersonRoutes implements WebResource {
     }
 
     private HTTPResponse list(WebRequest request) {
-        return Ui.partial(request) ? ok(PersonViews.screen(people, entries, Map.of(), List.of()).render())
+        return HtmxRequest.of(request).fragment() ? ok(PersonViews.screen(people, entries, Map.of(), List.of()).render())
                 : page(request, Map.of(), List.of());
     }
 
@@ -63,7 +63,8 @@ public final class PersonRoutes implements WebResource {
         val form = request.body(Form.class).getOrThrow();
         val htmx = HtmxRequest.of(request).isHtmx();
         return switch (PersonFields.read(form::value, people, 0)) {
-            case Result.Success<PersonInput, List<Violation>>(var input) -> {
+            case Result.Success<PersonInput, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
                 people.add(id -> Person.of(id, input));
                 yield htmx ? ok(PersonViews.screen(people, entries, Map.of(), List.of()).render())
                         : WebResponse.redirect("/people");
@@ -90,9 +91,11 @@ public final class PersonRoutes implements WebResource {
         val id = pathId(request);
         val form = request.body(Form.class).getOrThrow();
         return switch (PersonFields.read(form::value, people, id)) {
-            case Result.Success<PersonInput, List<Violation>>(var input) ->
-                    ok(people.update(id, person -> person.with(input)).map(person -> row(person, null))
-                            .orElse(""));
+            case Result.Success<PersonInput, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
+                yield ok(people.update(id, person -> person.with(input)).map(person -> row(person, null))
+                        .orElse(""));
+            }
             case Result.Failure<PersonInput, List<Violation>>(var errors) ->
                     ok(people.get(id).map(person -> PersonViews.editRow(person, uses(person),
                             PersonFields.values(form::value), errors).render()).orElse(""));

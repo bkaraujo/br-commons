@@ -49,24 +49,22 @@ final class HomeViews {
 
     /**
      * The accounts and the credit cards in separate cards, only to show they are of different kinds; an empty one
-     * is left out. One {@link #FILTERED} for both, so the URL pushed has it once.
+     * is left out. One form around both: a change sends every checked account (and {@link #FILTERED} once) to the
+     * home, loads the chart and pushes the URL; without htmx the form goes to the home itself.
      */
     private static Node accounts(Book book, Set<Account> selected) {
-        return div(cls("home-accounts"),
-                input(type("hidden"), id("home-filtered"), name(FILTERED), value("1")),
-                group("home-accounts", "Contas", book.bankAccounts(), selected),
-                group("home-cards", "Cartões", book.cards(), selected));
+        return form(cls("home-accounts"), ariaLabel(message("Contas")), method(FormMethod.GET),
+                action(Screen.HOME.path()), hxGet(Screen.HOME.path()), hxTrigger("change"), hxTarget("#home-chart"),
+                hxSwap(HxSwap.OUTER_HTML), hxPushUrl(true),
+                input(type("hidden"), name(FILTERED), value("1")),
+                group("Contas", book.bankAccounts(), selected),
+                group("Cartões", book.cards(), selected));
     }
 
-    /**
-     * A titled form of checkable accounts. A change sends the checkboxes of both forms to the home, so the chart sees
-     * every checked account and the URL pushed keeps them; without htmx the form goes to the home itself.
-     */
-    private static Node group(String id, String title, List<Account> accounts, Set<Account> selected) {
-        return accounts.isEmpty() ? fragment() : form(id(id), cls("statement-accounts card"),
-                ariaLabel(message(title)), method(FormMethod.GET), action(Screen.HOME.path()),
-                hxGet(Screen.HOME.path()), hxTrigger("change"), hxInclude("#home-filtered, #home-accounts, #home-cards"),
-                hxTarget("#home-chart"), hxSwap(HxSwap.OUTER_HTML), hxPushUrl(true),
+    /** A titled card of checkable accounts. */
+    private static Node group(String title, List<Account> accounts, Set<Account> selected) {
+        return accounts.isEmpty() ? fragment() : div(cls("statement-accounts card"), role("group"),
+                ariaLabel(message(title)),
                 h3(text(message(title))),
                 ul(each(accounts, account -> li(option(account, selected.contains(account))))));
     }

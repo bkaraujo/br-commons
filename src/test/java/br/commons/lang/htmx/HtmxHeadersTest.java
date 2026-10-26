@@ -47,6 +47,22 @@ class HtmxHeadersTest {
     }
 
     @Test
+    void whatTheAnswerIs() {
+        val plain = request(Map.of());
+        assertFalse(plain.fragment());
+        assertFalse(plain.navigation());
+        val part = request(Map.of("hx-request", "true"));
+        assertTrue(part.fragment());
+        assertFalse(part.navigation());
+        val boosted = request(Map.of("hx-request", "true", "hx-boosted", "true"));
+        assertFalse(boosted.fragment());
+        assertTrue(boosted.navigation());
+        val restore = request(Map.of("hx-request", "true", "hx-boosted", "true", "hx-history-restore-request", "true"));
+        assertFalse(restore.fragment());
+        assertFalse(restore.navigation());
+    }
+
+    @Test
     void writesTheResponseHeaders() {
         val response = HtmxResponse.of(HTTPServerResponse.status(HTTPStatus.OK))
                 .location("/l").redirect("/r").refresh().pushUrl("/p").replaceUrl("/u")

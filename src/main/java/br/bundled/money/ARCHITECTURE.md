@@ -425,10 +425,11 @@ flowchart LR
 
 A mesma URL responde a página inteira, só o conteúdo (navegação *boosted*, ou o `#content` se recarregando depois de
 um lançamento rápido), só a parte que o mês muda ou só um fragmento, conforme os cabeçalhos da requisição
-(`Ui.partial`, `Ui.boosted`, `Ui.reload`, `Ui.monthOnly`). `Ui.html` acrescenta
-`Vary: HX-Request, HX-Boosted, HX-Trigger, HX-Current-URL, Month-Key` para que um cache não troque uma resposta pela
+(`Ui.partial`, `Ui.boosted`, `Ui.reload`, `Ui.monthOnly`, sobre `HtmxRequest.fragment`/`navigation`). `Ui.html` acrescenta
+`Vary: HX-Request, HX-Boosted, HX-History-Restore-Request, HX-Trigger, HX-Current-URL, Month-Key` para que um cache não troque uma resposta pela
 outra. A resposta *boosted* sempre sai com status 200 (htmx descarta resposta de erro sem trocar o conteúdo), mesmo que
-a página inteira use outro status. O menu nunca volta do servidor: o CSS marca o link pelo `data-screen` do `<main>`.
+a página inteira use outro status. O menu nunca volta do servidor: a página inteira marca o link da tela (`aria-current`) e, depois de uma navegação,
+`header.js` marca o do `data-screen` do `<main>`.
 
 Diagrama: decisão de resposta numa rota de tela (`Layout#page`, `Layout#region` e `Ui#partial`).
 
@@ -452,7 +453,8 @@ As telas `report` (lista e fechamento) e `HomeRoutes#home` seguem o mesmo padrã
 
 `Ledger#monthNav` monta a navegação (anterior, seletor, próximo, "Hoje") e `Layout` a coloca em `#month-slot`, ao lado do
 menu. Em navegação *boosted*, o `month-slot` vai junto como `hx-swap-oob` (vazio em tela sem mês) só quando muda: ele
-guarda em `data-key` um hash do que mostra, `month.js` manda essa chave em todo pedido htmx (cabeçalho `Month-Key`) e o
+guarda em `data-key` a chave do que mostra (`MonthNav#key`: mês, mês atual e primeiro mês; a navegação só é
+montada quando vai), `month.js` manda essa chave em todo pedido htmx (cabeçalho `Month-Key`) e o
 `Layout` compara. `month.js` intercepta o clique (fase de captura) e chama `htmx.ajax('GET', url, {target:
 '#content', swap: 'outerHTML'})` com a URL atual e `month=` trocado, mantendo os demais parâmetros. Se só o mês mudou
 (`Ui.monthOnly`), Plano de contas e Parcelamentos respondem só o painel (`Layout#region`, sem rolar a janela); Extrato
@@ -507,11 +509,12 @@ conteúdo trocado. Detalhes de comportamento em [UI.md](UI.md).
 | `theme.js` | Tema auto/claro/escuro (localStorage + `data-theme`) | síncrono, antes da pintura |
 | `combo.js` | Filtro ao vivo em todo `<select>` | `defer` |
 | `chart.js` | Gráfico de linhas Receitas x Despesas desenhado a partir de uma tabela | `defer` |
-| `header.js` | Altura real do cabeçalho em `--top-height` | `defer` |
+| `header.js` | Altura real do cabeçalho em `--top-height`; tela atual no menu (`aria-current`) | `defer` |
 | `month.js` | Navegação de mês (seção 8.3) | `defer` |
 | `tree.js` | Ramos recolhíveis do plano de contas (localStorage) | `defer` |
 | `outline.js` | Linhas recolhíveis em qualquer nível (`table.outline`) | `defer` |
 | `splits.js` | Totais do formulário de divisões enquanto se digita | `defer` |
+| `history.js` | Caixas marcadas guardadas como estão no histórico do htmx | `defer` |
 
 O script do htmx vem de `htmxScript()` (`HtmxScript` registrado no servidor). O tema só existe no navegador: o servidor
 apenas renderiza os botões (`Layout#themeSwitch`, escondidos até o `theme.js` revelá-los).

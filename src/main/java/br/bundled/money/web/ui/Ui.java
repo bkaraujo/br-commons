@@ -135,17 +135,15 @@ public final class Ui {
      * itself (both get the content from {@link Layout#page}) nor a history restore (which needs the whole page).
      */
     public static boolean partial(HTTPRequest request) {
-        val htmx = HtmxRequest.of(request);
-        return htmx.isHtmx() && !boosted(request) && !htmx.historyRestore();
+        return HtmxRequest.of(request).fragment() && !reload(request);
     }
 
     /**
-     * A boosted navigation, or the content reloading itself ({@link #reload}): both get only the content. Not a
-     * history restore, which swaps the whole body.
+     * A boosted navigation ({@link HtmxRequest#navigation}), or the content reloading itself ({@link #reload}): both
+     * get only the content.
      */
     public static boolean boosted(HTTPRequest request) {
-        val htmx = HtmxRequest.of(request);
-        return (htmx.boosted() || reload(request)) && !htmx.historyRestore();
+        return HtmxRequest.of(request).navigation() || reload(request);
     }
 
     /**
@@ -158,19 +156,27 @@ public final class Ui {
 
     /**
      * The month navigation of the header ({@code month.js}): a boosted navigation to the page's own path that changes
-     * nothing in its query but the month. The screen may then answer only what the month changes
-     * ({@link Layout#region}); with anything else changed, it is a navigation like any other.
+     * the month and nothing else in its query. The screen may then answer only what the month changes
+     * ({@link Layout#region}); with anything else changed, or the month not, it is a navigation like any other (the
+     * menu's link to the screen the user is on).
      */
     public static boolean monthOnly(HTTPRequest request) {
-        if (!HtmxRequest.of(request).boosted() || reload(request)) return false;
+        if (!HtmxRequest.of(request).navigation()) return false;
         val asked = request.uri();
-        return shown(request).filter(page -> page.getPath().equals(asked.getPath()) && others(page).equals(others(asked)))
-                .isPresent();
+        val month = parameter(asked, Ledger.MONTH);
+        return !month.isEmpty() && shown(request).filter(page -> Objects.equals(page.getPath(), asked.getPath())
+                && !month.equals(parameter(page, Ledger.MONTH)) && others(page).equals(others(asked))).isPresent();
     }
 
     /** A parameter of the page the browser is on ({@code HX-Current-URL}); an empty text when it has none. */
     public static String shown(HTTPRequest request, String name) {
-        return shown(request).map(URI::getRawQuery).map(query -> Form.parse(query).value(name)).orElse("");
+        return shown(request).map(page -> parameter(page, name)).orElse("");
+    }
+
+    /** A parameter of the URL's query; an empty text when it has none. */
+    private static String parameter(URI uri, String name) {
+        val query = uri.getRawQuery();
+        return query == null ? "" : Form.parse(query).value(name);
     }
 
     /** The URL of the page the browser is on, when htmx sent one that parses. */
@@ -199,7 +205,7 @@ public final class Ui {
      */
     static HTTPResponse html(HTTPStatus status, String html) {
         return WebResponse.html(status, html)
-                .header("Vary", "HX-Request, HX-Boosted, HX-Trigger, HX-Current-URL, " + Layout.MONTH_KEY);
+                .header("Vary", HtmxRequest.VARY + ", HX-Trigger, HX-Current-URL, " + Layout.MONTH_KEY);
     }
 
     /** The {@code {id}} of the route; {@code null} (matches nothing) when it is not an id. */

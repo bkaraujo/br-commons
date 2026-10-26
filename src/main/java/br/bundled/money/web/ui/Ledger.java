@@ -49,33 +49,52 @@ public final class Ledger {
      * The month navigation of the header ({@link Layout}), on every screen with a month: previous, the month picked from
      * a list, next and (away from it) the current month. It is the same on all of them: {@code month.js} points each
      * control at the URL the page is on with {@link #MONTH} replaced, a boosted navigation that keeps the other
-     * parameters ({@code /statement?account=…}). Without JavaScript the links keep only the month.
+     * parameters ({@code /statement?account=…}). Without JavaScript the links keep only the month. Only what it shows
+     * is read here; the markup is built when it goes ({@link MonthNav#node}).
      */
-    public static Node monthNav(Book book, YearMonth month) {
-        val current = YearMonth.from(book.today());
-        return nav(
-                cls("month-nav"),
-                ariaLabel(message("Mês")),
-                monthLink(month.minusMonths(1), "←", "Mês anterior"),
-                monthSelect(book, month, current),
-                monthLink(month.plusMonths(1), "→", "Próximo mês"),
-                when(!month.equals(current), () -> monthLink(current, "Hoje", "Mês atual")),
-                a(cls("month-go"), href("?" + MONTH + "=" + month), hidden(), ariaHidden(true))
-        );
+    public static MonthNav monthNav(Book book, YearMonth month) {
+        val first = book.firstMonth();
+        return new MonthNav(month, YearMonth.from(book.today()), first.isBefore(month) ? first : month);
     }
 
     /**
-     * The months from the book's first to a year past the current one, the latest first ({@code combo.js} filters them
-     * while typing); {@code month.js} goes to the one picked.
+     * The month navigation of a screen: the month shown, the current one (today's) and the first of the list (the
+     * book's first, or the month shown when before it).
      */
-    private static Node monthSelect(Book book, YearMonth month, YearMonth current) {
-        val first = book.firstMonth().isBefore(month) ? book.firstMonth() : month;
-        val last = (current.isAfter(month) ? current : month).plusMonths(12);
-        val months = Stream.iterate(last, shown -> !shown.isBefore(first), shown -> shown.minusMonths(1)).toList();
-        return select(name(MONTH), data("month-pick", ""), ariaLabel(message("Mês")),
-                each(months, shown -> shown.equals(month)
-                        ? option(value(shown.toString()), selected(), text(Text.data(Ui.month(shown))))
-                        : option(value(shown.toString()), text(Text.data(Ui.month(shown))))));
+    public record MonthNav(YearMonth month, YearMonth current, YearMonth first) {
+
+        /**
+         * What it shows, in a few characters: the same navigation gives the same key, so the header can tell it is
+         * already there without building it ({@link Layout#MONTH_KEY}).
+         */
+        public String key() {
+            return month + "_" + current + "_" + first;
+        }
+
+        public Node node() {
+            return nav(
+                    cls("month-nav"),
+                    ariaLabel(message("Mês")),
+                    monthLink(month.minusMonths(1), "←", "Mês anterior"),
+                    monthSelect(),
+                    monthLink(month.plusMonths(1), "→", "Próximo mês"),
+                    when(!month.equals(current), () -> monthLink(current, "Hoje", "Mês atual")),
+                    a(cls("month-go"), href("?" + MONTH + "=" + month), hidden(), ariaHidden(true))
+            );
+        }
+
+        /**
+         * The months from the first to a year past the current one, the latest first ({@code combo.js} filters them
+         * while typing); {@code month.js} goes to the one picked.
+         */
+        private Node monthSelect() {
+            val last = (current.isAfter(month) ? current : month).plusMonths(12);
+            val months = Stream.iterate(last, shown -> !shown.isBefore(first), shown -> shown.minusMonths(1)).toList();
+            return select(name(MONTH), data("month-pick", ""), ariaLabel(message("Mês")),
+                    each(months, shown -> shown.equals(month)
+                            ? option(value(shown.toString()), selected(), text(Text.data(Ui.month(shown))))
+                            : option(value(shown.toString()), text(Text.data(Ui.month(shown))))));
+        }
     }
 
     private static Node monthLink(YearMonth month, String content, String label) {

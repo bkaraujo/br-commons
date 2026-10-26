@@ -17,7 +17,8 @@
     --soft: light-dark(#eef3fd, #222b3a);
     --ok: light-dark(#2f9e61, #4cc287);
     --danger: light-dark(#d64545, #f07070);
-    --shadow: light-dark(0 1px 2px rgb(0 0 0 / 6%), 0 1px 2px rgb(0 0 0 / 40%));
+    --shadow-color: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
+    --shadow: 0 1px 2px var(--shadow-color);
     --radius: 10px;
 }
 
@@ -115,11 +116,9 @@ footer {
     color: var(--text);
 }
 
-/* A tela atual: o <main id="content"> diz qual é (data-screen) e o link do menu com o mesmo valor fica marcado; o menu
-   não volta do servidor a cada navegação. Um seletor por tela do enum Screen. */
-body:has(#content[data-screen="WEEK"]) .menu a[data-screen="WEEK"],
-body:has(#content[data-screen="PROJECTS"]) .menu a[data-screen="PROJECTS"],
-body:has(#content[data-screen="PEOPLE"]) .menu a[data-screen="PEOPLE"] {
+/* A tela atual (aria-current). htmx: a página inteira vem com o link marcado e o menu.js o acompanha nas navegações;
+   jQuery: o jquery/app.js marca. */
+.menu a[aria-current="page"] {
     background: var(--soft);
     color: var(--accent);
     font-weight: 600;

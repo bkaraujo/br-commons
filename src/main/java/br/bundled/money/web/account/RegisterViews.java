@@ -45,6 +45,9 @@ import static br.commons.lang.Htmx.*;
 @NullMarked
 final class RegisterViews {
 
+    /** The id of the month beside the tree: the tree and the month navigation load only it. */
+    static final String PANEL = "account-panel";
+
     /** Loading into the editor scrolls it into view: a row may be far below. */
     private static final SwapSpec INTO_EDITOR = SwapSpec.of(HxSwap.INNER_HTML).show("#account-editor", ScrollEdge.TOP);
 
@@ -94,13 +97,13 @@ final class RegisterViews {
     }
 
     /**
-     * The month of the account: navigation, summary and its transactions, each value without sign; {@code oob}: sent
-     * beside the tree after a change.
+     * The month of the account: summary and its transactions, each value without sign (the month navigation is in
+     * the header); {@code oob}: sent beside the tree after a change.
      */
     static Node panel(Book book, Account account, YearMonth month, boolean oob) {
         val lines = book.ledger(account, month);
         return div(
-                id("account-panel"), cls("statement-panel account-panel"),
+                id(PANEL), cls("statement-panel account-panel"),
                 oob ? hxSwapOob() : fragment(),
                 input(type("hidden"), id("account-month"), name(Ledger.MONTH), value(month.toString())),
                 div(cls("ledger-head"),
@@ -159,7 +162,7 @@ final class RegisterViews {
                 td(when(depth == 0 && !book.children(account).isEmpty(), () -> button(
                                 type(ButtonType.BUTTON), cls("toggle"), ariaExpanded(false), ariaControls(BRANCH + account.identity()),
                                 ariaLabel(message("Mostrar ou ocultar subcontas")), span(cls("chevron"), ariaHidden(true)))),
-                        a(href(month), hxGet(month), hxTarget("#account-panel"), hxSwap(HxSwap.OUTER_HTML),
+                        a(href(month), hxGet(month), hxTarget("#" + PANEL), hxSwap(HxSwap.OUTER_HTML),
                                 hxInclude("#account-month"), hxPushUrl(true),
                                 text(Text.data(account.name())))),
                 td(span(cls("badge" + (account.financial() ? " financial" : "")),

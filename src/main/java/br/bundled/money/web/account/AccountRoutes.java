@@ -41,8 +41,9 @@ import static br.bundled.money.web.ui.Ui.pathId;
  * The chart of accounts and its register. {@code GET /accounts}: the tree. The editor
  * ({@code #account-editor}) receives the form ({@code /accounts/new}, {@code /accounts/{id}/edit}, re-rendered by
  * {@code /accounts/form} when the type changes) or the delete panel ({@code /accounts/{id}/delete}). Saving and
- * deleting answer with the whole {@code #accounts} and, out of band, the month beside it; invalid, the form or the
- * panel with its errors; refused by the services (a rule of the domain), the tree with the reason.
+ * deleting answer with the whole {@code #accounts} and, out of band, the month beside it and the month navigation;
+ * invalid, the form or the panel with its errors; refused by the services (a rule of the domain), the tree with the
+ * reason; over an account already gone, the tree with a notice.
  * {@code /accounts/empty}: the empty book from the personal chart of accounts (INTENT F8), confirmed first. Beside the
  * tree, the month of an account ({@code /accounts?account=3&month=2026-10}, only {@code #account-panel} when the tree
  * or the month navigation asks); without one, the first financial account. Literal routes come before {@code {id}}:
@@ -50,6 +51,9 @@ import static br.bundled.money.web.ui.Ui.pathId;
  */
 @NullMarked
 public final class AccountRoutes implements WebResource {
+
+    /** Saving or deleting an account deleted meanwhile (another tab): the tree comes back with it. */
+    private static final String GONE = "A conta não existe mais.";
 
     private final Book book = Context.get(Book.class);
 
@@ -74,10 +78,10 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse tree(WebRequest request) {
         val account = chosen(request::parameter);
         val month = month(request::parameter);
-        if (Ui.partial(request)) return ok(RegisterViews.panel(book, account, month, false).render());
-        if (Ui.monthOnly(request)) {
-            return Layout.region(request, Ledger.monthNav(book, month), "#account-panel",
-                    RegisterViews.panel(book, account, month, false));
+        if (Ui.partial(request) || Ui.monthOnly(request)) {
+            val panel = RegisterViews.panel(book, account, month, false);
+            return Ui.partial(request) ? ok(panel.render())
+                    : Layout.region(request, Ledger.monthNav(book, month), "#" + RegisterViews.PANEL, panel);
         }
         return page(request, Html.fragment());
     }
@@ -149,7 +153,8 @@ public final class AccountRoutes implements WebResource {
         val form = request.body(Form.class).getOrThrow();
         val htmx = HtmxRequest.of(request).isHtmx();
         return switch (AccountFields.read(form::value, book, null)) {
-            case Result.Success<AccountInput, List<Violation>>(var input) -> {
+            case Result.Success<AccountInput, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
                 val created = book.create(input);
                 yield htmx ? saved(request, created, created.map(account -> "Conta \"" + book.path(account) + "\" criada.").getOrElse(""))
                         : redirected(request, created);
@@ -166,11 +171,12 @@ public final class AccountRoutes implements WebResource {
         val htmx = HtmxRequest.of(request).isHtmx();
         val current = below(request);
         if (current.isEmpty()) {
-            return htmx ? ok("") : WebResponse.redirect("/accounts");
+            return htmx ? withNotice(request, GONE) : WebResponse.redirect("/accounts");
         }
         val form = request.body(Form.class).getOrThrow();
         return switch (AccountFields.read(form::value, book, current.get())) {
-            case Result.Success<AccountInput, List<Violation>>(var input) -> {
+            case Result.Success<AccountInput, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
                 val updated = book.update(current.get(), input);
                 yield htmx ? saved(request, updated, updated.map(account -> "Conta \"" + book.path(account) + "\" atualizada.").getOrElse(""))
                         : redirected(request, updated);
@@ -189,7 +195,7 @@ public final class AccountRoutes implements WebResource {
     private HTTPResponse delete(WebRequest request) {
         val found = below(request);
         if (found.isEmpty()) {
-            return ok("");
+            return withNotice(request, GONE);
         }
         val account = found.get();
         if (!book.children(account).isEmpty() || book.closedUses(account)) {
@@ -227,11 +233,19 @@ public final class AccountRoutes implements WebResource {
      * one is gone.
      */
     private HTTPResponse saved(WebRequest request, Result<?, BusinessError> result, String notice) {
-        val text = result instanceof Result.Failure<?, BusinessError>(var error) ? error.render() : notice;
+        return withNotice(request, result instanceof Result.Failure<?, BusinessError>(var error) ? error.render() : notice);
+    }
+
+    /**
+     * The tree with {@code text} and, out of band, the panel and the month navigation of the same month: without
+     * {@code month=} in the URL it is the book's, which the write may have moved.
+     */
+    private HTTPResponse withNotice(WebRequest request, String text) {
         val account = chosen(name -> Ui.shown(request, name));
         val month = month(name -> Ui.shown(request, name));
         return ok(Html.fragment(RegisterViews.screen(book, RegisterViews.notice(text), account),
-                RegisterViews.panel(book, account, month, true)).render());
+                RegisterViews.panel(book, account, month, true),
+                Layout.monthChanged(request, Ledger.monthNav(book, month))).render());
     }
 
     /** Without htmx: post/redirect/get when the service did it; the page with the reason (422) when it refused. */

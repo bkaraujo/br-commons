@@ -2,7 +2,6 @@ package br.bundled.tracker.htmx.project;
 
 import br.bundled.tracker.htmx.ui.Layout;
 import br.bundled.tracker.htmx.ui.Screen;
-import br.bundled.tracker.htmx.ui.Ui;
 import br.bundled.tracker.shared.entry.EntryStore;
 import br.bundled.tracker.shared.project.Project;
 import br.bundled.tracker.shared.project.ProjectFields;
@@ -26,6 +25,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static br.bundled.tracker.htmx.ui.Ui.ok;
 import static br.bundled.tracker.htmx.ui.Ui.pathId;
@@ -54,7 +54,7 @@ public final class ProjectRoutes implements WebResource {
     }
 
     private HTTPResponse list(WebRequest request) {
-        if (Ui.partial(request)) return ok(ProjectViews.screen(projects, entries, Map.of(), List.of()).render());
+        if (HtmxRequest.of(request).fragment()) return ok(ProjectViews.screen(projects, entries, Map.of(), List.of()).render());
         return page(request, Map.of(), List.of());
     }
 
@@ -63,7 +63,8 @@ public final class ProjectRoutes implements WebResource {
         val form = request.body(Form.class).getOrThrow();
         val htmx = HtmxRequest.of(request).isHtmx();
         return switch (ProjectFields.read(form::value, projects, 0)) {
-            case Result.Success<ProjectInput, List<Violation>>(var input) -> {
+            case Result.Success<ProjectInput, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
                 projects.add(id -> Project.of(id, input));
                 yield htmx ? ok(ProjectViews.screen(projects, entries, Map.of(), List.of()).render())
                         : WebResponse.redirect("/projects");
@@ -90,9 +91,11 @@ public final class ProjectRoutes implements WebResource {
         val id = pathId(request);
         val form = request.body(Form.class).getOrThrow();
         return switch (ProjectFields.read(form::value, projects, id)) {
-            case Result.Success<ProjectInput, List<Violation>>(var input) ->
-                    ok(projects.update(id, project -> project.with(input)).map(project -> row(project, null))
-                            .orElse(""));
+            case Result.Success<ProjectInput, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
+                yield ok(projects.update(id, project -> project.with(input)).map(project -> row(project, null))
+                        .orElse(""));
+            }
             case Result.Failure<ProjectInput, List<Violation>>(var errors) ->
                     ok(projects.get(id).map(project -> ProjectViews.editRow(project, uses(project),
                             ProjectFields.values(form::value), errors).render()).orElse(""));

@@ -30,14 +30,15 @@ import static br.commons.lang.Htmx.*;
  * link and form loads the next page by htmx and pushes the URL, without a full reload. The header stays fixed on top
  * and a boosted navigation swaps only {@code <main id="content">}: the server answers it with the title, the content
  * (retargeted there) and, out of band, the month navigation when it changed ({@link #MONTH_KEY}), so the scripts in
- * the {@code <head>} load once. The menu never comes back: the content says its screen ({@code data-screen}) and the
- * CSS marks its link. A change made over any screen ({@link #CHANGED}) reloads the content from the URL the browser
+ * the {@code <head>} load once. The menu never comes back: the whole page marks the link of its screen
+ * ({@code aria-current}) and, after a navigation, {@code static/money/header.js} marks the one of the content's
+ * {@code data-screen}. A change made over any screen ({@link #CHANGED}) reloads the content from the URL the browser
  * is on. The header's real height goes to {@code --top-height}
  * ({@code static/money/header.js}); the month navigation of a screen with a month sits beside the menu
  * ({@code static/money/month.js}). Every {@code <select>} gets a live filter in the browser
  * ({@code static/money/combo.js}); the home's chart is drawn from its table ({@code static/money/chart.js}); the form of splits sums its
  * columns while typing ({@code static/money/splits.js}); the rows of an outline open and close at any level
- * ({@code static/money/outline.js}).
+ * ({@code static/money/outline.js}); the checkboxes go to the history as they are ({@code static/money/history.js}).
  */
 @NullMarked
 public final class Layout {
@@ -84,7 +85,7 @@ public final class Layout {
     }
 
     /** A screen with a month: {@code months} ({@link Ledger#monthNav}) goes to the header. */
-    public static HTTPResponse page(HTTPRequest request, Screen current, Node months, Node content) {
+    public static HTTPResponse page(HTTPRequest request, Screen current, Ledger.MonthNav months, Node content) {
         return page(request, HTTPStatus.OK, current, months, content);
     }
 
@@ -97,8 +98,8 @@ public final class Layout {
      * always goes as {@code 200}: htmx drops an error answer unswapped (a missing account's 404 would look like a dead
      * click); the whole page keeps the real status. A reload keeps the window where it is.
      */
-    public static HTTPResponse page(HTTPRequest request, HTTPStatus status, Screen current, @Nullable Node months,
-                                    Node content) {
+    public static HTTPResponse page(HTTPRequest request, HTTPStatus status, Screen current,
+                                    Ledger.@Nullable MonthNav months, Node content) {
         if (!Ui.boosted(request)) return Ui.html(status, document(current, months, content));
         val changed = Html.fragment(pageTitle(current), contentOf(current, content), monthSlot(request, months));
         return HtmxResponse.of(Ui.ok(changed.render())).retarget("#" + CONTENT)
@@ -109,12 +110,20 @@ public final class Layout {
      * Only what the month changes on a screen ({@link Ui#monthOnly}): {@code region} in place of {@code target} (its
      * id selector), the month navigation beside the menu, and the window where it is.
      */
-    public static HTTPResponse region(HTTPRequest request, Node months, String target, Node region) {
+    public static HTTPResponse region(HTTPRequest request, Ledger.MonthNav months, String target, Node region) {
         val changed = Html.fragment(region, monthSlot(request, months));
         return HtmxResponse.of(Ui.ok(changed.render())).retarget(target).reswap(IN_PLACE).response();
     }
 
-    private static String document(Screen current, @Nullable Node months, Node content) {
+    /**
+     * The month navigation beside the menu, out of band, for an answer that changes the month a screen shows (a write
+     * on it); nothing when the page already shows that one.
+     */
+    public static Node monthChanged(HTTPRequest request, Ledger.MonthNav months) {
+        return monthSlot(request, months);
+    }
+
+    private static String document(Screen current, Ledger.@Nullable MonthNav months, Node content) {
         return Html5.document(html(
                 lang("pt-BR"),
                 head(
@@ -129,14 +138,15 @@ public final class Layout {
                         script(src("/static/money/month.js"), defer()),
                         script(src("/static/money/tree.js"), defer()),
                         script(src("/static/money/outline.js"), defer()),
-                        script(src("/static/money/splits.js"), defer())
+                        script(src("/static/money/splits.js"), defer()),
+                        script(src("/static/money/history.js"), defer())
                 ),
                 body(
                         hxBoost(true),
                         header(
                                 cls("top"),
                                 p(cls("brand"), span(cls("logo"), text(Text.data("R$"))), text(Text.data("br.money"))),
-                                navigation(),
+                                navigation(current),
                                 monthSlot(months, Html.fragment()),
                                 themeSwitch()
                         ),
@@ -153,31 +163,32 @@ public final class Layout {
     }
 
     /**
-     * The content of the screen: its {@code data-screen} marks the menu's link (CSS), and it reloads itself on
-     * {@link #CHANGED} from the URL the browser is on.
+     * The content of the screen: its {@code data-screen} marks the menu's link after a navigation
+     * ({@code header.js}), and it reloads itself on {@link #CHANGED} from the URL the browser is on.
      */
     private static Node contentOf(Screen current, Node content) {
         return main(id(CONTENT), data("screen", current.name()), hxGet(""), hxTrigger(CHANGED + " from:body"), content);
     }
 
-    /** The menu, the same on every screen: it goes once, with the page. */
-    private static Node navigation() {
+    /** The menu, the same on every screen: it goes once, with the page, the link of {@code current} marked. */
+    private static Node navigation(Screen current) {
         return nav(
                 cls("menu"),
                 ariaLabel(message("Menu")),
-                ul(each(List.of(Screen.values()), screen -> li(menuLink(screen))))
+                ul(each(List.of(Screen.values()), screen -> li(menuLink(screen, screen == current))))
         );
     }
 
     /**
-     * A link of the menu, with its screen ({@code data-screen}) for the CSS to mark it. The quick entry is not a
-     * screen to go to: it opens as a dialog over the one the user is on ({@link #ENTRY_MODAL}); its {@code href}
-     * stays for a browser without htmx.
+     * A link of the menu, with its screen ({@code data-screen}) for {@code header.js} to mark it. The quick entry is
+     * not a screen to go to: it opens as a dialog over the one the user is on ({@link #ENTRY_MODAL}); its
+     * {@code href} stays for a browser without htmx.
      */
-    private static Node menuLink(Screen screen) {
+    private static Node menuLink(Screen screen, boolean current) {
         val attributes = new ArrayList<Content>();
         attributes.add(href(screen.path()));
         attributes.add(data("screen", screen.name()));
+        if (current) attributes.add(ariaCurrent("page"));
         if (screen == Screen.ENTRY) {
             attributes.add(hxGet(screen.path()));
             attributes.add(hxTarget("#" + ENTRY_MODAL));
@@ -189,26 +200,25 @@ public final class Layout {
     }
 
     /**
-     * Where the month navigation of the screen goes, beside the menu: empty on a screen without a month. Its key, a
-     * hash of what it shows, goes in {@code data-key} for {@code month.js} to send back ({@link #MONTH_KEY}).
+     * Where the month navigation of the screen goes, beside the menu: empty on a screen without a month. Its key
+     * ({@link Ledger.MonthNav#key}) goes in {@code data-key} for {@code month.js} to send back ({@link #MONTH_KEY}).
      */
-    private static Node monthSlot(@Nullable Node months, Content oob) {
-        val nav = months == null ? Html.fragment() : months;
-        return div(id("month-slot"), cls("month-slot"), data("key", monthKey(nav)), oob, nav);
+    private static Node monthSlot(Ledger.@Nullable MonthNav months, Content oob) {
+        return div(id("month-slot"), cls("month-slot"), data("key", monthKey(months)), oob,
+                months == null ? Html.fragment() : months.node());
     }
 
     /**
      * Beside the content: the month navigation out of band when the page shows another one (its key differs), so the
-     * previous screen's months do not stay; nothing when it is the same.
+     * previous screen's months do not stay; nothing when it is the same, and then it is not even built.
      */
-    private static Node monthSlot(HTTPRequest request, @Nullable Node months) {
-        val nav = months == null ? Html.fragment() : months;
-        return monthKey(nav).equals(request.header(MONTH_KEY)) ? Html.fragment() : monthSlot(nav, hxSwapOob());
+    private static Node monthSlot(HTTPRequest request, Ledger.@Nullable MonthNav months) {
+        return monthKey(months).equals(request.header(MONTH_KEY)) ? Html.fragment() : monthSlot(months, hxSwapOob());
     }
 
-    /** What the month navigation shows, in a few characters: the same navigation gives the same key. */
-    private static String monthKey(Node months) {
-        return Integer.toHexString(months.render().hashCode());
+    /** The key of the navigation; an empty one on a screen without a month. */
+    private static String monthKey(Ledger.@Nullable MonthNav months) {
+        return months == null ? "" : months.key();
     }
 
     /**

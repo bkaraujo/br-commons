@@ -5,6 +5,7 @@ import br.commons.lang.Html5;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.Html;
 import br.commons.lang.html.core.Node;
+import br.commons.lang.htmx.HtmxRequest;
 import br.commons.lang.htmx.HtmxResponse;
 import br.commons.lang.htmx.HxSwap;
 import br.commons.lang.htmx.ScrollEdge;
@@ -26,7 +27,8 @@ import static br.commons.lang.Htmx.hxBoost;
  * The page around every screen: head, the menu and the theme switch. The menu is boosted ({@code hx-boost}): its
  * links load the next screen by htmx and push the URL, without a full reload, and the server answers them with only
  * the title and {@code <main id="content">} (retargeted there), so the header stays. The menu never comes back: the
- * content says its screen ({@code data-screen}) and the CSS marks its link.
+ * whole page marks the link of its screen ({@code aria-current}) and, after a navigation,
+ * {@code static/tracker/menu.js} marks the one of the content's {@code data-screen}.
  */
 @NullMarked
 public final class Layout {
@@ -36,9 +38,9 @@ public final class Layout {
 
     private Layout() {}
 
-    /** The whole page, or for a boosted navigation ({@link Ui#boosted}) only the title and the content. */
+    /** The whole page, or for a boosted navigation ({@link HtmxRequest#navigation}) only the title and the content. */
     public static HTTPResponse page(HTTPRequest request, Screen current, Node content) {
-        if (!Ui.boosted(request)) return Ui.ok(document(current, content));
+        if (!HtmxRequest.of(request).navigation()) return Ui.ok(document(current, content));
         val changed = Html.fragment(pageTitle(current), contentOf(current, content));
         return HtmxResponse.of(Ui.ok(changed.render())).retarget("#content").reswap(INTO_CONTENT).response();
     }
@@ -51,13 +53,14 @@ public final class Layout {
                         script(src("/static/tracker/theme.js")),
                         pageTitle(current),
                         link(rel("stylesheet"), href("/static/tracker/app.css")),
-                        htmxScript()
+                        htmxScript(),
+                        script(src("/static/tracker/menu.js"), defer())
                 ),
                 body(
                         header(
                                 cls("top"),
                                 p(cls("brand"), text(message("Horas trabalhadas"))),
-                                navigation(),
+                                navigation(current),
                                 themeSwitch()
                         ),
                         contentOf(current, content),
@@ -70,16 +73,17 @@ public final class Layout {
         return title(text(message(current.label() + " · Horas trabalhadas")));
     }
 
-    /** The content of the screen: its {@code data-screen} marks the menu's link (CSS). */
+    /** The content of the screen: its {@code data-screen} marks the menu's link after a navigation ({@code menu.js}). */
     private static Node contentOf(Screen current, Node content) {
         return main(id("content"), data("screen", current.name()), content);
     }
 
-    /** The menu, the same on every screen: it goes once, with the page; each link says its screen. */
-    private static Node navigation() {
+    /** The menu, the same on every screen: it goes once, with the page; each link says its screen, {@code current}'s marked. */
+    private static Node navigation(Screen current) {
         return nav(
                 cls("menu"), hxBoost(true), ul(each(List.of(Screen.values()), screen -> li(
-                a(href(screen.path()), data("screen", screen.name()), text(message(screen.label()))))))
+                a(href(screen.path()), data("screen", screen.name()),
+                        screen == current ? ariaCurrent("page") : fragment(), text(message(screen.label()))))))
         );
     }
 

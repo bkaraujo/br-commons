@@ -303,6 +303,14 @@ public abstract class Html5 extends Html {
      */
     public static Attribute ariaControls(String ids) { return attribute("aria-controls", ids); }
 
+    /**
+     * The {@code aria-current} attribute (WAI-ARIA): the element is the current one of a set; {@code token} is
+     * {@code page}, {@code step}, {@code location}, {@code date}, {@code time} or {@code true}.
+     *
+     * @see <a href="https://www.w3.org/TR/wai-aria-1.2/#aria-current">WAI-ARIA 1.2: aria-current</a>
+     */
+    public static Attribute ariaCurrent(String token) { return attribute("aria-current", token); }
+
     // ---------- element attributes
 
     /**

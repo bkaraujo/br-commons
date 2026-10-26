@@ -7,7 +7,6 @@ import br.bundled.money.web.ui.Ledger;
 import br.bundled.money.web.ui.Screen;
 import br.bundled.money.web.ui.Ui;
 import br.commons.lang.html.FormMethod;
-import br.commons.lang.html.core.Content;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;
@@ -40,6 +39,9 @@ final class InstallmentViews {
 
     private static final String SCREEN = "installments";
 
+    /** The id of the month: the checkboxes and the month navigation load only it. */
+    static final String PANEL = SCREEN + "-panel";
+
     private InstallmentViews() {}
 
     /** The accounts and the panel of the month. */
@@ -58,19 +60,19 @@ final class InstallmentViews {
                 method(FormMethod.GET), action(Screen.INSTALLMENTS.path()),
                 hxGet(Screen.INSTALLMENTS.path()), hxTrigger("change"),
                 hxInclude("#" + SCREEN + "-accounts, #" + SCREEN + "-month"),
-                hxTarget("#" + SCREEN + "-panel"), hxSwap(HxSwap.OUTER_HTML), hxPushUrl(true),
+                hxTarget("#" + PANEL), hxSwap(HxSwap.OUTER_HTML), hxPushUrl(true),
                 h3(text(message("Contas"))),
                 input(type("hidden"), name(FILTERED), value("1")),
                 ul(each(accounts, account -> li(label(cls("account-option"),
                         input(type("checkbox"), name(ACCOUNT + account.identity()), value("1"),
-                                selected.contains(account) ? checked() : (Content) fragment()),
+                                selected.contains(account) ? checked() : fragment()),
                         span(text(Text.data(account.name()))))))));
     }
 
     /** The month: navigation (with the checked accounts), summary and the installments. */
     static Node panel(Book book, List<Account> selected, List<Installment> installments, YearMonth month) {
         return div(
-                id(SCREEN + "-panel"), cls("statement-panel installments-panel"),
+                id(PANEL), cls("statement-panel installments-panel"),
                 input(type("hidden"), id(SCREEN + "-month"), name(Ledger.MONTH), value(month.toString())),
                 div(cls("ledger-head"),
                         div(p(cls("caption"), text(message("Parcelamentos"))),

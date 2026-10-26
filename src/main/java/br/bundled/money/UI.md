@@ -34,9 +34,9 @@ digitar.
 lançamento rápido (UI-51), vazio até ser aberto, fica fora dele, no corpo da página, para valer em qualquer tela; o rodapé diz "Dados em memória"
 (RN-72). O `<title>` é "Tela · br.money".
 
-**UI-12 — Menu.** Seis telas, nesta ordem; a atual é marcada pelo CSS: o `<main id="content">` diz a tela
-(`data-screen`) e o link com o mesmo `data-screen` fica em destaque, então o menu não volta do servidor a cada
-navegação. Cada rótulo reserva a largura da versão em negrito, para marcar a tela não mexer na barra.
+**UI-12 — Menu.** Seis telas, nesta ordem; a atual fica em destaque (`aria-current`): a página inteira já vem marcada e,
+nas navegações, o `<main id="content">` diz a tela (`data-screen`) e `header.js` marca o link com o mesmo `data-screen`,
+então o menu não volta do servidor a cada navegação. Cada rótulo reserva a largura da versão em negrito, para marcar a tela não mexer na barra.
 
 | Tela | Caminho | Rótulo |
 |------|---------|--------|
@@ -56,7 +56,7 @@ histórico, sem recarregar. Os scripts do `<head>` carregam uma vez.
 
 **UI-21 — Uma URL, só o que muda.** Cada parte da tela que muda sozinha é uma região: um `id` estável, montada pelo
 mesmo método da página inteira e alcançável por GET. A resposta leva só a região que mudou, decidida pelos cabeçalhos
-da requisição (`Vary: HX-Request, HX-Boosted, HX-Trigger, HX-Current-URL, Month-Key`):
+da requisição (`Vary: HX-Request, HX-Boosted, HX-History-Restore-Request, HX-Trigger, HX-Current-URL, Month-Key`):
 - requisição comum, ou restauração de histórico: **página inteira** (`Layout.page`);
 - navegação *boosted*: só o **conteúdo** retargetado em `#content` e o título; a navegação de mês vai fora de banda
   (`hx-swap-oob`) só quando muda (UI-30); o menu nunca volta (UI-12); a janela volta ao topo;
@@ -304,11 +304,12 @@ inline em fragmentos (marcar a linha ou o link atual) e expressões de gatilho d
 | `theme.js` | tema (UI-80); sem `defer`, para aplicar antes da pintura |
 | `combo.js` | filtro ao vivo nos `<select>` (UI-71) |
 | `chart.js` | gráfico de linhas da Visão Geral (UI-41) |
-| `header.js` | altura do cabeçalho em `--top-height` (UI-10) |
+| `header.js` | altura do cabeçalho em `--top-height` (UI-10) e a tela atual no menu (UI-12) |
 | `month.js` | navegação de mês do cabeçalho (UI-31) e a chave `Month-Key` de todo pedido htmx (UI-30) |
 | `tree.js` | ramos recolhíveis do plano de contas, lembrados (UI-53) |
 | `outline.js` | linhas recolhíveis da evolução (UI-59) |
 | `splits.js` | totais do formulário de splits (UI-47) |
+| `history.js` | voltar no histórico mostra as caixas como estavam (Visão Geral, Parcelamentos) |
 
 ## 11. Intenções do INTENT §7 sem código
 

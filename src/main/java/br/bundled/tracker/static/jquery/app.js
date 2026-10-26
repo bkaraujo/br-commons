@@ -345,7 +345,7 @@ $(() => {
         const path = location.pathname;
         $('.menu a[data-screen]').each(function () {
             const current = $(this).data('screen') === path;
-            $(this).toggleClass('current', current).attr('aria-current', current ? 'page' : null);
+            $(this).attr('aria-current', current ? 'page' : null);
         });
         const register = REGISTERS[path];
         if (register) {

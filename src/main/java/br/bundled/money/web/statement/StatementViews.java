@@ -67,7 +67,7 @@ final class StatementViews {
     /**
      * The list: the accounts and the credit cards of the home ({@link Book#moneyAccounts}), each group under its title,
      * an empty one left out, each with its value in {@code month}: the balance of an account ({@link #shown}), the bill
-     * of a card ({@link Book#bills}); {@code oob}: sent beside the panel after a change or a new month.
+     * of a card ({@link Book#bills}); {@code oob}: sent beside the panel after a change.
      */
     static Node accounts(Book book, Account account, YearMonth month, boolean oob) {
         val cards = book.cards();

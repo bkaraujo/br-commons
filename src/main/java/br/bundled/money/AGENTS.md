@@ -81,7 +81,7 @@ web
 ├── <feature>          uma pasta por tela/feature
 │   ├── *Routes        WebResource: lê request, chama aplicação, escolhe resposta
 │   └── *Views         package-private: só monta Node (Html5 + Htmx DSL)
-└── static             app.css e os scripts (theme, combo, chart, header, month, tree, outline, splits), em /static/money/
+└── static             app.css e os scripts (theme, combo, chart, header, month, tree, outline, splits, history), em /static/money/
 ```
 
 - Features dependem só de `ui` (e da aplicação); `ui` não depende de feature.
@@ -90,17 +90,19 @@ web
   método da página inteira e tem URL GET; a resposta htmx leva só a região que mudou
   (UI.md UI-21). Quem decide é o Java, pelos cabeçalhos; o JS não conhece as telas.
 - Mesma URL serve página inteira e fragmento: `Ui.partial(request)` decide
-  (htmx não-boosted e não history-restore → fragmento).
+  (`HtmxRequest.fragment()`: htmx não-boosted e não history-restore; e não o `#content`
+  se recarregando, `Ui.reload`, que recebe o conteúdo como a navegação boosted).
 - Menu com `hx-boost`; filtros (conta, caixas) na URL com `hx-push-url`; o mês é
   navegado no cabeçalho (`Ledger.monthNav`, `month.js`; UI.md §4).
 - Cabeçalho (menu) fixo; navegação boosted troca só `<main id="content">`:
   `Layout.page(request, ...)` responde título + conteúdo (`HX-Retarget`) + espaço
-  do mês em `hx-swap-oob` só quando muda (`Month-Key`). O menu não volta: o CSS marca
-  o link pelo `data-screen` do `<main>`. Toda página inteira passa por `Layout.page`.
+  do mês em `hx-swap-oob` só quando muda (`Month-Key`). O menu não volta: a página inteira marca
+  o link da tela (`aria-current`) e `header.js` o acompanha pelo `data-screen` do `<main>`. Toda página inteira passa por `Layout.page`.
 - Troca só de mês (`Ui.monthOnly`): a tela pode responder só o painel que depende
   dele (`Layout.region`), como Plano de contas e Parcelamentos.
-- Escrita na própria tela: o alvo + as vizinhas que mudaram em `hx-swap-oob`. Escrita
-  sobre qualquer tela (Lançar): `HX-Trigger: book-changed` e o `#content` se
+- Escrita na própria tela: o alvo + as vizinhas que mudaram em `hx-swap-oob` (o mês do
+  cabeçalho também, `Layout.monthChanged`). Seletor de região que a rota usa é constante da view (`PANEL`). Escrita
+  sobre qualquer tela (Lançar): `HX-Trigger: book-changed` (no `body`) e o `#content` se
   recarrega (`hx-get=""`); nunca `HX-Refresh`.
 - Todo JS fica no `<head>` do `Layout` (carregado uma vez, nunca no body nem
   em fragmento). Scripts agem por delegação no `document` / eventos htmx
