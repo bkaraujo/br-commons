@@ -1,5 +1,6 @@
 package br.bundled.tracker.jquery.page;
 
+import br.commons.Result;
 import br.commons.Strings;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.core.Node;
@@ -8,9 +9,8 @@ import br.commons.locale.i18n.Text;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.web.WebResponse;
-import br.commons.web.router.Router;
+import br.commons.web.router.Route;
 import br.commons.web.server.WebResource;
-import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
 import java.util.List;
@@ -39,11 +39,11 @@ public final class TrackerPage implements WebResource {
             List.of(List.of("auto", "Automático", "◐"), List.of("light", "Claro", "☀"), List.of("dark", "Escuro", "☾"));
 
     @Override
-    public void routes(Router router) {
-        for (val screen : SCREENS) {
-            router.get(screen.getFirst(), MediaType.TEXT_HTML, String.class,
-                    _ -> WebResponse.html(HTTPStatus.OK, skeleton())).getOrThrow();
-        }
+    public List<Result<Route, String>> routes() {
+        return SCREENS.stream()
+                .map(screen -> Route.get(screen.getFirst(), MediaType.TEXT_HTML, String.class,
+                        true, _ -> WebResponse.html(HTTPStatus.OK, skeleton())))
+                .toList();
     }
 
     static String skeleton() {

@@ -5,6 +5,7 @@ import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.server.Ports;
 import br.commons.web.ProblemDetail;
 import br.commons.web.WebResponse;
+import br.commons.web.router.Route;
 import br.commons.web.router.Router;
 import lombok.val;
 import org.junit.jupiter.api.Test;
@@ -22,12 +23,12 @@ class WebServerProducesTest {
 
     private static Router router() {
         val router = new Router();
-        router.get("/text", MediaType.TEXT_PLAIN, String.class,
-                request -> WebResponse.ok("olá")).getOrThrow();
-        router.get("/refused", MediaType.TEXT_PLAIN, String.class,
-                request -> WebResponse.problem(ProblemDetail.of(HTTPStatus.UNAUTHORIZED))).getOrThrow();
-        router.delete("/empty", MediaType.TEXT_PLAIN, Void.class,
-                request -> WebResponse.noContent()).getOrThrow();
+        router.register(Route.get("/text", MediaType.TEXT_PLAIN, String.class,
+                true, request -> WebResponse.ok("olá"))).getOrThrow();
+        router.register(Route.get("/refused", MediaType.TEXT_PLAIN, String.class,
+                true, request -> WebResponse.problem(ProblemDetail.of(HTTPStatus.UNAUTHORIZED)))).getOrThrow();
+        router.register(Route.delete("/empty", MediaType.TEXT_PLAIN, Void.class,
+                true, request -> WebResponse.noContent())).getOrThrow();
         return router;
     }
 

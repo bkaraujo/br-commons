@@ -5,7 +5,6 @@ import br.commons.protocol.http.message.HTTPMethod;
 import br.commons.protocol.http.server.message.HTTPServerRequest;
 import br.commons.web.WebResponse;
 import br.commons.web.router.Route;
-import br.commons.web.router.Router;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 
@@ -20,8 +19,8 @@ class WebRequestTest {
     private record Payload(String name) {}
 
     private static Route post(MediaType consumes, Class<?> requestType) {
-        return new Router().post("/api/x/{id}", consumes, MediaType.APPLICATION_JSON, requestType, Void.class,
-                r -> WebResponse.noContent()).getOrThrow();
+        return Route.post("/api/x/{id}", consumes, MediaType.APPLICATION_JSON, requestType, Void.class,
+                true, r -> WebResponse.noContent()).getOrThrow();
     }
 
     private static WebRequest request(Route route, String body, Map<String, String> headers) {
@@ -55,7 +54,7 @@ class WebRequestTest {
 
     @Test
     void routeWithoutBodyFails() {
-        val get = new Router().get("/api/x/{id}", MediaType.APPLICATION_JSON, Payload.class, r -> WebResponse.noContent()).getOrThrow();
+        val get = Route.get("/api/x/{id}", MediaType.APPLICATION_JSON, Payload.class, true, r -> WebResponse.noContent()).getOrThrow();
 
         assertNull(get.consumes());
         assertTrue(request(get, "{\"name\":\"ana\"}", Map.of()).body(Payload.class).isFailure());

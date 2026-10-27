@@ -8,7 +8,7 @@ import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.ProblemDetail;
 import br.commons.web.WebResponse;
-import br.commons.web.router.Router;
+import br.commons.web.router.Route;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
 import lombok.val;
@@ -36,14 +36,14 @@ public final class TasksApi implements WebResource {
     }
 
     @Override
-    public void routes(Router router) {
-        router.get("/api/tasks", MediaType.APPLICATION_JSON, List.class, _ -> WebResponse.ok(store.all()))
-                .getOrThrow();
-        router.post("/api/tasks", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, NewTask.class, Object.class,
-                this::create).getOrThrow();
-        router.patch("/api/tasks/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, TaskChange.class,
-                Object.class, this::change).getOrThrow();
-        router.delete("/api/tasks/{id}", MediaType.APPLICATION_JSON, Void.class, this::delete).getOrThrow();
+    public List<Result<Route, String>> routes() {
+        return List.of(
+                Route.get("/api/tasks", MediaType.APPLICATION_JSON, List.class, true, _ -> WebResponse.ok(store.all())),
+                Route.post("/api/tasks", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, NewTask.class, Object.class,
+                        true, this::create),
+                Route.patch("/api/tasks/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, TaskChange.class,
+                        Object.class, true, this::change),
+                Route.delete("/api/tasks/{id}", MediaType.APPLICATION_JSON, Void.class, true, this::delete));
     }
 
     private HTTPResponse create(WebRequest request) {

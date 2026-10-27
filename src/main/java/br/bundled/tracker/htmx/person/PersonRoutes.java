@@ -15,7 +15,7 @@ import br.commons.lang.htmx.HxSwap;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
-import br.commons.web.router.Router;
+import br.commons.web.router.Route;
 import br.commons.web.server.Form;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
@@ -43,14 +43,15 @@ public final class PersonRoutes implements WebResource {
     }
 
     @Override
-    public void routes(Router router) {
-        router.get("/people", MediaType.TEXT_HTML, String.class, this::list).getOrThrow();
-        router.post("/people", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();
-        router.get("/people/{id}", MediaType.TEXT_HTML, String.class, this::show).getOrThrow();
-        router.get("/people/{id}/edit", MediaType.TEXT_HTML, String.class, this::edit).getOrThrow();
-        router.put("/people/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::update).getOrThrow();
-        router.post("/people/{id}/active", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::toggle).getOrThrow();
-        router.delete("/people/{id}", MediaType.TEXT_HTML, String.class, this::delete).getOrThrow();
+    public List<Result<Route, String>> routes() {
+        return List.of(
+                Route.get("/people", MediaType.TEXT_HTML, String.class, true, this::list),
+                Route.post("/people", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, true, this::create),
+                Route.get("/people/{id}", MediaType.TEXT_HTML, String.class, true, this::show),
+                Route.get("/people/{id}/edit", MediaType.TEXT_HTML, String.class, true, this::edit),
+                Route.put("/people/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, true, this::update),
+                Route.post("/people/{id}/active", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, true, this::toggle),
+                Route.delete("/people/{id}", MediaType.TEXT_HTML, String.class, true, this::delete));
     }
 
     private HTTPResponse list(WebRequest request) {

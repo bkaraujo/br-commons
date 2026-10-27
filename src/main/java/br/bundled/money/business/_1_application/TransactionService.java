@@ -101,13 +101,25 @@ public final class TransactionService {
 
     /** The transaction rewritten in place, same identity; each split in the same account keeps its identity too. */
     public Result<Transaction, BusinessError> revise(UUID id, LocalDate date, String description, List<SplitInput> splits) {
+        return revise(id, date, description, splits, null, true);
+    }
+
+    /** {@link #revise(UUID, LocalDate, String, List)} with a new note (null or blank: none). */
+    public Result<Transaction, BusinessError> revise(UUID id, LocalDate date, String description, List<SplitInput> splits,
+                                                     @Nullable String note) {
+        return revise(id, date, description, splits, note, false);
+    }
+
+    private Result<Transaction, BusinessError> revise(UUID id, LocalDate date, String description, List<SplitInput> splits,
+                                                      @Nullable String note, boolean keepNote) {
         return Rules.locked(lock, () -> {
             val found = transactions.findById(id);
             if (found.isEmpty()) return Result.failure(DomainErrors.notFound(DomainErrors.TRANSACTION_NOT_FOUND, id));
             books.find().open(found.get().date(), found.get().date());
             val built = splits(splits);
             if (built instanceof Result.Failure<List<BookSplit>, BusinessError>(var error)) return Result.failure(error);
-            return save(Rules.revised(found.get(), date, description.strip(), keeping(found.get(), built.getOrThrow())),
+            val noted = keepNote ? found.get().note() : note;
+            return save(Rules.revised(found.get(), date, description.strip(), keeping(found.get(), built.getOrThrow()), noted),
                     found.get());
         });
     }

@@ -1,6 +1,8 @@
 package br.bundled.money.business._0_domain.model;
 
 import java.math.BigDecimal;
+import java.util.EnumSet;
+import java.util.Set;
 
 public enum AccountType {
     BANK(AccountNature.FINANCE_ACCOUNT, -1),
@@ -17,6 +19,9 @@ public enum AccountType {
     RECEIVABLE(AccountNature.LEDGER_ACCOUNT, -1),
     PAYABLE(AccountNature.LEDGER_ACCOUNT, 1),
     TRADING(AccountNature.LEDGER_ACCOUNT, 1);
+
+    private static final Set<AccountType> ASSETS = EnumSet.of(BANK, CASH, STOCK, MUTUAL, ASSET, RECEIVABLE);
+    private static final Set<AccountType> LIABILITIES = EnumSet.of(CREDIT, LIABILITY, PAYABLE);
 
     public final AccountNature nature;
     public final int debit;
@@ -47,11 +52,8 @@ public enum AccountType {
      * any other type is its own family.
      */
     public AccountType family() {
-        return switch (this) {
-            case BANK, CASH, STOCK, MUTUAL, ASSET, RECEIVABLE -> ASSET;
-            case CREDIT, LIABILITY, PAYABLE -> LIABILITY;
-            default -> this;
-        };
+        if (ASSETS.contains(this)) return ASSET;
+        return LIABILITIES.contains(this) ? LIABILITY : this;
     }
 
 }

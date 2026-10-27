@@ -1,13 +1,13 @@
 package br.bundled.money.web;
 
-import br.bundled.money.web.account.AccountRoutes;
 import br.bundled.money.web.book.Book;
-import br.bundled.money.web.entry.EntryRoutes;
-import br.bundled.money.web.home.HomeRoutes;
-import br.bundled.money.web.installment.InstallmentRoutes;
-import br.bundled.money.web.report.ReportRoutes;
 import br.bundled.money.web.seed.Seed;
-import br.bundled.money.web.statement.StatementRoutes;
+import br.bundled.money.web.views.account.AccountRoutes;
+import br.bundled.money.web.views.entry.EntryRoutes;
+import br.bundled.money.web.views.home.HomeRoutes;
+import br.bundled.money.web.views.installment.InstallmentRoutes;
+import br.bundled.money.web.views.report.ReportRoutes;
+import br.bundled.money.web.views.statement.StatementRoutes;
 import br.commons.Result;
 import br.commons.business.BusinessError;
 import br.commons.cdi.Context;

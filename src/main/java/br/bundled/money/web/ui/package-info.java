@@ -6,4 +6,6 @@
 @NullMarked
 package br.bundled.money.web.ui;
 
+import br.bundled.money.web.views.Layout;
+import br.bundled.money.web.views.Ui;
 import org.jspecify.annotations.NullMarked;

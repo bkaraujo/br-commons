@@ -14,7 +14,7 @@ import br.commons.lang.html.form.Violation;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
-import br.commons.web.router.Router;
+import br.commons.web.router.Route;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
 import lombok.val;
@@ -87,16 +87,17 @@ public final class RegisterApi<T extends Registered, I> implements WebResource {
     }
 
     @Override
-    public void routes(Router router) {
-        router.get(path, MediaType.APPLICATION_JSON, List.class,
-                _ -> WebResponse.ok(registry.all().stream().map(this::view).toList())).getOrThrow();
-        router.post(path, MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,
-                this::create).getOrThrow();
-        router.put(path + "/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,
-                this::update).getOrThrow();
-        router.patch(path + "/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,
-                this::activate).getOrThrow();
-        router.delete(path + "/{id}", MediaType.APPLICATION_JSON, Void.class, this::delete).getOrThrow();
+    public List<Result<Route, String>> routes() {
+        return List.of(
+                Route.get(path, MediaType.APPLICATION_JSON, List.class,
+                        true, _ -> WebResponse.ok(registry.all().stream().map(this::view).toList())),
+                Route.post(path, MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,
+                        true, this::create),
+                Route.put(path + "/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,
+                        true, this::update),
+                Route.patch(path + "/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,
+                        true, this::activate),
+                Route.delete(path + "/{id}", MediaType.APPLICATION_JSON, Void.class, true, this::delete));
     }
 
     private HTTPResponse create(WebRequest request) {

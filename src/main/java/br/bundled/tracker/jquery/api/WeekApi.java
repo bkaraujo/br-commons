@@ -11,7 +11,7 @@ import br.commons.lang.html.form.Violation;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
-import br.commons.web.router.Router;
+import br.commons.web.router.Route;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
 import lombok.val;
@@ -65,13 +65,14 @@ public final class WeekApi implements WebResource {
     }
 
     @Override
-    public void routes(Router router) {
-        router.get("/api/week", MediaType.APPLICATION_JSON, WeekView.class, this::week).getOrThrow();
-        router.post("/api/entries", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,
-                this::create).getOrThrow();
-        router.put("/api/entries/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class,
-                Object.class, this::update).getOrThrow();
-        router.delete("/api/entries/{id}", MediaType.APPLICATION_JSON, Void.class, this::delete).getOrThrow();
+    public List<Result<Route, String>> routes() {
+        return List.of(
+                Route.get("/api/week", MediaType.APPLICATION_JSON, WeekView.class, true, this::week),
+                Route.post("/api/entries", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class, Object.class,
+                        true, this::create),
+                Route.put("/api/entries/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Map.class,
+                        Object.class, true, this::update),
+                Route.delete("/api/entries/{id}", MediaType.APPLICATION_JSON, Void.class, true, this::delete));
     }
 
     private HTTPResponse week(WebRequest request) {

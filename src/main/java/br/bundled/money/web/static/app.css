@@ -1185,6 +1185,13 @@ tr:hover .actions button,
     grid-column: 1 / -1;
 }
 
+/* Todo campo numérico (valor, entrada/saída da divisão, saldo inicial) alinha à direita. */
+input[type="number"],
+input[inputmode="decimal"],
+input[inputmode="numeric"] {
+    text-align: right;
+}
+
 /* Valor: mesma altura dos outros campos (ao lado da Data); só o negrito e o alinhamento à direita o destacam. */
 .amount-input {
     font-weight: 700;

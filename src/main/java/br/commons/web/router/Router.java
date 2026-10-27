@@ -2,23 +2,20 @@ package br.commons.web.router;
 
 import br.commons.Result;
 import br.commons.locale.i18n.Errors;
-import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPMethod;
-import br.commons.web.RouteHandler;
 import com.google.errorprone.annotations.CheckReturnValue;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Explicit registration {@code method + route template → handler}, with path param extraction.
- * No classpath scanning — each slice registers its own routes in {@code routes(Router)}.
- * Every registration declares the {@link MediaType} it produces; a verb with body also declares what it consumes
- * ({@code GET} and {@code DELETE} have no body) — nothing is assumed.
+ * Explicit registration of {@link Route}s built by the client ({@code method + route template → handler}), with
+ * path param extraction. No classpath scanning — each slice registers its own routes in {@code routes(Router)}.
  * Verb or template restrictions are from the client, passed as {@link RouteRule} in the constructor.
  * A registration that fails returns {@link Result.Failure} — ignoring the return does not compile.
  */
@@ -28,6 +25,16 @@ public final class Router {
 
     private final List<RouteRule> rules;
     private final List<Route> routes = new ArrayList<>();
+
+    /**
+     * Routes by verb, in registration order, for {@link #match}: a request scans only its own verb, and a route
+     * without path parameters is compared by {@code equals} instead of a regex. Built at registration time
+     * (boot); after {@link #freeze()} it is read-only.
+     */
+    private final Map<HTTPMethod, Entry[]> byMethod = new EnumMap<>(HTTPMethod.class);
+
+    @NullMarked
+    private record Entry(Route route, @Nullable String literal) {}
 
     /** Set by {@link #freeze()} when the server starts: from then on the router is read-only, hence thread-safe. */
     private volatile boolean frozen = false;
@@ -46,44 +53,14 @@ public final class Router {
     @NullMarked
     private record AllowedMethods(Pattern pattern, EnumSet<HTTPMethod> methods, String header) {}
 
-    public Result<Route, String> get(String template, MediaType produces, Class<?> responseType, RouteHandler handler) {
-        return register(HTTPMethod.GET, template, null, produces, Void.class, responseType, true, handler);
+    /** Registers a route built by the client; a failed build ({@link Route} factories) is passed through. */
+    public Result<Route, String> register(Result<Route, String> built) {
+        return built.flatMap(this::register);
     }
 
-    public Result<Route, String> post(String template, MediaType consumes, MediaType produces,
-                                      Class<?> requestType, Class<?> responseType, RouteHandler handler) {
-        return register(HTTPMethod.POST, template, consumes, produces, requestType, responseType, true, handler);
-    }
-
-    public Result<Route, String> put(String template, MediaType consumes, MediaType produces,
-                                     Class<?> requestType, Class<?> responseType, RouteHandler handler) {
-        return register(HTTPMethod.PUT, template, consumes, produces, requestType, responseType, true, handler);
-    }
-
-    public Result<Route, String> patch(String template, MediaType consumes, MediaType produces,
-                                       Class<?> requestType, Class<?> responseType, RouteHandler handler) {
-        return register(HTTPMethod.PATCH, template, consumes, produces, requestType, responseType, true, handler);
-    }
-
-    public Result<Route, String> delete(String template, MediaType produces, Class<?> responseType, RouteHandler handler) {
-        return register(HTTPMethod.DELETE, template, null, produces, Void.class, responseType, true, handler);
-    }
-
-    /** Route {@code /api/*} reachable without {@code Bearer} — login, registration. */
-    public Result<Route, String> postPublic(String template, MediaType consumes, MediaType produces,
-                                            Class<?> requestType, Class<?> responseType, RouteHandler handler) {
-        return register(HTTPMethod.POST, template, consumes, produces, requestType, responseType, false, handler);
-    }
-
-    /** {@code consumes} {@code null} registers a route without body. */
-    public Result<Route, String> register(HTTPMethod method, String template, @Nullable MediaType consumes, MediaType produces,
-                                          Class<?> requestType, Class<?> responseType, RouteHandler handler) {
-        return register(method, template, consumes, produces, requestType, responseType, true, handler);
-    }
-
-    public Result<Route, String> register(HTTPMethod method, String template, @Nullable MediaType consumes, MediaType produces,
-                                          Class<?> requestType, Class<?> responseType,
-                                          boolean requiresAuthentication, RouteHandler handler) {
+    public Result<Route, String> register(Route route) {
+        val method = route.method();
+        val template = route.template();
         if (frozen) {
             return Result.failure(Errors.get().routerFrozen(method, template).value());
         }
@@ -95,18 +72,18 @@ public final class Router {
                 return Result.failure(error);
             }
         }
-        val paramNames = new ArrayList<String>();
-        val compiled = compile(template, paramNames);
-        if (compiled instanceof Result.Failure<Pattern, String>(String error)) return Result.failure(error);
-        val pattern = compiled.get();
-        val route = new Route(method, template, pattern, paramNames, consumes, produces, requestType, responseType,
-                requiresAuthentication, handler);
         routes.add(route);
+        val entry = new Entry(route, route.paramNames().isEmpty() ? literal(template) : null);
+        byMethod.merge(method, new Entry[]{entry}, (slot, added) -> {
+            val grown = Arrays.copyOf(slot, slot.length + 1);
+            grown[slot.length] = added[0];
+            return grown;
+        });
 
         val current = allowed.get(template);
         val methods = current == null ? EnumSet.of(HTTPMethod.OPTIONS) : EnumSet.copyOf(current.methods());
         methods.add(method);
-        allowed.put(template, new AllowedMethods(pattern, methods, allowHeader(methods)));
+        allowed.put(template, new AllowedMethods(route.pattern(), methods, allowHeader(methods)));
         return Result.success(route);
     }
 
@@ -116,7 +93,7 @@ public final class Router {
      * ({@code /x/{id}} and {@code /x/{key}}) add up.
      */
     public @Nullable String allowHeader(String path) {
-        @Nullable AllowedMethods found = null;
+        AllowedMethods found = null;
         for (val entry : allowed.values()) {
             if (!entry.pattern().matcher(path).matches()) continue;
             if (found == null) {
@@ -134,51 +111,46 @@ public final class Router {
         return methods.stream().map(Enum::name).collect(Collectors.joining(", "));
     }
 
-    /** Path parameter names become regex group names: letters and digits, starting with a letter. */
-    private static final Pattern PARAM_NAME = Pattern.compile("[A-Za-z][A-Za-z0-9]*");
-
-    private static Result<Pattern, String> compile(String template, List<String> paramNames) {
-        val regex = new StringBuilder("^");
-        for (val segment : template.split("/")) {
-            if (segment.isEmpty()) continue;
-            regex.append('/');
-            if (segment.startsWith("{") && segment.endsWith("}")) {
-                val error = param(segment.substring(1, segment.length() - 1), template, paramNames);
-                if (error != null) return Result.failure(error);
-                regex.append("(?<").append(paramNames.getLast()).append(">[^/]+)");
-            } else {
-                regex.append(Pattern.quote(segment));
-            }
-        }
-        if (regex.length() == 1) regex.append('/');
-        regex.append('$');
-        return Result.success(Pattern.compile(regex.toString()));
-    }
-
-    /** Registers a path parameter name; the error message when it is invalid or repeated. */
-    private static @Nullable String param(String name, String template, List<String> paramNames) {
-        if (!PARAM_NAME.matcher(name).matches()) return Errors.get().invalidPathParameter(name, template).value();
-        if (paramNames.contains(name)) return Errors.get().repeatedPathParameter(name, template).value();
-        paramNames.add(name);
-        return null;
-    }
-
-    @NullMarked
-    public record Match(Route route, Map<String, String> pathParams) {}
-
     public @Nullable Match match(HTTPMethod method, String path) {
-        for (val route : routes) {
-            if (route.method() != method) continue;
+        val entries = byMethod.get(method);
+        if (entries == null) return null;
+        for (val entry : entries) {
+            val route = entry.route();
+            val literal = entry.literal();
+            if (literal != null) {
+                if (literal.equals(path)) return new Match(route, Map.of());
+                continue;
+            }
             val matcher = route.pattern().matcher(path);
             if (!matcher.matches()) continue;
-
-            val params = new LinkedHashMap<String, String>();
-            for (val name : route.paramNames()) {
-                params.put(name, matcher.group(name));
-            }
-            return new Match(route, params);
+            return new Match(route, params(route.paramNames(), matcher));
         }
         return null;
+    }
+
+    /** Each parameter is the only capture group of its segment, so group {@code i + 1} is the {@code i}-th name. */
+    private static Map<String, String> params(List<String> names, Matcher matcher) {
+        if (names.size() == 1) return Map.of(names.getFirst(), matcher.group(1));
+
+        val params = LinkedHashMap.<String, String>newLinkedHashMap(names.size());
+        for (var i = 0; i < names.size(); i++) {
+            params.put(names.get(i), matcher.group(i + 1));
+        }
+
+        return params;
+    }
+
+    /** The path a template without parameters matches: empty segments dropped, as {@code Route} compiles it. */
+    private static String literal(String template) {
+        val path = new StringBuilder(template.length());
+        var start = 0;
+        while (start < template.length()) {
+            var end = template.indexOf('/', start);
+            if (end < 0) end = template.length();
+            if (end > start) path.append('/').append(template, start, end);
+            start = end + 1;
+        }
+        return path.isEmpty() ? "/" : path.toString();
     }
 
     /** Ends registration. Called by {@code WebServer.start}; reads are unsynchronized, so writes must stop first. */

@@ -6,6 +6,7 @@ import br.commons.protocol.http.server.HTTPFilter;
 import br.commons.protocol.http.server.Ports;
 import br.commons.protocol.http.server.message.HTTPServerResponse;
 import br.commons.web.WebResponse;
+import br.commons.web.router.Route;
 import br.commons.web.router.Router;
 import lombok.val;
 import org.junit.jupiter.api.Test;
@@ -26,11 +27,11 @@ class WebServerOptionsTest {
 
     private Router router() {
         val router = new Router();
-        router.get("/api/items/{id}", MediaType.APPLICATION_JSON, Void.class, request -> {
+        router.register(Route.get("/api/items/{id}", MediaType.APPLICATION_JSON, Void.class, true, request -> {
             handlerCalls.incrementAndGet();
             return WebResponse.noContent();
-        });
-        router.patch("/api/items/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Void.class, Void.class, request -> WebResponse.noContent());
+        }));
+        router.register(Route.patch("/api/items/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Void.class, Void.class, true, request -> WebResponse.noContent()));
         return router;
     }
 

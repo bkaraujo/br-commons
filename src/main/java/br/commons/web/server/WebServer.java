@@ -1,5 +1,6 @@
 package br.commons.web.server;
 
+import br.commons.Logger;
 import br.commons.Result;
 import br.commons.business.BusinessError;
 import br.commons.module.Lifecycle;
@@ -18,13 +19,14 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
 /**
  * Custody of the {@link HTTPServer} and unique registration point: whoever sets up the process
- * registers each {@link WebResource} with {@link #register(WebResource)}. Matching routes, applying
+ * registers each {@link WebResource} with {@link #register(WebResource...)}. Matching routes, applying
  * {@code produces} and responding 404/405/OPTIONS is the responsibility of the internal {@link WebDispatcher}.
  *
  * <p>As a {@link Lifecycle}, {@link #initialize()} runs the {@link HTTPServer} on a platform thread of its own
@@ -75,10 +77,16 @@ public final class WebServer implements Lifecycle {
         server = new HTTPServer(port, chain, dispatcher::handle, failure -> WebResponse.internalServerError(), maxBodySize, multipartLimits);
     }
 
+    /**
+     * Takes the routes of each resource and hands every one that was built to the dispatcher; a route that failed to
+     * build is logged at ERROR and skipped, so neither it nor a refused registration stops the server or the rest.
+     */
     public void register(WebResource ... resources) {
-        for (val resource : resources) {
-            dispatcher.register(resource);
-        }
+        Arrays.stream(resources)
+                .flatMap(resource -> resource.routes().stream())
+                .filter(result -> result.ifFailure(Logger::error).isSuccess())
+                .map(Result::get)
+                .forEach(dispatcher::register);
     }
 
     /**

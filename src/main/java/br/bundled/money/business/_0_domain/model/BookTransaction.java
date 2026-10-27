@@ -102,11 +102,19 @@ public final class BookTransaction extends Transaction {
 
     /** The same transaction (identity, creation, status, note, PDF name) with new date, description and splits, changed now. */
     public BookTransaction revised(LocalDate date, String description, List<? extends TransactionSplit> splits) {
+        return revised(date, description, splits, details.note());
+    }
+
+    /** {@link #revised(LocalDate, String, List)} with a new note (null or blank: none). */
+    public BookTransaction revised(LocalDate date, String description, List<? extends TransactionSplit> splits,
+                                   @Nullable String note) {
         // the purchase day belongs to the date it was posted on: moving the date drops it
         val purchased = date.equals(this.date) ? details.purchased() : null;
         val kept = details.installmentTotal() == 1
-                ? new Details(details.status(), 1, 1, value(splits), null, purchased, details.note(), details.pdfName()) : details;
-        return new BookTransaction(id, date, description, splits, kept, createdAt, System.currentTimeMillis());
+                ? new Details(details.status(), 1, 1, value(splits), null, purchased, note, details.pdfName()) : details;
+        val noted = new Details(kept.status(), kept.installment(), kept.installmentTotal(), kept.installmentAmount(),
+                kept.purchase(), kept.purchased(), note, kept.pdfName());
+        return new BookTransaction(id, date, description, splits, noted, createdAt, System.currentTimeMillis());
     }
 
     /** What moves: the sum of the debits (GnuCash's positive values). */

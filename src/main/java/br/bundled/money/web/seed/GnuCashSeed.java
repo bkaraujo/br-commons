@@ -82,37 +82,9 @@ final class GnuCashSeed {
     private static Result<Read, BusinessError> read(Path file, LocalDate today) {
         try (val input = open(file)) {
             val reader = factory().createXMLStreamReader(input);
-            val accounts = new ArrayList<Account>();
-            val transactions = new ArrayList<Transaction>();
-            var templates = 0;
-            String key = null;
-            var thresholdDays = 0L;
-            while (reader.hasNext()) {
-                val event = reader.next();
-                if (event == XMLStreamConstants.START_ELEMENT) {
-                    val slot = "slot".equals(reader.getPrefix());
-                    switch (reader.getLocalName()) {
-                        case "template-transactions" -> templates++;
-                        // the book's slots (the accounts' and transactions' are read with them)
-                        case "key" -> key = slot ? reader.getElementText() : null;
-                        case "value" -> {
-                            if (slot && THRESHOLD_KEY.equals(key)) {
-                                thresholdDays = Math.round(Double.parseDouble(reader.getElementText().strip()));
-                            }
-                        }
-                        case "account" -> {
-                            if (templates == 0 && "gnc".equals(reader.getPrefix())) accounts.add(account(reader));
-                        }
-                        case "transaction" -> {
-                            if (templates == 0 && "gnc".equals(reader.getPrefix())) transactions.add(transaction(reader));
-                        }
-                        default -> {}
-                    }
-                } else if (event == XMLStreamConstants.END_ELEMENT && "template-transactions".equals(reader.getLocalName())) {
-                    templates--;
-                }
-            }
-            return Result.success(new Read(accounts, transactions, thresholdDays > 0 ? today.minusDays(thresholdDays) : null));
+            val scan = new Scan();
+            while (reader.hasNext()) scan.next(reader, reader.next());
+            return Result.success(new Read(scan.accounts, scan.transactions, scan.threshold(today)));
         } catch (IOException e) {
             return Result.failure(DomainErrors.validation(DomainErrors.IMPORT_UNREADABLE, file, e.toString()));
         } catch (XMLStreamException | NumberFormatException | ArithmeticException | DateTimeException
@@ -122,57 +94,147 @@ final class GnuCashSeed {
         }
     }
 
+    /** The state of the read of the file, event by event: what it holds so far and where it is. */
+    private static final class Scan {
+
+        final List<Account> accounts = new ArrayList<>();
+        final List<Transaction> transactions = new ArrayList<>();
+        private int templates;
+        private @Nullable String key;
+        private long thresholdDays;
+
+        void next(XMLStreamReader reader, int event) throws XMLStreamException {
+            if (event == XMLStreamConstants.START_ELEMENT) {
+                start(reader);
+            } else if (event == XMLStreamConstants.END_ELEMENT && "template-transactions".equals(reader.getLocalName())) {
+                templates--;
+            }
+        }
+
+        private void start(XMLStreamReader reader) throws XMLStreamException {
+            val name = reader.getLocalName();
+            switch (name) {
+                case "template-transactions" -> templates++;
+                // the book's slots (the accounts' and transactions' are read with them)
+                case "key" -> key = slot(reader) ? reader.getElementText() : null;
+                case "value" -> threshold(reader);
+                case "account", "transaction" -> element(reader, name);
+                default -> {}
+            }
+        }
+
+        private void threshold(XMLStreamReader reader) throws XMLStreamException {
+            if (slot(reader) && THRESHOLD_KEY.equals(key)) {
+                thresholdDays = Math.round(Double.parseDouble(reader.getElementText().strip()));
+            }
+        }
+
+        /** An account or transaction of the book; the templates of the scheduled transactions are skipped. */
+        private void element(XMLStreamReader reader, String name) throws XMLStreamException {
+            if (templates != 0 || !"gnc".equals(reader.getPrefix())) return;
+            if ("account".equals(name)) accounts.add(account(reader));
+            else transactions.add(transaction(reader));
+        }
+
+        private static boolean slot(XMLStreamReader reader) {
+            return "slot".equals(reader.getPrefix());
+        }
+
+        @Nullable LocalDate threshold(LocalDate today) {
+            return thresholdDays > 0 ? today.minusDays(thresholdDays) : null;
+        }
+    }
+
     private static Result<Seed.Loaded, BusinessError> book(List<Account> read, List<Transaction> transactions,
                                                            @Nullable LocalDate threshold) {
-        val byGuid = new HashMap<String, Account>();
-        read.forEach(account -> byGuid.put(account.guid(), account));
-        val parents = new HashSet<String>();
-        read.forEach(account -> { if (account.parent() != null) parents.add(account.parent()); });
+        return chart(read, moving(transactions))
+                .map(chart -> new Seed.Loaded(chart.entries(), postings(transactions, chart), threshold));
+    }
+
+    /** The chart in the order of a depth-first walk and the position of each account in it. */
+    private record Chart(List<ChartTemplate.Entry> entries, Map<String, Integer> positions) {}
+
+    /** The accounts by GUID, the GUIDs that are a parent and the children by top-level parent ({@code null}: none). */
+    private record Tree(Map<String, Account> byGuid, Set<String> parents, Map<@Nullable String, List<Account>> children) {
+
+        static Tree of(List<Account> read) {
+            val byGuid = new HashMap<String, Account>();
+            read.forEach(account -> byGuid.put(account.guid(), account));
+            val parents = new HashSet<String>();
+            read.forEach(account -> { if (account.parent() != null) parents.add(account.parent()); });
+            val children = new LinkedHashMap<@Nullable String, List<Account>>();
+            read.stream().filter(account -> !"ROOT".equals(account.type()))
+                    .forEach(account -> children.computeIfAbsent(topParent(account, byGuid), _ -> new ArrayList<>()).add(account));
+            return new Tree(byGuid, parents, children);
+        }
+    }
+
+    /** The GUIDs of the accounts with a split that has a value. */
+    private static Set<String> moving(List<Transaction> transactions) {
         val moving = new HashSet<String>();
         transactions.forEach(transaction -> transaction.splits().forEach(split -> {
             if (split.value().signum() != 0) moving.add(split.account());
         }));
+        return moving;
+    }
 
-        // Parents before children: positions in the order of a depth-first walk from the top level.
+    /** Parents before children: positions in the order of a depth-first walk from the top level. */
+    private static Result<Chart, BusinessError> chart(List<Account> read, Set<String> moving) {
+        val tree = Tree.of(read);
         val positions = new HashMap<String, Integer>();
-        val chart = new ArrayList<ChartTemplate.Entry>();
-        val children = new LinkedHashMap<@Nullable String, List<Account>>();
-        read.stream().filter(account -> !"ROOT".equals(account.type()))
-                .forEach(account -> children.computeIfAbsent(topParent(account, byGuid), _ -> new ArrayList<>()).add(account));
-        val pending = new ArrayDeque<>(children.getOrDefault(null, List.of()));
+        val entries = new ArrayList<ChartTemplate.Entry>();
+        val pending = new ArrayDeque<>(tree.children().getOrDefault(null, List.of()));
         while (!pending.isEmpty()) {
             val account = pending.pop();
             val known = TYPES.get(account.type());
             if (known == null) {
                 // its subaccounts go too: they would lose their place in the tree
-                if (moves(account, children, moving)) {
-                    return Result.failure(DomainErrors.validation(DomainErrors.IMPORT_ACCOUNT_TYPE, account.name(), account.type()));
-                }
-                Logger.warn(() -> "GnuCash account " + account.name() + " of type " + account.type()
-                        + " left out with its subaccounts: no equivalent, no transactions");
+                val refused = leftOut(account, tree.children(), moving);
+                if (refused != null) return Result.failure(refused);
                 continue;
             }
-            val parent = topParent(account, byGuid);
-            val type = type(known, parent == null ? null : byGuid.get(parent), parents.contains(account.guid()));
-            positions.put(account.guid(), chart.size());
-            chart.add(new ChartTemplate.Entry(account.name(), type, parent == null ? null : positions.get(parent)));
-            children.getOrDefault(account.guid(), List.of()).reversed().forEach(pending::push);
+            positions.put(account.guid(), entries.size());
+            entries.add(entry(account, known, tree, positions));
+            tree.children().getOrDefault(account.guid(), List.of()).reversed().forEach(pending::push);
         }
+        return Result.success(new Chart(entries, positions));
+    }
 
-        val postings = new ArrayList<ImportService.Posting>();
-        transactions.sort(Comparator.comparing(Transaction::date));
-        for (val transaction : transactions) {
-            val kept = transaction.splits().stream()
-                    .filter(split -> split.value().signum() != 0 && positions.containsKey(split.account())).toList();
-            val values = balanced(kept.stream().map(Split::value).toList());
-            val lines = new ArrayList<ImportService.Line>();
-            for (var i = 0; i < kept.size(); i++) {
-                int position = Objects.requireNonNull(positions.get(kept.get(i).account()));
-                lines.add(new ImportService.Line(position, chart.get(position).type().debited(values.get(i))));
-            }
-            if (lines.size() >= 2) postings.add(new ImportService.Posting(transaction.date(), transaction.description(), lines, transaction.purchased()));
+    /** Why an account of a type with no equivalent fails the load (it moves money), or {@code null}: it is left out. */
+    private static @Nullable BusinessError leftOut(Account account, Map<@Nullable String, List<Account>> children,
+                                                   Set<String> moving) {
+        if (moves(account, children, moving)) {
+            return DomainErrors.validation(DomainErrors.IMPORT_ACCOUNT_TYPE, account.name(), account.type());
         }
-        return Result.success(new Seed.Loaded(chart, postings, threshold));
+        Logger.warn(() -> "GnuCash account " + account.name() + " of type " + account.type()
+                + " left out with its subaccounts: no equivalent, no transactions");
+        return null;
+    }
+
+    private static ChartTemplate.Entry entry(Account account, AccountType known, Tree tree, Map<String, Integer> positions) {
+        val parent = topParent(account, tree.byGuid());
+        val type = type(known, parent == null ? null : tree.byGuid().get(parent), tree.parents().contains(account.guid()));
+        return new ChartTemplate.Entry(account.name(), type, parent == null ? null : positions.get(parent));
+    }
+
+    private static List<ImportService.Posting> postings(List<Transaction> transactions, Chart chart) {
+        return transactions.stream().sorted(Comparator.comparing(Transaction::date))
+                .map(transaction -> posting(transaction, chart)).filter(Objects::nonNull).toList();
+    }
+
+    /** The transaction as postings of the chart; {@code null} when fewer than two of its splits are kept. */
+    private static ImportService.@Nullable Posting posting(Transaction transaction, Chart chart) {
+        val kept = transaction.splits().stream()
+                .filter(split -> split.value().signum() != 0 && chart.positions().containsKey(split.account())).toList();
+        val values = balanced(kept.stream().map(Split::value).toList());
+        val lines = new ArrayList<ImportService.Line>();
+        for (var i = 0; i < kept.size(); i++) {
+            int position = Objects.requireNonNull(chart.positions().get(kept.get(i).account()));
+            lines.add(new ImportService.Line(position, chart.entries().get(position).type().debited(values.get(i))));
+        }
+        return lines.size() >= 2
+                ? new ImportService.Posting(transaction.date(), transaction.description(), lines, transaction.purchased())
+                : null;
     }
 
     /** Whether the account or a subaccount of it has a split with a value. */
@@ -210,69 +272,112 @@ final class GnuCashSeed {
         if (group || parent == null) return type;
         return switch (type) {
             case LIABILITY -> CARD_GROUP.matcher(parent.name()).find() ? AccountType.CREDIT : type;
-            case ASSET -> BROKER_GROUP.matcher(parent.name()).find() ? AccountType.STOCK
-                    : BANK_GROUP.matcher(parent.name()).find() ? AccountType.BANK : type;
+            case ASSET -> asset(type, parent.name());
             default -> type;
         };
+    }
+
+    private static AccountType asset(AccountType type, String group) {
+        return BROKER_GROUP.matcher(group).find() ? AccountType.STOCK : BANK_GROUP.matcher(group).find() ? AccountType.BANK : type;
     }
 
     // ---------- XML
 
     private static Account account(XMLStreamReader reader) throws XMLStreamException {
-        String guid = null, name = null, type = null, parent = null;
-        var depth = 1;
-        while (depth > 0) {
-            val event = reader.next();
-            if (event == XMLStreamConstants.END_ELEMENT) depth--;
-            if (event != XMLStreamConstants.START_ELEMENT) continue;
-            if (depth++ != 1 || !"act".equals(reader.getPrefix())) continue;
-            switch (reader.getLocalName()) {
-                case "id" -> { guid = reader.getElementText(); depth--; }
-                case "name" -> { name = reader.getElementText(); depth--; }
-                case "type" -> { type = reader.getElementText(); depth--; }
-                case "parent" -> { parent = reader.getElementText(); depth--; }
-                default -> {}
-            }
-        }
-        return new Account(required(guid, "act:id"), required(name, "act:name"), required(type, "act:type"), parent);
+        val fields = children(reader, "act", Set.of("id", "name", "type", "parent"));
+        return new Account(required(fields.get("id"), "act:id"), required(fields.get("name"), "act:name"),
+                required(fields.get("type"), "act:type"), fields.get("parent"));
     }
 
-    private static Transaction transaction(XMLStreamReader reader) throws XMLStreamException {
-        String description = "", date = null, account = null, value = null, slot = null;
-        LocalDate purchased = null;
-        val splits = new ArrayList<Split>();
+    /**
+     * The text of the children of the current element that have {@code prefix} and one of the {@code names}, by local
+     * name, to the end of the element; everything else in it (the slots, the commodity) is skipped.
+     */
+    private static Map<String, String> children(XMLStreamReader reader, String prefix, Set<String> names)
+            throws XMLStreamException {
+        val found = new HashMap<String, String>();
         var depth = 1;
         while (depth > 0) {
             val event = reader.next();
             if (event == XMLStreamConstants.END_ELEMENT) {
                 depth--;
-                if ("split".equals(reader.getLocalName()) && "trn".equals(reader.getPrefix())) {
-                    splits.add(new Split(required(account, "split:account"), amount(required(value, "split:value"))));
-                    account = null;
-                    value = null;
-                }
-                continue;
-            }
-            if (event != XMLStreamConstants.START_ELEMENT) continue;
-            depth++;
-            val prefix = reader.getPrefix();
-            switch (prefix + ":" + reader.getLocalName()) {
-                case "trn:description" -> { description = reader.getElementText(); depth--; }
-                case "trn:date-posted" -> { date = posted(reader); depth--; }
-                case "split:account" -> { account = reader.getElementText(); depth--; }
-                case "split:value" -> { value = reader.getElementText(); depth--; }
-                case "slot:key" -> { slot = reader.getElementText(); depth--; }
-                case "slot:value" -> {
-                    if (purchased == null && "notes".equals(slot)) {
-                        purchased = purchase(reader.getElementText());
-                        depth--;
-                    }
-                }
-                default -> {}
+            } else if (event == XMLStreamConstants.START_ELEMENT) {
+                if (depth == 1 && wanted(reader, prefix, names)) found.put(reader.getLocalName(), reader.getElementText());
+                else depth++;
             }
         }
-        return new Transaction(LocalDate.parse(required(date, "trn:date-posted").substring(0, 10)), description, splits,
-                purchased);
+        return found;
+    }
+
+    private static boolean wanted(XMLStreamReader reader, String prefix, Set<String> names) {
+        return prefix.equals(reader.getPrefix()) && names.contains(reader.getLocalName());
+    }
+
+    private static Transaction transaction(XMLStreamReader reader) throws XMLStreamException {
+        val pending = new Pending();
+        var depth = 1;
+        while (depth > 0) {
+            val event = reader.next();
+            if (event == XMLStreamConstants.END_ELEMENT) {
+                depth--;
+                if (endsSplit(reader)) pending.split();
+            } else if (event == XMLStreamConstants.START_ELEMENT && !pending.start(reader)) {
+                depth++;
+            }
+        }
+        return pending.build();
+    }
+
+    private static boolean endsSplit(XMLStreamReader reader) {
+        return "split".equals(reader.getLocalName()) && "trn".equals(reader.getPrefix());
+    }
+
+    /** What a transaction holds while it is read: its fields, and the account and value of the split being read. */
+    private static final class Pending {
+
+        private String description = "";
+        private @Nullable String date;
+        private @Nullable String account;
+        private @Nullable String value;
+        private @Nullable String slot;
+        private @Nullable LocalDate purchased;
+        private final List<Split> splits = new ArrayList<>();
+
+        /** Reads the element just opened; {@code true} when it was read to its end, {@code false}: it is still open. */
+        boolean start(XMLStreamReader reader) throws XMLStreamException {
+            switch (reader.getPrefix() + ":" + reader.getLocalName()) {
+                case "trn:description" -> description = reader.getElementText();
+                case "trn:date-posted" -> date = posted(reader);
+                case "split:account" -> account = reader.getElementText();
+                case "split:value" -> value = reader.getElementText();
+                case "slot:key" -> slot = reader.getElementText();
+                case "slot:value" -> {
+                    return note(reader);
+                }
+                default -> {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /** The first {@code notes} slot may record the day of the purchase. */
+        private boolean note(XMLStreamReader reader) throws XMLStreamException {
+            if (purchased != null || !"notes".equals(slot)) return false;
+            purchased = purchase(reader.getElementText());
+            return true;
+        }
+
+        void split() throws XMLStreamException {
+            splits.add(new Split(required(account, "split:account"), amount(required(value, "split:value"))));
+            account = null;
+            value = null;
+        }
+
+        Transaction build() throws XMLStreamException {
+            return new Transaction(LocalDate.parse(required(date, "trn:date-posted").substring(0, 10)), description, splits,
+                    purchased);
+        }
     }
 
     /** The day of the purchase a note records ({@code Evento 2025-09-08 | ...}); null when it has none. */

@@ -15,7 +15,7 @@ import br.commons.lang.htmx.HxSwap;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
-import br.commons.web.router.Router;
+import br.commons.web.router.Route;
 import br.commons.web.server.Form;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
@@ -43,14 +43,15 @@ public final class ProjectRoutes implements WebResource {
     }
 
     @Override
-    public void routes(Router router) {
-        router.get("/projects", MediaType.TEXT_HTML, String.class, this::list).getOrThrow();
-        router.post("/projects", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();
-        router.get("/projects/{id}", MediaType.TEXT_HTML, String.class, this::show).getOrThrow();
-        router.get("/projects/{id}/edit", MediaType.TEXT_HTML, String.class, this::edit).getOrThrow();
-        router.put("/projects/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::update).getOrThrow();
-        router.post("/projects/{id}/active", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::toggle).getOrThrow();
-        router.delete("/projects/{id}", MediaType.TEXT_HTML, String.class, this::delete).getOrThrow();
+    public List<Result<Route, String>> routes() {
+        return List.of(
+                Route.get("/projects", MediaType.TEXT_HTML, String.class, true, this::list),
+                Route.post("/projects", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, true, this::create),
+                Route.get("/projects/{id}", MediaType.TEXT_HTML, String.class, true, this::show),
+                Route.get("/projects/{id}/edit", MediaType.TEXT_HTML, String.class, true, this::edit),
+                Route.put("/projects/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, true, this::update),
+                Route.post("/projects/{id}/active", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, true, this::toggle),
+                Route.delete("/projects/{id}", MediaType.TEXT_HTML, String.class, true, this::delete));
     }
 
     private HTTPResponse list(WebRequest request) {

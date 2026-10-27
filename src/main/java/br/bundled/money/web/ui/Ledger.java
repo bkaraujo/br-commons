@@ -4,6 +4,9 @@ import br.bundled.money.business._0_domain.model.Account;
 import br.bundled.money.business._0_domain.model.Transaction;
 import br.bundled.money.web.book.Book;
 import br.bundled.money.web.book.LedgerLine;
+import br.bundled.money.web.views.Layout;
+import br.bundled.money.web.views.Ui;
+import br.bundled.money.web.views.tools.Formatters;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.htmx.HxSwap;
 import br.commons.locale.i18n.Text;
@@ -15,7 +18,7 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static br.bundled.money.web.ui.Ui.message;
+import static br.bundled.money.web.views.Ui.message;
 import static br.commons.lang.Html5.*;
 import static br.commons.lang.Htmx.*;
 
@@ -36,10 +39,10 @@ public final class Ledger {
         val out = lines.stream().map(LedgerLine::amount).filter(amount -> amount.signum() < 0)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return dl(cls("summary"),
-                div(dt(text(message("forms.ledger.opening"))), dd(Ui.amount(opening, false))),
-                div(dt(text(message("forms.ledger.increases"))), dd(Ui.amount(in, true))),
-                div(dt(text(message("forms.ledger.reductions"))), dd(Ui.amount(out, true))),
-                div(cls("closing"), dt(text(message("forms.ledger.closing"))), dd(Ui.amount(opening.add(in).add(out), false))));
+                div(dt(text(message("forms.ledger.opening"))), dd(Formatters.amount(opening, false))),
+                div(dt(text(message("forms.ledger.increases"))), dd(Formatters.amount(in, true))),
+                div(dt(text(message("forms.ledger.reductions"))), dd(Formatters.amount(out, true))),
+                div(cls("closing"), dt(text(message("forms.ledger.closing"))), dd(Formatters.amount(opening.add(in).add(out), false))));
     }
 
     /** Date, description and value; {@code extra} columns after them. No running balance: the summary has the month's. */
@@ -115,8 +118,8 @@ public final class Ledger {
             val months = Stream.iterate(last, shown -> !shown.isBefore(first), shown -> shown.minusMonths(1)).toList();
             return select(name(MONTH), data("month-pick", ""), ariaLabel(message("forms.common.month")),
                     each(months, shown -> shown.equals(month)
-                            ? option(value(shown.toString()), selected(), text(Text.data(Ui.month(shown))))
-                            : option(value(shown.toString()), text(Text.data(Ui.month(shown))))));
+                            ? option(value(shown.toString()), selected(), text(Text.data(Formatters.month(shown))))
+                            : option(value(shown.toString()), text(Text.data(Formatters.month(shown))))));
         }
     }
 

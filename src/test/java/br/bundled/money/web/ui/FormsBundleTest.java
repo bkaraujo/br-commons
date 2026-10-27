@@ -1,6 +1,9 @@
 package br.bundled.money.web.ui;
 
 import br.bundled.money.business._0_domain.model.AccountType;
+import br.bundled.money.web.views.Screen;
+import br.bundled.money.web.views.Theme;
+import br.bundled.money.web.views.Ui;
 import lombok.val;
 import org.junit.jupiter.api.Test;
 

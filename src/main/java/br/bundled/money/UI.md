@@ -19,7 +19,7 @@ não tem regras para tela estreita: o layout é de desktop, e o cabeçalho com o
 
 **UI-04** — Melhoria progressiva, **com limites**: sem JavaScript os links (menu, relatórios, links de mês) e os
 formulários de Lançar, de conta e de fechamento (abertos pelo endereço) funcionam como GET/POST comum. Dependem de htmx e não funcionam sem ele:
-os botões do Extrato ("+ Novo lançamento", editar, excluir), os do Plano de contas ("+ Nova conta", editar, excluir,
+os botões do Extrato (editar, excluir; "+ Novo lançamento" fica no cabeçalho), os do Plano de contas ("+ Nova conta", editar, excluir,
 fechamento),
 "Dividir em várias contas" e "+ Linha", as caixas de seleção da Visão Geral, do Extrato e de Parcelamentos (os
 formulários não têm botão de envio) e a lista de meses. O JS também traz o filtro de listas, o gráfico e os totais ao
@@ -140,7 +140,7 @@ para leitor de tela, vale a tabela.
 atual; senão o último dia do mês) e "Cartões" com o valor do mês (RN-46). Subcontas aparecem indentadas (até 3 níveis). Escolher uma conta carrega só o painel, mantém
 o mês, marca a escolhida sem refazer a lista (preserva a rolagem) e empurra a URL.
 
-**UI-44 — Painel do mês.** Cabeçalho "Extrato · tipo" + caminho da conta, "+ Novo lançamento" e o resumo (saldo inicial,
+**UI-44 — Painel do mês.** Cabeçalho "Extrato · tipo" + caminho da conta e o resumo (saldo inicial,
 aumentos, reduções, saldo final: RN-32). Tabela Data, Descrição (com a contraparte embaixo), Valor, ações; sem coluna de saldo
 (o resumo já mostra o do mês). Mês vazio: "Nenhum lançamento previsto para <mês>."
 
@@ -148,7 +148,7 @@ aumentos, reduções, saldo final: RN-32). Tabela Data, Descrição (com a contr
 botões** de editar/excluir (RN-40). Em conta de cartão, a data é a da compra, quando existe (RN-47). A descrição é um
 link para o detalhe do lançamento (UI-60); o mesmo vale nas linhas do Plano de contas (UI-54) e dos Parcelamentos.
 
-**UI-46 — Editor em janela (`#statement-editor`).** "+ Novo lançamento" e os botões Editar e Excluir de cada linha
+**UI-46 — Editor em janela (`#statement-editor`).** Os botões Editar e Excluir de cada linha
 (botões só com `hx-get`: sem htmx não abrem) abrem o formulário numa janela modal; fecha com Cancelar, clique no fundo ou Escape. Novo lançamento: data de hoje se o mês é o atual, senão o dia 1;
 a conta do extrato como origem (se abaixo do topo). Transação simples abre o formulário simples (Data, Valor, Descrição,
 De, Para: "De (sai de)", "Para (entra em)"); qualquer outra (RN-25) abre direto o de splits. O formulário simples tem

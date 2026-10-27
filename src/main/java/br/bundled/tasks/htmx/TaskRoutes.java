@@ -2,6 +2,7 @@ package br.bundled.tasks.htmx;
 
 import br.bundled.tasks.shared.TaskFields;
 import br.bundled.tasks.shared.TaskStore;
+import br.commons.Result;
 import br.commons.lang.htmx.HtmxRequest;
 import br.commons.lang.htmx.HtmxResponse;
 import br.commons.lang.htmx.HxSwap;
@@ -9,7 +10,7 @@ import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
-import br.commons.web.router.Router;
+import br.commons.web.router.Route;
 import br.commons.web.server.Form;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
@@ -39,13 +40,13 @@ final class TaskRoutes implements WebResource {
     }
 
     @Override
-    public void routes(Router router) {
-        router.get("/", MediaType.TEXT_HTML, String.class, this::home).getOrThrow();
-        router.post("/tasks", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create)
-                .getOrThrow();
-        router.post("/tasks/{id}/done", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class,
-                this::toggle).getOrThrow();
-        router.delete("/tasks/{id}", MediaType.TEXT_HTML, String.class, this::delete).getOrThrow();
+    public List<Result<Route, String>> routes() {
+        return List.of(
+                Route.get("/", MediaType.TEXT_HTML, String.class, true, this::home),
+                Route.post("/tasks", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, true, this::create),
+                Route.post("/tasks/{id}/done", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class,
+                        true, this::toggle),
+                Route.delete("/tasks/{id}", MediaType.TEXT_HTML, String.class, true, this::delete));
     }
 
     private HTTPResponse home(WebRequest request) {

@@ -3,9 +3,9 @@ package br.bundled.money.web.book;
 import br.bundled.money.business._0_domain.model.*;
 import br.bundled.money.business._1_application.*;
 import br.commons.Result;
-import br.commons.locale.i18n.I18N;
 import br.commons.business.BusinessError;
 import br.commons.cdi.Context;
+import br.commons.locale.i18n.I18N;
 import lombok.val;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -422,10 +422,10 @@ public final class Book {
                 .findFirst().orElseThrow().account();
     }
 
-    /** {@code value} from {@code from} to {@code to} (see {@code TransactionService.transfer}). */
+    /** {@code value} from {@code from} to {@code to} (see {@code TransactionService.transfer}); {@code note}: none when blank. */
     public Result<Transaction, BusinessError> move(LocalDate date, String description, Account from, Account to,
-                                                   BigDecimal value) {
-        return transactionService.transfer(date, description, from.identity(), to.identity(), value);
+                                                   BigDecimal value, @Nullable String note) {
+        return transactionService.transfer(date, description, from.identity(), to.identity(), value, note);
     }
 
     /** Expense: the account pays the category. Income: the category pays the account. {@code note}: none when blank. */
@@ -437,20 +437,21 @@ public final class Book {
         return transactionService.transfer(date, description, from.identity(), to.identity(), value, note);
     }
 
-    /** A complete transaction (INTENT F2). */
-    public Result<Transaction, BusinessError> enter(LocalDate date, String description, List<SplitInput> splits) {
-        return transactionService.post(date, description, splits);
+    /** A complete transaction (INTENT F2); {@code note}: none when blank. */
+    public Result<Transaction, BusinessError> enter(LocalDate date, String description, List<SplitInput> splits,
+                                                    @Nullable String note) {
+        return transactionService.post(date, description, splits, note);
     }
 
-    /** The transaction rewritten as {@code value} from {@code from} to {@code to}. */
+    /** The transaction rewritten as {@code value} from {@code from} to {@code to}; {@code note}: none when blank. */
     public Result<Transaction, BusinessError> revise(Transaction transaction, LocalDate date, String description,
-                                                     Account from, Account to, BigDecimal value) {
-        return rewrite(transaction, date, description, TransactionService.moving(from, to, value));
+                                                     Account from, Account to, BigDecimal value, @Nullable String note) {
+        return rewrite(transaction, date, description, TransactionService.moving(from, to, value), note);
     }
 
     public Result<Transaction, BusinessError> rewrite(Transaction transaction, LocalDate date, String description,
-                                                      List<SplitInput> splits) {
-        return transactionService.revise(transaction.identity(), date, description, splits);
+                                                      List<SplitInput> splits, @Nullable String note) {
+        return transactionService.revise(transaction.identity(), date, description, splits, note);
     }
 
     public Result<Void, BusinessError> discard(Transaction transaction) {

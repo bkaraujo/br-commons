@@ -10,8 +10,8 @@ filtros prontos.
 | `WebResponse`                | `ok`, `created`, `json`, `html`, `redirect`, `problem`, `eventStream` |
 | `ProblemDetail`              | Corpo de erro uniforme (RFC 7807 simplificado)        |
 | `ErrorPage`                  | HTML de erro por status: `html(request, status)`      |
-| `router/Router`              | Registro `método + template → handler`; `match`, `Allow` |
-| `router/Route`               | Rota registrada (fonte do OpenAPI)                    |
+| `router/Router`              | `register(Route)`; `match` (índice por verbo), `Allow` |
+| `router/Route`               | Rota montada pelo cliente (`Route.get/post/...`) e registrada no `Router`; fonte do OpenAPI |
 | `router/RouteRule`           | Política de registro injetada no `Router`             |
 | `server/WebServer`           | Custódia do `HTTPServer`; `register(WebResource)`; `Lifecycle` |
 | `server/WebResource`         | Fatia de rotas: `routes(Router)`                      |
@@ -28,9 +28,9 @@ filtros prontos.
 ```java
 public final class OrderResource implements WebResource {
     public void routes(Router r) {
-        r.get("/api/orders/{id}", MediaType.APPLICATION_JSON, OrderDto.class, this::find).getOrThrow();
-        r.post("/api/orders", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON,
-               NewOrder.class, OrderDto.class, this::create).getOrThrow();
+        r.register(Route.get("/api/orders/{id}", MediaType.APPLICATION_JSON, OrderDto.class, true, this::find)).getOrThrow();
+        r.register(Route.post("/api/orders", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON,
+               NewOrder.class, OrderDto.class, true, this::create)).getOrThrow();
     }
     HTTPResponse find(WebRequest req) {
         return req.pathParam("id").flatMap(service::find)
@@ -46,10 +46,11 @@ public final class OrderResource implements WebResource {
 }
 ```
 
-- `register`/`get`/`post`... devolvem `Result<Route,String>` — ignorar não
-  compila (`@CheckReturnValue`).
+- O cliente monta a `Route` (`Route.get/post/put/patch/delete/of`, devolvem `Result<Route,String>`:
+  template inválido ou parâmetro repetido = `Failure`) e entrega ao `Router.register`, que também
+  devolve `Result` — ignorar não compila (`@CheckReturnValue`).
 - `produces` obrigatório; `consumes` obrigatório em verbo com corpo.
-- Rotas exigem autenticação por padrão; `postPublic` (login, cadastro) é a exceção.
+- O parâmetro `authenticated` é explícito em toda factory; `false` (login, cadastro) é a exceção.
 
 ## 2. Servidor
 
@@ -93,7 +94,7 @@ WebResponse.eventStream(out -> ...);            // SSE
 ## 6. Checklist de revisão
 
 - [ ] `produces`/`consumes` corretos; `responseType` real (OpenAPI).
-- [ ] Rotas públicas só via `postPublic`/`requiresAuthentication=false`.
+- [ ] Rotas públicas só com `authenticated=false`.
 - [ ] Ordem de registro não sombreia rotas.
 
 ---
@@ -104,8 +105,9 @@ WebResponse.eventStream(out -> ...);            // SSE
 
 ## 7. Despacho (`WebDispatcher.handle`)
 
-1. `router.match(method, path)`: varre rotas **na ordem de registro**; primeira
-   que casa vence.
+1. `router.match(method, path)`: varre só as rotas do verbo, **na ordem de registro**;
+   primeira que casa vence. Rota sem parâmetro compara por `equals` com o path
+   normalizado; com parâmetro, regex (`[^/]++`) e captura por posição.
 2. Casou → `handler.handle(new WebRequest(...))` → `produce`: em resposta 2xx
    com corpo/stream, força `Content-Type` = `route.produces()`. Não-2xx passa
    intacta.
@@ -118,7 +120,7 @@ WebResponse.eventStream(out -> ...);            // SSE
 
 - `/a/{id}/b` → regex `^/a/(?<id>[^/]+)/b$`; literais com `Pattern.quote`.
 - Nome de parâmetro vira grupo nomeado: `[A-Za-z][A-Za-z0-9]*`. Nome
-  inválido (`{order-id}`) ou repetido → `register` devolve `Failure`.
+  inválido (`{order-id}`) ou repetido → a factory de `Route` devolve `Failure`.
 - Barras duplicadas/finais são ignoradas no template; o `path` da requisição
   já chega sem barra final.
 - Parâmetro casa um segmento só; caminhos aninhados → filtro (como
@@ -127,7 +129,7 @@ WebResponse.eventStream(out -> ...);            // SSE
 
 ## 9. Concorrência
 
-`Router.routes` é `ArrayList` e `allowed` um mapa comum, lidos sem lock.
+`Router.routes`, o índice por verbo (`byMethod`) e `allowed` são coleções comuns, lidas sem lock.
 `WebServer.start()` chama `Router.freeze()`: depois disso todo `register`
 devolve `Failure`, e o router é só leitura (seguro entre threads). Registre
 tudo antes do `start`.

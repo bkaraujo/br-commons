@@ -1,6 +1,7 @@
 package br.bundled.tasks.jquery.page;
 
 import br.bundled.tasks.shared.TaskFields;
+import br.commons.Result;
 import br.commons.lang.html.ButtonType;
 import br.commons.lang.html.core.Node;
 import br.commons.lang.html.html5.CrossOrigin;
@@ -8,9 +9,11 @@ import br.commons.locale.i18n.Text;
 import br.commons.protocol.http.HTTPStatus;
 import br.commons.protocol.http.MediaType;
 import br.commons.web.WebResponse;
-import br.commons.web.router.Router;
+import br.commons.web.router.Route;
 import br.commons.web.server.WebResource;
 import org.jspecify.annotations.NullMarked;
+
+import java.util.List;
 
 import static br.commons.lang.Html5.*;
 
@@ -28,9 +31,9 @@ public final class TasksPage implements WebResource {
     private static final String JQUERY_INTEGRITY = "sha384-fgGyf7Mo7DURSOMnOy7ed+dkq5Job205Gnzu6QIg0BOHKaqt4D76Dt8VlDCzcMHV";
 
     @Override
-    public void routes(Router router) {
-        router.get("/", MediaType.TEXT_HTML, String.class, _ -> WebResponse.html(HTTPStatus.OK, skeleton()))
-                .getOrThrow();
+    public List<Result<Route, String>> routes() {
+        return List.of(
+                Route.get("/", MediaType.TEXT_HTML, String.class, true, _ -> WebResponse.html(HTTPStatus.OK, skeleton())));
     }
 
     static String skeleton() {

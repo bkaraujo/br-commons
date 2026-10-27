@@ -10,7 +10,8 @@
 
     // Em centavos, para a soma não errar no binário; o que não é número fica fora (o servidor aponta ao salvar).
     const cents = input => {
-        const value = Number(input.value);
+        // "1.234,56" (money.js): tirar os pontos e trocar a vírgula
+        const value = Number(input.value.replace(/\./g, '').replace(',', '.'));
         return input.value.trim() !== '' && Number.isFinite(value) && value > 0 ? Math.round(value * 100) : 0;
     };
 

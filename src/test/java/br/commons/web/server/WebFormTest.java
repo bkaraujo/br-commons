@@ -7,6 +7,7 @@ import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPMethod;
 import br.commons.protocol.http.server.message.HTTPServerRequest;
 import br.commons.web.WebResponse;
+import br.commons.web.router.Route;
 import br.commons.web.router.Router;
 import lombok.val;
 import org.junit.jupiter.api.Test;
@@ -24,8 +25,8 @@ class WebFormTest {
 
     private WebRequest post(String body) {
         val router = new Router();
-        val route = router.post("/login", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class,
-                request -> WebResponse.noContent()).getOrThrow();
+        val route = router.register(Route.post("/login", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class,
+                true, request -> WebResponse.noContent())).getOrThrow();
         val raw = new HTTPServerRequest("", HTTPMethod.POST, "/login", Map.of(), body.getBytes(StandardCharsets.UTF_8));
         return new WebRequest(raw, route, Map.of());
     }

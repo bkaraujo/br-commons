@@ -5,6 +5,7 @@ import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.server.Ports;
 import br.commons.web.ProblemDetail;
 import br.commons.web.WebResponse;
+import br.commons.web.router.Route;
 import br.commons.web.router.Router;
 import lombok.val;
 import org.junit.jupiter.api.Test;
@@ -26,13 +27,13 @@ class WebServerErrorPagesTest {
 
     private static Router router() {
         val router = new Router();
-        router.get("/boom", MediaType.APPLICATION_JSON, String.class, request -> {
+        router.register(Route.get("/boom", MediaType.APPLICATION_JSON, String.class, true, request -> {
             throw new IllegalStateException("boom");
-        }).getOrThrow();
-        router.get("/conflict", MediaType.APPLICATION_JSON, String.class,
-                request -> WebResponse.problem(ProblemDetail.of(HTTPStatus.CONFLICT))).getOrThrow();
-        router.post("/only-post", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, String.class, String.class,
-                request -> WebResponse.ok("ok")).getOrThrow();
+        })).getOrThrow();
+        router.register(Route.get("/conflict", MediaType.APPLICATION_JSON, String.class,
+                true, request -> WebResponse.problem(ProblemDetail.of(HTTPStatus.CONFLICT)))).getOrThrow();
+        router.register(Route.post("/only-post", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, String.class, String.class,
+                true, request -> WebResponse.ok("ok"))).getOrThrow();
         return router;
     }
 

@@ -43,17 +43,22 @@ public final class ChartTemplate {
         val path = new ArrayList<Integer>();
         for (val line : lines) {
             if (line.isBlank() || line.stripLeading().startsWith("#")) continue;
-            val indent = line.length() - line.stripLeading().length();
-            val bar = line.indexOf('|');
-            if (indent % 2 != 0 || bar < 0 || indent / 2 > path.size()) {
-                throw new IllegalArgumentException("Bad chart template line: " + line);
-            }
-            val depth = indent / 2;
-            val type = AccountType.valueOf(line.substring(bar + 1).strip());
-            path.subList(depth, path.size()).clear();
-            entries.add(new Entry(line.substring(indent, bar).strip(), type, depth == 0 ? null : path.getLast()));
+            entries.add(entry(line, path));
             path.add(entries.size() - 1);
         }
         return List.copyOf(entries);
+    }
+
+    /** The account of a line; {@code path} is left with the ancestors of the next one, up to this depth. */
+    private static Entry entry(String line, List<Integer> path) {
+        val indent = line.length() - line.stripLeading().length();
+        val bar = line.indexOf('|');
+        if (indent % 2 != 0 || bar < 0 || indent / 2 > path.size()) {
+            throw new IllegalArgumentException("Bad chart template line: " + line);
+        }
+        val depth = indent / 2;
+        val type = AccountType.valueOf(line.substring(bar + 1).strip());
+        path.subList(depth, path.size()).clear();
+        return new Entry(line.substring(indent, bar).strip(), type, depth == 0 ? null : path.getLast());
     }
 }

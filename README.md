@@ -48,7 +48,7 @@ detalhes de implementação — é a documentação de referência.
 ```java
 public final class OrderResource implements WebResource {
     public void routes(Router r) {
-        r.get("/api/orders/{id}", MediaType.APPLICATION_JSON, OrderDto.class, this::find).getOrThrow();
+        r.register(Route.get("/api/orders/{id}", MediaType.APPLICATION_JSON, OrderDto.class, true, this::find)).getOrThrow();
     }
 
     HTTPResponse find(WebRequest req) {

@@ -13,9 +13,9 @@ import lombok.val;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * Owner of the request→{@link Route} matching and handler invocation. Holds the {@link Router}
- * received in the registration of {@link WebResource} and is responsible for every HTTP transaction forwarded
- * by the {@link WebServer} — which only has custody of the {@code HTTPServer} and the registration itself.
+ * Owner of the request→{@link Route} matching and handler invocation. Holds the {@link Router}, receives the
+ * routes the {@link WebServer} took from each resource (it knows no resource itself) and is responsible for every
+ * HTTP transaction forwarded by the {@link WebServer} — which only has custody of the {@code HTTPServer}.
  */
 @NullMarked
 public final class WebDispatcher {
@@ -26,8 +26,9 @@ public final class WebDispatcher {
         this.router = router;
     }
 
-    void register(WebResource resource) {
-        resource.routes(router);
+    /** Registers the route; a refusal (client rule, frozen router, OPTIONS) is logged at ERROR, not thrown. */
+    void register(Route route) {
+        router.register(route).ifFailure(error -> Logger.error(() -> error));
     }
 
     HTTPResponse handle(HTTPRequest request) {

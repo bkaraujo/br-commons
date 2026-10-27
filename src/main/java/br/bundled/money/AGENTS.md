@@ -139,7 +139,7 @@ web
 
 ## 5. Convenções gerais
 
-- `package-info.java` com `@NullMarked` em todo pacote; javadoc de pacote
+- `web/views/home/package-info.java` com `@NullMarked` em todo pacote; javadoc de pacote
   descreve papel e dependências.
 - `lombok.val` para locais; records para dados imutáveis.
 - Chaves de configuração com prefixo `br.commons.`.

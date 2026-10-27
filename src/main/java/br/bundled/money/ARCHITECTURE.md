@@ -396,7 +396,7 @@ flowchart LR
 ### 8.1 Peças
 
 - **Rotas**: cada `*Routes` implementa `br.commons.web.server.WebResource` e registra, em `routes(Router)`, chamadas como
-  `router.get(caminho, MediaType.TEXT_HTML, String.class, this::handler).getOrThrow()`. `WebModule` registra as seis:
+  `router.register(Route.get(caminho, MediaType.TEXT_HTML, String.class, true, this::handler)).getOrThrow()`. `WebModule` registra as seis:
   `HomeRoutes`, `AccountRoutes`, `StatementRoutes`, `InstallmentRoutes`, `EntryRoutes`, `ReportRoutes`. Rotas literais
   vêm antes das com `{id}` (a primeira que casa vence).
 - **Par `*Routes`/`*Views`**: `*Routes` lê a requisição, chama `Book`, e escolhe a resposta; `*Views` (`final class`

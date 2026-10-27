@@ -16,7 +16,7 @@ import br.commons.lang.htmx.HxSwap;
 import br.commons.protocol.http.MediaType;
 import br.commons.protocol.http.message.HTTPResponse;
 import br.commons.web.WebResponse;
-import br.commons.web.router.Router;
+import br.commons.web.router.Route;
 import br.commons.web.server.Form;
 import br.commons.web.server.WebRequest;
 import br.commons.web.server.WebResource;
@@ -45,13 +45,14 @@ public final class WeekRoutes implements WebResource {
     }
 
     @Override
-    public void routes(Router router) {
-        router.get("/", MediaType.TEXT_HTML, String.class, this::home).getOrThrow();
-        router.post("/entries", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::create).getOrThrow();
-        router.get("/entries/{id}", MediaType.TEXT_HTML, String.class, this::show).getOrThrow();
-        router.get("/entries/{id}/edit", MediaType.TEXT_HTML, String.class, this::edit).getOrThrow();
-        router.put("/entries/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, this::update).getOrThrow();
-        router.delete("/entries/{id}", MediaType.TEXT_HTML, String.class, this::delete).getOrThrow();
+    public List<Result<Route, String>> routes() {
+        return List.of(
+                Route.get("/", MediaType.TEXT_HTML, String.class, true, this::home),
+                Route.post("/entries", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, true, this::create),
+                Route.get("/entries/{id}", MediaType.TEXT_HTML, String.class, true, this::show),
+                Route.get("/entries/{id}/edit", MediaType.TEXT_HTML, String.class, true, this::edit),
+                Route.put("/entries/{id}", MediaType.URL_ENCODED, MediaType.TEXT_HTML, Form.class, String.class, true, this::update),
+                Route.delete("/entries/{id}", MediaType.TEXT_HTML, String.class, true, this::delete));
     }
 
     private HTTPResponse home(WebRequest request) {
