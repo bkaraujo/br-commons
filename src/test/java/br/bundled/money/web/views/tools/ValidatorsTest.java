@@ -26,6 +26,15 @@ class ValidatorsTest {
     }
 
     @Test
+    void signedAllowsALeadingMinus() {
+        assertEquals(new BigDecimal("-1234.56"), Validators.signed("-1.234,56"));
+        assertEquals(new BigDecimal("12.00"), Validators.signed("12"));
+        assertNull(Validators.signed("--5"));
+        assertNull(Validators.signed("-"));
+        assertNull(Validators.signed("abc"));
+    }
+
+    @Test
     void refusesAnythingElse() {
         assertNull(Validators.money(""));
         assertNull(Validators.money("abc"));

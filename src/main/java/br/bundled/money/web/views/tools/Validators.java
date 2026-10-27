@@ -88,6 +88,14 @@ public abstract class Validators {
         return MONEY.matcher(decimal).matches() ? new BigDecimal(decimal).setScale(2, RoundingMode.UNNECESSARY) : null;
     }
 
+    /** {@link #money} with an optional leading minus sign ({@code -1.234,56}); {@code null} for anything else. */
+    public static @Nullable BigDecimal signed(String text) {
+        val plain = text.strip();
+        val negative = plain.startsWith("-");
+        val value = money(negative ? plain.substring(1) : plain);
+        return value == null ? null : negative ? value.negate() : value;
+    }
+
     /** {@link #money} above zero; {@code null} for anything else. */
     public static @Nullable BigDecimal positive(String text) {
         val value = money(text);

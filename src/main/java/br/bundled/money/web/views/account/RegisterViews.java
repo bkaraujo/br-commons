@@ -16,7 +16,6 @@ import br.commons.lang.html.core.Node;
 import br.commons.lang.html.form.Field;
 import br.commons.lang.html.form.Option;
 import br.commons.lang.html.form.Violation;
-import br.commons.lang.html.html5.InputMode;
 import br.commons.lang.htmx.HxSwap;
 import br.commons.lang.htmx.ScrollEdge;
 import br.commons.lang.htmx.SwapSpec;
@@ -232,7 +231,7 @@ final class RegisterViews {
                 labeled(AccountFields.PARENT, "forms.account.parent", values, errors, parents(book, type, current)),
                 labeled(AccountFields.NAME, "forms.account.name", values, errors, null),
                 when(current == null && financial, () -> labeled(AccountFields.OPENING, "forms.account.opening", values,
-                        errors, null, inputmode(InputMode.DECIMAL))),
+                        errors, null, cls("amount-input"), data("money", "signed"), placeholder(Text.data("0,00")))),
                 div(cls("buttons wide"),
                         button(type(ButtonType.SUBMIT), text(message("forms.common.save"))),
                         cancel())

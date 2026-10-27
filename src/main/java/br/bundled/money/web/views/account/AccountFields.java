@@ -28,7 +28,7 @@ final class AccountFields {
     static final Field NAME = FieldSpec.of("name", InputType.TEXT).asRequired().withMaxLength(60).build().getOrThrow();
     static final Field TYPE = FieldSpec.of("type", InputType.TEXT).asRequired().build().getOrThrow();
     static final Field PARENT = FieldSpec.of("parent", InputType.TEXT).asRequired().build().getOrThrow();
-    static final Field OPENING = FieldSpec.of("opening", InputType.NUMBER).withStep("0.01").build().getOrThrow();
+    static final Field OPENING = FieldSpec.of("opening", InputType.TEXT).withMaxLength(21).build().getOrThrow();
     static final Field TARGET = FieldSpec.of("target", InputType.TEXT).asRequired().build().getOrThrow();
 
     static final List<Field> ALL = List.of(NAME, TYPE, PARENT, OPENING);
@@ -52,6 +52,9 @@ final class AccountFields {
         if (type == null) invalid(violations, TYPE);
         val parent = parentOf(value, book, type, current);
         if (parent == null) invalid(violations, PARENT);
+        if (hasOpening(value, type, current) && Validators.signed(value.apply(OPENING.name())) == null) {
+            invalid(violations, OPENING);
+        }
         val name = value.apply(NAME.name()).strip();
         if (taken(book, parent, name, current)) invalid(violations, NAME);
         if (!violations.isEmpty() || type == null || parent == null) {
@@ -65,7 +68,12 @@ final class AccountFields {
 
     /** The opening balance: only on creation of a financial account. */
     private static @Nullable BigDecimal opening(Function<String, String> value, AccountType type, @Nullable Account current) {
-        return current == null && FINANCIAL.contains(type) ? decimal(value.apply(OPENING.name())) : null;
+        return hasOpening(value, type, current) ? Validators.signed(value.apply(OPENING.name())) : null;
+    }
+
+    /** An opening balance was typed: only on creation of a financial account. */
+    private static boolean hasOpening(Function<String, String> value, @Nullable AccountType type, @Nullable Account current) {
+        return current == null && type != null && FINANCIAL.contains(type) && !value.apply(OPENING.name()).isBlank();
     }
 
     /** With transactions or subaccounts the type is fixed; otherwise the one chosen, if offered. */
@@ -95,10 +103,6 @@ final class AccountFields {
         }
     }
 
-    private static @Nullable BigDecimal decimal(String value) {
-        return value.isBlank() ? null : new BigDecimal(value.strip());
-    }
-
     static String message(Violation violation) {
         return Forms.violation(violation, INVALID_MESSAGES);
     }
@@ -106,6 +110,7 @@ final class AccountFields {
     private static final Map<String, String> INVALID_MESSAGES = Map.of(
             NAME.name(), "forms.account.name_taken",
             PARENT.name(), "forms.account.parent_invalid",
+            OPENING.name(), "forms.entry.amount_format",
             TARGET.name(), "forms.account.target_required");
 
     /** The values of an account, by field name, as the form shows them. */
