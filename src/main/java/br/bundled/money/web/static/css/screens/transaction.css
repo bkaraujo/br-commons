@@ -1,0 +1,34 @@
+/* ---------- detalhe do lançamento */
+
+/* A descrição de cada linha leva ao detalhe; fica com a cor do texto, sublinhada só sob o cursor. */
+.ledger-table a.detail-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.ledger-table a.detail-link:hover {
+    text-decoration: underline;
+}
+
+.transaction-detail {
+    max-width: 48rem;
+    padding: 1.25rem;
+}
+
+.transaction-detail .ledger-head {
+    margin-bottom: 0;
+}
+
+/* O mesmo formulário da edição, somente leitura: o fieldset desabilita os campos sem quebrar a grade. */
+.transaction-detail .read-only {
+    display: contents;
+}
+
+.transaction-detail :disabled,
+.transaction-detail [readonly] {
+    opacity: 1;
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+    background: var(--soft);
+    cursor: default;
+}

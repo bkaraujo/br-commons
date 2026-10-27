@@ -1,0 +1,6 @@
+/* ---------- classes que o htmx põe durante as trocas */
+
+.htmx-request {
+    opacity: .6;
+    transition: opacity .2s;
+}

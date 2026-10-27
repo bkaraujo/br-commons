@@ -1,0 +1,233 @@
+/* ---------- editores (.modal): com um card dentro, viram diálogo modal sobre a tela, fundo vidro fosco */
+
+.modal:not(:empty) {
+    margin-bottom: 1.25rem;
+}
+
+.modal:has(> .card) {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 1rem;
+    overflow-y: auto;
+    background: light-dark(rgb(244 245 239 / 45%), rgb(19 22 15 / 55%));
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    backdrop-filter: blur(10px) saturate(140%);
+    animation: fade-in .15s ease-out;
+}
+
+.modal > .card {
+    width: min(100%, 40rem);
+    border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+    box-shadow: 0 18px 48px var(--shadow-color), 0 2px 6px var(--shadow-color);
+    animation: rise-in .18s ease-out;
+}
+
+.modal > .quick-form {
+    margin-bottom: 0;
+}
+
+.modal > .transaction-form {
+    width: min(100%, calc(40rem + 100px));
+}
+
+body:has(.modal > .card) {
+    overflow: hidden;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(.75rem) scale(.98);
+    }
+}
+
+.account-form,
+.transaction-form,
+.delete-panel {
+    padding: 1.1rem 1.25rem;
+}
+
+.account-form,
+.transaction-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .9rem;
+    align-items: start;
+}
+
+.account-form h3,
+.account-form .wide,
+.transaction-form h3,
+.transaction-form .wide,
+.transaction-form .field-from,
+.transaction-form .field-to {
+    grid-column: 1 / -1;
+}
+
+.account-form h3,
+.transaction-form h3,
+.quick-form h3,
+.delete-panel h3,
+.closing-form h3 {
+    margin: 0;
+    color: var(--text);
+    font-size: 1rem;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.fixed {
+    margin: .55rem 0 0;
+    color: var(--muted);
+}
+
+.buttons {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+}
+
+/* lançamento em várias contas (splits): tabela Conta | Entra | Sai, totais e diferença abaixo */
+.modal > .split-form {
+    width: min(100%, 52rem);
+}
+
+.splits {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.splits th,
+.splits td {
+    padding: .3rem .35rem;
+    vertical-align: top;
+    text-align: left;
+}
+
+.splits th.num,
+.splits td.num {
+    width: 9rem;
+    text-align: right;
+}
+
+.splits th:last-child,
+.splits td:last-child {
+    width: 2.75rem;
+}
+
+.splits .actions button {
+    opacity: 1;
+}
+
+.splits td.num input {
+    width: 100%;
+    text-align: right;
+}
+
+.splits tfoot th,
+.splits tfoot td {
+    border-top: 1px solid var(--line-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+.split-balance {
+    margin: .5rem 0 0;
+    color: var(--muted);
+}
+
+.split-balance.neg {
+    color: var(--neg);
+}
+
+.delete-panel .field {
+    max-width: 28rem;
+    margin-bottom: 1rem;
+}
+
+button.link {
+    padding: .25rem .5rem;
+    background: transparent;
+    color: var(--accent);
+    font-weight: 500;
+}
+
+button.danger:not(.link) {
+    background: var(--neg);
+}
+
+button.danger:not(.link):hover {
+    filter: brightness(.9);
+}
+
+button.link.danger {
+    color: var(--neg);
+}
+
+/*
+ * Icons: Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license/free (Icons: CC BY 4.0) Copyright 2026 Fonticons, Inc.
+ * br.commons.web.ui.FontAwesome sizes and colors the inline SVG itself; here only its alignment with the text.
+ */
+.fa {
+    overflow: visible;
+    vertical-align: -.125em;
+}
+
+button.icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 50%;
+    vertical-align: middle;
+}
+
+button.icon-button:hover {
+    background: var(--soft);
+    filter: none;
+}
+
+/* ícones de linha desenhados pela máscara: a cor é a do texto do botão */
+.glyph {
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    background: currentColor;
+    mask: var(--glyph) center / contain no-repeat;
+}
+
+.glyph-edit {
+    --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z'/%3E%3C/svg%3E");
+}
+
+.glyph-delete {
+    --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18'/%3E%3Cpath d='M8 6V4h8v2'/%3E%3Cpath d='M19 6l-1 14H6L5 6'/%3E%3Cpath d='M10 11v6'/%3E%3Cpath d='M14 11v6'/%3E%3C/svg%3E");
+}
+
+.actions {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.actions button {
+    opacity: 0;
+    transition: opacity .15s;
+}
+
+tr:hover .actions button,
+.actions button:focus-visible {
+    opacity: 1;
+}

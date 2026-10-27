@@ -1,0 +1,124 @@
+/* ---------- extrato: lista de contas sempre à vista, mês da conta escolhida ao lado */
+
+.statement {
+    display: grid;
+    grid-template-columns: 17rem 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.statement-accounts {
+    position: sticky;
+    top: calc(var(--top-height) + 1rem);
+    max-height: var(--content-height);
+    padding: .75rem .5rem;
+    overflow-y: auto;
+}
+
+.statement-accounts h3 {
+    margin: 0 .5rem .5rem;
+}
+
+/* extrato: contas e cartões na mesma lista */
+.statement-accounts ul + h3 {
+    margin-top: 1rem;
+}
+
+.statement-accounts ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.statement-accounts a {
+    display: flex;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .4rem .5rem;
+    border-radius: 8px;
+    color: inherit;
+    font-size: .9rem;
+    text-decoration: none;
+}
+
+.statement-accounts a:hover {
+    background: var(--soft);
+}
+
+.statement-accounts a.current {
+    background: var(--soft);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.statement-accounts a.depth-1 {
+    padding-left: 1.25rem;
+}
+
+.statement-accounts a.depth-2 {
+    padding-left: 2rem;
+}
+
+.statement-accounts a.depth-3 {
+    padding-left: 2.75rem;
+}
+
+.statement-accounts .money {
+    color: var(--muted);
+    font-size: .8rem;
+}
+
+/*
+ * O painel ocupa a janela abaixo do cabeçalho (o espaço acima: padding do body + margem do .top) e a tabela rola
+ * sozinha (.ledger-scroll), com o cabeçalho dela fixo: um mês longo não estica a página.
+ */
+.statement-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: var(--content-height);
+}
+
+.ledger-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.ledger-scroll .records {
+    overflow: visible;
+    box-shadow: none;
+}
+
+.ledger-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--card);
+}
+
+/* ações só com a largura dos botões: a sobra vai para a descrição */
+.statement-panel .ledger-table th:nth-child(2) {
+    width: 100%;
+}
+
+/* parcelamentos: a conta vem antes da descrição, que fica com a sobra */
+.installments-panel .ledger-table th:nth-child(2) {
+    width: auto;
+}
+
+.installments-panel .ledger-table th:nth-child(3) {
+    width: 100%;
+}
+
+.installments-panel .ledger-table td.account {
+    white-space: nowrap;
+}
+
+.ledger-table tr.planned td {
+    color: var(--muted);
+    font-style: italic;
+}

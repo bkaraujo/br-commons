@@ -1,0 +1,131 @@
+/* ---------- minhas contas: contas marcáveis à esquerda (layout do extrato), receitas x despesas ao lado */
+
+.summary dt {
+    font-size: .75rem;
+}
+
+.summary dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+/* Contas e cartões em cards separados; a coluna inteira é que fica fixa ao rolar. */
+.home-accounts {
+    position: sticky;
+    top: calc(var(--top-height) + 1rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    max-height: var(--content-height);
+    overflow-y: auto;
+}
+
+.home-accounts .statement-accounts {
+    position: static;
+    max-height: none;
+}
+
+.account-option {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: .5rem;
+    padding: .4rem .5rem;
+    border-radius: 8px;
+    font-size: .9rem;
+    cursor: pointer;
+}
+
+.account-option:hover {
+    background: var(--soft);
+}
+
+.account-option:has(input:checked) {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.account-option input {
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.home-chart {
+    min-width: 0;
+    padding: 1rem 1.25rem;
+}
+
+.home-chart h2 {
+    margin: 0;
+}
+
+.line-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: .5rem;
+}
+
+.line-chart .grid {
+    stroke: var(--line);
+}
+
+.line-chart .axis {
+    fill: var(--muted);
+    font-size: 9px;
+}
+
+.line-chart .series {
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+}
+
+.line-chart .income {
+    color: var(--pos);
+    fill: var(--pos);
+    stroke: var(--pos);
+}
+
+.line-chart .expense {
+    color: var(--neg);
+    fill: var(--neg);
+    stroke: var(--neg);
+}
+
+.line-chart .series.income,
+.line-chart .series.expense {
+    fill: none;
+}
+
+.chart-legend {
+    display: flex;
+    gap: 1.25rem;
+    margin: .5rem 0 1rem;
+    padding: 0;
+    font-size: .75rem;
+    list-style: none;
+}
+
+.chart-legend li::before {
+    content: "";
+    display: inline-block;
+    width: .9rem;
+    height: 3px;
+    margin-right: .4rem;
+    border-radius: 2px;
+    background: currentColor;
+    vertical-align: middle;
+}
+
+.chart-legend .income {
+    color: var(--pos);
+}
+
+.chart-legend .expense {
+    color: var(--neg);
+}
+
+.chart-data {
+    font-size: .85rem;
+}

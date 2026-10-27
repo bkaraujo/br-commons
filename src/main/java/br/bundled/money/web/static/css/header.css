@@ -1,0 +1,125 @@
+/* ---------- topo: marca, menu e tema */
+
+/* Fixo no topo: a navegação boosted troca só o #content abaixo (Layout.page). */
+.top {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: .6rem .75rem;
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin: 0 .5rem 0 0;
+    font-weight: 700;
+}
+
+.logo {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: .75rem;
+}
+
+.menu ul {
+    display: flex;
+    gap: .25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.menu a {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .35rem .8rem;
+    border-radius: 999px;
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.menu a:hover {
+    color: var(--text);
+}
+
+/* A tela atual (aria-current): a página inteira vem com o link marcado; depois de uma navegação, que não traz o menu,
+   o header.js marca o link com o data-screen do <main id="content">. */
+.menu a[aria-current="page"] {
+    background: var(--soft);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Cada rótulo reserva a largura da versão em negrito (data-label): marcar a tela não muda o tamanho da barra. */
+.menu .label {
+    display: inline-grid;
+}
+
+.menu .label::after {
+    content: attr(data-label);
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 600;
+    user-select: none;
+}
+
+/* A navegação de mês das telas com mês fica ao lado do menu (Ledger.monthNav); vazio, nada ocupa o topo. */
+.month-slot {
+    margin-left: auto;
+}
+
+.month-slot:empty {
+    display: none;
+}
+
+.theme {
+    display: flex;
+    gap: .15rem;
+    margin-left: auto;
+    padding: .2rem;
+    border-radius: 999px;
+    background: var(--bg);
+}
+
+/* Nasce oculto (o theme.js revela): ocupa o lugar sem aparecer, para o seletor de mês não pular quando ele surge. */
+.theme[hidden] {
+    display: flex;
+    visibility: hidden;
+}
+
+/* Com o seletor de mês antes dele, só o seletor empurra para a direita: o tema fica colado nele. */
+.month-slot:not(:empty) + .theme {
+    margin-left: 0;
+}
+
+.theme button {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+    font-size: 1rem;
+}
+
+.theme button[aria-pressed="true"] {
+    background: var(--card);
+    box-shadow: var(--shadow);
+    color: var(--accent);
+}

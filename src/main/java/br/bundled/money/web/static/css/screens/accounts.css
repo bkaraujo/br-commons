@@ -1,0 +1,196 @@
+/* ---------- plano de contas */
+
+.records {
+    width: 100%;
+    overflow: hidden;
+    border-collapse: collapse;
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.records th {
+    padding: .65rem .75rem;
+    border-bottom: 1px solid var(--line-strong);
+    color: var(--muted);
+    font-size: .75rem;
+    letter-spacing: .03em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.records th.num {
+    text-align: right;
+}
+
+.records td {
+    padding: .55rem .75rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+}
+
+.records tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.records tbody tr:hover {
+    background: var(--soft);
+}
+
+.tree a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.tree a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.tree .group td {
+    background: color-mix(in srgb, var(--soft) 60%, transparent);
+    font-weight: 700;
+}
+
+/*
+ * Colunas de largura fixa (pelo cabeçalho): abrir um ramo mostra os botões de ação das subcontas, e com largura
+ * automática as colunas se mexeriam. A conta fica com a sobra.
+ */
+.tree {
+    table-layout: fixed;
+}
+
+.tree th:nth-child(2) {
+    width: 12rem;
+}
+
+/* saldo: cabe com folga 12 dígitos com 2 decimais em negrito (-R$ 9.999.999.999,99 ≈ 9rem + padding) */
+.tree th:nth-child(3) {
+    width: 13rem;
+}
+
+.tree th:nth-child(4) {
+    width: 6.5rem;
+}
+
+.tree td:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A linha do grupo inteira abre e fecha o ramo (tree.js); recolhido, só ela fica, com o total. */
+.tree .branch > tr.group {
+    cursor: pointer;
+}
+
+.tree .branch.collapsed tr:not(.group) {
+    display: none;
+}
+
+/* plano de contas: a árvore e, ao lado, o mês da conta escolhida (como no extrato); sem a coluna do tipo */
+.chart {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.chart .tree th:nth-child(2),
+.chart .tree td:nth-child(2) {
+    display: none;
+}
+
+.chart .account-panel {
+    position: sticky;
+    top: calc(var(--top-height) + 1rem);
+}
+
+.tree tr.current td {
+    background: var(--soft);
+}
+
+.tree tr.current a {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.tree .toggle,
+.outline .toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: -.2rem .25rem -.2rem -.35rem;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--muted);
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.tree .toggle:hover,
+.outline .toggle:hover {
+    background: var(--soft);
+    color: var(--text);
+}
+
+.tree .chevron,
+.outline .chevron {
+    width: .45rem;
+    height: .45rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-.1rem) rotate(45deg);
+    transition: transform .15s ease;
+}
+
+.tree .branch.collapsed .chevron,
+.outline [aria-expanded="false"] .chevron {
+    transform: rotate(-45deg);
+}
+
+/* Linhas recolhíveis em qualquer nível (outline.js): a filha só aparece com as mães abertas; a mãe inteira alterna. */
+.outline tr[data-parent]:not(.shown) {
+    display: none;
+}
+
+.outline tr:has(.toggle) {
+    cursor: pointer;
+}
+
+/* sem botão, o nome alinha com o das irmãs que têm */
+.outline td:first-child:not(:has(.toggle))::before {
+    display: inline-block;
+    width: 1.4rem;
+    content: "";
+}
+
+.depth-1 td:first-child {
+    padding-left: 1.75rem;
+}
+
+.depth-2 td:first-child {
+    padding-left: 3rem;
+}
+
+.depth-3 td:first-child {
+    padding-left: 4.25rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: .05rem .55rem;
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--muted);
+    font-size: .75rem;
+    font-weight: 600;
+}
+
+.badge.financial {
+    background: var(--soft);
+    color: var(--accent);
+}

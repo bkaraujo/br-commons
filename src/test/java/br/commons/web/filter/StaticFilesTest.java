@@ -16,11 +16,12 @@ import java.time.Duration;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class StaticFilesTest {
 
-    private static final HTTPHandler NEXT = request -> HTTPServerResponse.status(HTTPStatus.ACCEPTED);
+    private static final HTTPHandler NEXT = _ -> HTTPServerResponse.status(HTTPStatus.ACCEPTED);
 
     @TempDir
     Path dir;
@@ -95,5 +96,48 @@ class StaticFilesTest {
         assertNotNull(diskTag);
         val conditional = new HTTPServerRequest("", HTTPMethod.GET, "/static/css/app.css", Map.of("if-none-match", diskTag), new byte[0]);
         assertEquals(304, fromDisk.apply(conditional, NEXT).status().code());
+    }
+
+    private static String css(StaticFiles files) {
+        return new String(files.apply(request(HTTPMethod.GET, "/static/css/app.css"), NEXT).body(), StandardCharsets.UTF_8);
+    }
+
+    /** One request for a stylesheet split in files: its imports come inlined, relative to the importer, recursively. */
+    @Test
+    void importsAreInlinedInASingleResponse() throws Exception {
+        Files.createDirectories(dir.resolve("css/screens"));
+        Files.writeString(dir.resolve("css/app.css"), "@import \"screens/a.css\";\n@import url('screens/b.css');\nmain{}\n");
+        Files.writeString(dir.resolve("css/screens/a.css"), "@import \"b.css\";\na{}\n");
+        Files.writeString(dir.resolve("css/screens/b.css"), "b{}\n");
+        val files = new StaticFiles("/static/", "static-test", dir, Duration.ZERO);
+        assertEquals("b{}\n\na{}\n\nb{}\n\nmain{}\n", css(files));
+    }
+
+    @Test
+    void importsThatCannotBeInlinedStayAsWritten() throws Exception {
+        val source = """
+                @import "https://fonts.test/x.css";
+                @import "../../secret.css";
+                @import "none.css";
+                @import "app.css";
+                @import "w.css" screen;
+                z{}
+                """;
+        Files.createDirectories(dir.resolve("css"));
+        Files.writeString(dir.resolve("css/app.css"), source);
+        val files = new StaticFiles("/static/", "static-test", dir, Duration.ZERO);
+        assertEquals(source, css(files));
+    }
+
+    /** The tag follows the imported files: editing one of them is not a 304 in development. */
+    @Test
+    void etagChangesWhenAnImportedFileChanges() throws Exception {
+        Files.createDirectories(dir.resolve("css"));
+        Files.writeString(dir.resolve("css/app.css"), "@import \"part.css\";");
+        Files.writeString(dir.resolve("css/part.css"), "a{}");
+        val files = new StaticFiles("/static/", "static-test", dir, Duration.ZERO);
+        val before = files.apply(request(HTTPMethod.GET, "/static/css/app.css"), NEXT).header("ETag");
+        Files.writeString(dir.resolve("css/part.css"), "b{}");
+        assertNotEquals(before, files.apply(request(HTTPMethod.GET, "/static/css/app.css"), NEXT).header("ETag"));
     }
 }

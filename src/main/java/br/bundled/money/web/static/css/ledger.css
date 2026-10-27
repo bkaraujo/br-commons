@@ -1,0 +1,89 @@
+/* ---------- razão e navegação por mês */
+
+.ledger-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.ledger-head h2 {
+    margin: 0;
+}
+
+.month-nav {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.month-nav select,
+.month-nav .combo {
+    width: 12.5rem;
+}
+
+/* da altura das setas, abaixo do tema: surgir no topo não muda a altura da barra */
+.month-nav select,
+.month-nav .combo input {
+    height: 2.25rem;
+    padding-block: 0;
+}
+
+/* o mês escolhido no centro, como um título; a lista abre com todos os meses */
+.month-nav .combo input {
+    background: var(--card);
+    font-weight: 600;
+    text-align: center;
+}
+
+.month-nav a.month-go[hidden] {
+    display: none;
+}
+
+.month-nav a {
+    display: grid;
+    place-items: center;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    padding: 0 .7rem;
+    border-radius: 999px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin: 0 0 1rem;
+}
+
+.summary > div {
+    padding: .75rem 1rem;
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.summary dt {
+    color: var(--muted);
+}
+
+.summary .closing {
+    background: var(--soft);
+}
+
+.summary dd {
+    font-size: 1.1rem;
+}
+
+/* a linha de baixo (contrapartida, previsto) em bloco: a célula continua table-cell e a borda da linha não quebra */
+.sub {
+    display: block;
+    color: var(--muted);
+    font-size: .8rem;
+}

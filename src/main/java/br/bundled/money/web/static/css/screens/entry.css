@@ -1,0 +1,44 @@
+/* ---------- lançamento rápido */
+
+.quick-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .9rem;
+    margin-bottom: 1.25rem;
+    padding: 1.25rem;
+}
+
+/* Data e Valor lado a lado; o resto, uma linha cada. */
+.quick-form {
+    align-items: end;
+}
+
+.quick-form .field-account,
+.quick-form .field-category,
+.quick-form .field-description,
+.quick-form .field-note,
+.quick-form > button,
+.quick-form h3,
+.quick-form .wide {
+    grid-column: 1 / -1;
+}
+
+/* Valor: mesma altura dos outros campos (ao lado da Data); só o negrito e o alinhamento à direita o destacam. */
+.amount-input {
+    font-weight: 700;
+    text-align: right;
+}
+
+.quick-form > button {
+    padding: .8rem;
+    font-size: 1.05rem;
+}
+
+.notice {
+    margin: 0 0 1rem;
+    padding: .75rem 1rem;
+    border-radius: var(--radius);
+    background: var(--soft);
+    color: var(--pos);
+    font-weight: 600;
+}

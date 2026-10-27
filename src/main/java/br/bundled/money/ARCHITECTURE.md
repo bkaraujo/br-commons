@@ -78,7 +78,7 @@ convenção e revisão.
 | `web.ui` | `Layout`, `Screen`, `Theme` (package-private), `Ui`, `Forms`, `Ledger` |
 | `web.home`, `web.statement`, `web.installment`, `web.entry`, `web.account`, `web.report` | Uma pasta por tela: `*Routes` (público) e `*Views` (package-private); `*Fields` onde há formulário; `QuickEntry` em `entry` |
 | `web.seed` | `Seed` (livro de desenvolvimento) e `GnuCashSeed` (leitor de XML do GnuCash) |
-| `web/static` | `app.css` e oito scripts (seção 9), servidos em `/static/money/` |
+| `web/static` | `app.css` (só `@import`s de `css/**`, uma folha por tela em `css/screens/`) e oito scripts (seção 9), servidos em `/static/money/` |
 | `src/main/resources/br/bundled/money` | `messages_pt_BR.properties`, `messages_en_US.properties`, `plano-pessoal.txt` |
 
 ## 4. Composição e ciclo de vida
@@ -505,7 +505,7 @@ conteúdo trocado. Detalhes de comportamento em [UI.md](UI.md).
 
 | Arquivo | Função | Carga no `<head>` |
 |---|---|---|
-| `app.css` | Estilo, tema por `data-theme` | `<link rel="stylesheet">` |
+| `app.css` | Estilo, tema por `data-theme`; `StaticFiles` inlina os `@import` de `css/**`: uma requisição só | `<link rel="stylesheet">` |
 | `theme.js` | Tema auto/claro/escuro (localStorage + `data-theme`) | síncrono, antes da pintura |
 | `combo.js` | Filtro ao vivo em todo `<select>` | `defer` |
 | `chart.js` | Gráfico de linhas Receitas x Despesas desenhado a partir de uma tabela | `defer` |

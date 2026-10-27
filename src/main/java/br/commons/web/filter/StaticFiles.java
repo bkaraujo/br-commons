@@ -19,15 +19,16 @@ import java.io.UncheckedIOException;
 import java.net.JarURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.HexFormat;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Serves files under a URL prefix from the classpath or, in development, from a directory on disk
@@ -35,8 +36,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * than a route: the router's templates match one segment per parameter, and static paths are nested
  * ({@code /static/js/vendor/htmx.min.js}). Paths with {@code ..} or backslashes are refused.
  *
+ * <p>A stylesheet is served with its {@code @import "x.css";} lines replaced by the imported file (relative to the
+ * importer, recursively): the source stays in several files, the client makes one request. An import that is remote,
+ * unsafe, missing or circular, or carries a media condition, is left as written.
+ *
  * <p>Every file carries an {@code ETag} and {@code If-None-Match} answers 304. Classpath files are immutable: read
- * and hashed once per name. Development files use size + modification time, so a 304 never reads the file.
+ * and hashed once per name. Development files use size + modification time, so a 304 never reads the file; a
+ * stylesheet is composed and hashed on each request instead, so a change in an imported file changes its tag.
  */
 @NullMarked
 public final class StaticFiles implements HTTPFilter {
@@ -57,6 +63,8 @@ public final class StaticFiles implements HTTPFilter {
     private final String classpathRoot;
     private final @Nullable Path directory;
     private final String cacheControl;
+    private static final Pattern IMPORT = Pattern.compile("@import\\s+(?:url\\(\\s*)?[\"']([^\"']+)[\"']\\s*\\)?\\s*;");
+
     private final Map<String, Entry> classpathCache = new ConcurrentHashMap<>();
 
     /** A servable file. {@code bytes} is {@code null} when only the tag was needed (development directory, 304). */
@@ -119,6 +127,7 @@ public final class StaticFiles implements HTTPFilter {
      * development directory is answered from there, even when it is a directory.
      */
     private @Nullable Entry find(String name) throws IOException {
+        if (name.endsWith(".css")) return stylesheet(name);
         if (directory != null) {
             val file = directory.resolve(name).normalize();
             if (file.startsWith(directory) && Files.exists(file)) {
@@ -135,6 +144,60 @@ public final class StaticFiles implements HTTPFilter {
         val entry = new Entry("\"" + sha256(bytes) + "\"", null, bytes);
         classpathCache.putIfAbsent(name, entry);
         return entry;
+    }
+
+    /** The stylesheet with its imports inlined; cached only when it comes from the classpath alone. */
+    private @Nullable Entry stylesheet(String name) throws IOException {
+        val cached = classpathCache.get(name);
+        if (cached != null) return cached;
+        val source = source(name);
+        if (source == null) return null;
+        val bytes = inline(name, new String(source, StandardCharsets.UTF_8), new HashSet<>(Set.of(name)))
+                .getBytes(StandardCharsets.UTF_8);
+        val entry = new Entry("\"" + sha256(bytes) + "\"", null, bytes);
+        if (directory == null) classpathCache.putIfAbsent(name, entry);
+        return entry;
+    }
+
+    /** {@code css} (the content of {@code name}) with each import it can resolve replaced by the imported content. */
+    private String inline(String name, String css, Set<String> chain) throws IOException {
+        val matcher = IMPORT.matcher(css);
+        val result = new StringBuilder();
+        while (matcher.find()) {
+            val target = resolve(name, matcher.group(1));
+            var replacement = matcher.group();
+            val source = target == null || chain.contains(target) ? null : source(target);
+            if (target != null && source != null) {
+                chain.add(target);
+                replacement = inline(target, new String(source, StandardCharsets.UTF_8), chain);
+                chain.remove(target);
+            }
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    /** The name of {@code path} imported by {@code name}; {@code null} when remote or not safe. */
+    private static @Nullable String resolve(String name, String path) {
+        if (path.contains(":") || path.startsWith("//")) return null;
+        try {
+            val target = URI.create(name).resolve(path).normalize().getPath();
+            return target != null && safe(target) ? target : null;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** The bytes of a regular file of the development directory, else of the classpath; {@code null} when none. */
+    private byte @Nullable [] source(String name) throws IOException {
+        if (directory != null) {
+            val file = directory.resolve(name).normalize();
+            if (file.startsWith(directory) && Files.exists(file)) {
+                return Files.isRegularFile(file) ? Files.readAllBytes(file) : null;
+            }
+        }
+        return fromClasspath(name);
     }
 
     private byte @Nullable [] fromClasspath(String name) throws IOException {

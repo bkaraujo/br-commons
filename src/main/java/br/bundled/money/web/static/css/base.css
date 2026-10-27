@@ -1,0 +1,132 @@
+/*
+ * br.money — mockup htmx sobre br.commons. Sem framework: variáveis, grid e as classes que o htmx põe.
+ * Mesmo esquema do tracker: cada cor é light-dark(claro, escuro); o theme.js escreve <html data-theme>.
+ * Mobile-first: em tela estreita o menu vira barra inferior e as tabelas escondem colunas secundárias.
+ * Paleta verde-oliva com contraste WCAG AA: texto ≥ 4.5:1 sobre fundo, card e --soft (nos dois temas); bordas de
+ * controle (--line-strong) ≥ 3:1. Receita (--pos) e despesa (--neg) se distinguem do destaque, e o sinal vem no texto.
+ */
+
+:root {
+    color-scheme: light dark;
+    --bg: light-dark(#f4f5ef, #13160f);
+    --card: light-dark(#ffffff, #1c2017);
+    --text: light-dark(#1b2012, #ecefe3);
+    --muted: light-dark(#555c49, #aab196);
+    --line: light-dark(#dde1d0, #313826); /* separadores: decorativos */
+    --line-strong: light-dark(#858d71, #6b7558); /* borda de controle e de totais: ≥ 3:1 */
+    --accent: light-dark(#4a5a1c, #bccd7e);
+    --accent-hover: light-dark(#3b4914, #cddc94);
+    --accent-text: light-dark(#ffffff, #161a0d);
+    --soft: light-dark(#ecefdf, #283020);
+    --pos: light-dark(#17703a, #74d08c);
+    --neg: light-dark(#b3261e, #ff8f85);
+    --credit: light-dark(#6a3fb5, #c3a6f5);
+    --shadow-color: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
+    --shadow: 0 1px 2px var(--shadow-color);
+    --radius: 12px;
+    --top-height: 3.5rem; /* altura do cabeçalho fixo (.top), medida pelo header.js; este valor vale sem JS */
+    --footer-height: 2.5rem; /* rodapé fixo no fim da janela (tela larga) */
+    /* o que cabe entre o cabeçalho e o rodapé: padding do body + margem do .top acima, folga acima do rodapé */
+    --content-height: calc(100dvh - var(--top-height) - var(--footer-height) - 4rem);
+}
+
+:root[data-theme="light"] {
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    background: var(--bg);
+    scroll-padding-top: calc(var(--top-height) + 1rem);
+    /* Espaço da barra de rolagem sempre reservado: tela curta e longa ficam com a mesma largura e posição. */
+    scrollbar-gutter: stable;
+}
+
+/* Largura que cabe a evolução (conta + doze meses + total + média) sem rolagem lateral. */
+body {
+    margin: 0 auto;
+    max-width: 120rem;
+    padding: 1.25rem 1rem calc(var(--footer-height) + 1.25rem);
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+h2 {
+    margin: 0 0 1rem;
+    font-size: 1.2rem;
+}
+
+h3 {
+    margin: 0 0 .5rem;
+    color: var(--muted);
+    font-size: .75rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+a {
+    color: var(--accent);
+}
+
+.num,
+.money {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.num {
+    text-align: right;
+}
+
+.money.neg {
+    color: var(--neg);
+}
+
+.money.pos {
+    color: var(--pos);
+}
+
+.caption {
+    margin: 0;
+    color: var(--muted);
+    font-size: .8rem;
+}
+
+.empty,
+.empty td {
+    color: var(--muted);
+}
+
+.empty td {
+    padding: 2rem;
+    text-align: center;
+}
+
+.card {
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+/* Fixo no fim da janela; o body reserva a altura dele embaixo (padding-bottom). */
+footer {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    height: var(--footer-height);
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--muted);
+}
