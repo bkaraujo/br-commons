@@ -61,8 +61,8 @@ public final class TrackerPage implements WebResource {
                         header(
                                 cls("top"),
                                 p(cls("brand"), text(message("Horas trabalhadas"))),
-                                nav(cls("menu"), ul(each(SCREENS, screen -> li(a(href(screen.get(0)),
-                                        data("screen", screen.get(0)), text(message(screen.get(1)))))))),
+                                nav(cls("menu"), ul(each(SCREENS, screen -> li(a(href(screen.getFirst()),
+                                        data("screen", screen.getFirst()), text(message(screen.get(1)))))))),
                                 themeSwitch()
                         ),
                         p(id("status"), cls("error"), role("alert"), hidden()),
@@ -75,7 +75,7 @@ public final class TrackerPage implements WebResource {
     /** Born {@code hidden}: {@code theme.js} reveals it, so without JavaScript there are no dead buttons. */
     private static Node themeSwitch() {
         return div(cls("theme"), hidden(), role("group"), ariaLabel(message("Tema")),
-                each(THEMES, theme -> button(type(ButtonType.BUTTON), data("theme-choice", theme.get(0)),
+                each(THEMES, theme -> button(type(ButtonType.BUTTON), data("theme-choice", theme.getFirst()),
                         title(message("Tema " + Strings.lower(theme.get(1)))),
                         ariaLabel(message("Tema " + theme.get(1))), text(Text.data(theme.get(2))))));
     }

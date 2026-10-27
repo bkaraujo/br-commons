@@ -108,16 +108,16 @@ public record Route(
 
     /** Path parameter names become regex group names: ASCII letters and digits, starting with a letter. */
     private static boolean identifier(String name) {
-        if (name.isEmpty() || !letter(name.charAt(0))) return false;
+        if (name.isEmpty() || isNotLetter(name.charAt(0))) return false;
         for (var i = 1; i < name.length(); i++) {
             val c = name.charAt(i);
-            if (!letter(c) && (c < '0' || c > '9')) return false;
+            if (isNotLetter(c) && (c < '0' || c > '9')) return false;
         }
         return true;
     }
 
-    private static boolean letter(char c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+    private static boolean isNotLetter(char c) {
+        return (c < 'a' || c > 'z') && (c < 'A' || c > 'Z');
     }
 
 }

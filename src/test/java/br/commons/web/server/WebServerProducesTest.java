@@ -24,11 +24,11 @@ class WebServerProducesTest {
     private static Router router() {
         val router = new Router();
         router.register(Route.get("/text", MediaType.TEXT_PLAIN, String.class,
-                true, request -> WebResponse.ok("olá"))).getOrThrow();
+                true, _ -> WebResponse.ok("olá"))).getOrThrow();
         router.register(Route.get("/refused", MediaType.TEXT_PLAIN, String.class,
-                true, request -> WebResponse.problem(ProblemDetail.of(HTTPStatus.UNAUTHORIZED)))).getOrThrow();
+                true, _ -> WebResponse.problem(ProblemDetail.of(HTTPStatus.UNAUTHORIZED)))).getOrThrow();
         router.register(Route.delete("/empty", MediaType.TEXT_PLAIN, Void.class,
-                true, request -> WebResponse.noContent())).getOrThrow();
+                true, _ -> WebResponse.noContent())).getOrThrow();
         return router;
     }
 

@@ -284,7 +284,7 @@ final class GnuCashSeed {
     // ---------- XML
 
     private static Account account(XMLStreamReader reader) throws XMLStreamException {
-        val fields = children(reader, "act", Set.of("id", "name", "type", "parent"));
+        val fields = children(reader, Set.of("id", "name", "type", "parent"));
         return new Account(required(fields.get("id"), "act:id"), required(fields.get("name"), "act:name"),
                 required(fields.get("type"), "act:type"), fields.get("parent"));
     }
@@ -293,7 +293,7 @@ final class GnuCashSeed {
      * The text of the children of the current element that have {@code prefix} and one of the {@code names}, by local
      * name, to the end of the element; everything else in it (the slots, the commodity) is skipped.
      */
-    private static Map<String, String> children(XMLStreamReader reader, String prefix, Set<String> names)
+    private static Map<String, String> children(XMLStreamReader reader, Set<String> names)
             throws XMLStreamException {
         val found = new HashMap<String, String>();
         var depth = 1;
@@ -302,15 +302,15 @@ final class GnuCashSeed {
             if (event == XMLStreamConstants.END_ELEMENT) {
                 depth--;
             } else if (event == XMLStreamConstants.START_ELEMENT) {
-                if (depth == 1 && wanted(reader, prefix, names)) found.put(reader.getLocalName(), reader.getElementText());
+                if (depth == 1 && wanted(reader, names)) found.put(reader.getLocalName(), reader.getElementText());
                 else depth++;
             }
         }
         return found;
     }
 
-    private static boolean wanted(XMLStreamReader reader, String prefix, Set<String> names) {
-        return prefix.equals(reader.getPrefix()) && names.contains(reader.getLocalName());
+    private static boolean wanted(XMLStreamReader reader, Set<String> names) {
+        return "act".equals(reader.getPrefix()) && names.contains(reader.getLocalName());
     }
 
     private static Transaction transaction(XMLStreamReader reader) throws XMLStreamException {

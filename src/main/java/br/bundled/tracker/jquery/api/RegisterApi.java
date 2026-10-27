@@ -23,6 +23,7 @@ import org.jspecify.annotations.NullMarked;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
@@ -102,8 +103,10 @@ public final class RegisterApi<T extends Registered, I> implements WebResource {
 
     private HTTPResponse create(WebRequest request) {
         return Json.withValues(request, values -> switch (reader.read(values, 0)) {
-            case Result.Success<I, List<Violation>>(var input) ->
-                    WebResponse.created(view(registry.add(id -> create.apply(id, input))));
+            case Result.Success<I, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
+                yield WebResponse.created(view(registry.add(id -> create.apply(id, input))));
+            }
             case Result.Failure<I, List<Violation>>(var errors) -> Json.rejected(errors, messages);
         });
     }
@@ -112,8 +115,11 @@ public final class RegisterApi<T extends Registered, I> implements WebResource {
         val id = Json.id(request);
         if (registry.get(id).isEmpty()) return Json.notFound();
         return Json.withValues(request, values -> switch (reader.read(values, id)) {
-            case Result.Success<I, List<Violation>>(var input) -> registry.update(id, item -> change.apply(item, input))
-                    .map(item -> WebResponse.ok(view(item))).orElseGet(Json::notFound);
+            case Result.Success<I, List<Violation>>(var value) -> {
+                val input = Objects.requireNonNull(value);
+                yield registry.update(id, item -> change.apply(item, input))
+                        .map(item -> WebResponse.ok(view(item))).orElseGet(Json::notFound);
+            }
             case Result.Failure<I, List<Violation>>(var errors) -> Json.rejected(errors, messages);
         });
     }

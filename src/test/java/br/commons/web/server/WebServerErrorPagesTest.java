@@ -27,13 +27,13 @@ class WebServerErrorPagesTest {
 
     private static Router router() {
         val router = new Router();
-        router.register(Route.get("/boom", MediaType.APPLICATION_JSON, String.class, true, request -> {
+        router.register(Route.get("/boom", MediaType.APPLICATION_JSON, String.class, true, _ -> {
             throw new IllegalStateException("boom");
         })).getOrThrow();
         router.register(Route.get("/conflict", MediaType.APPLICATION_JSON, String.class,
-                true, request -> WebResponse.problem(ProblemDetail.of(HTTPStatus.CONFLICT)))).getOrThrow();
+                true, _ -> WebResponse.problem(ProblemDetail.of(HTTPStatus.CONFLICT)))).getOrThrow();
         router.register(Route.post("/only-post", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, String.class, String.class,
-                true, request -> WebResponse.ok("ok"))).getOrThrow();
+                true, _ -> WebResponse.ok("ok"))).getOrThrow();
         return router;
     }
 
@@ -67,7 +67,7 @@ class WebServerErrorPagesTest {
 
     @Test
     void anyStatusCanHaveAPage() throws IOException {
-        withServer(server -> server.errorPage(HTTPStatus.CONFLICT, (request, status) -> "conflito em " + request.path()).getOrThrow(), port -> {
+        withServer(server -> server.errorPage(HTTPStatus.CONFLICT, (request, _) -> "conflito em " + request.path()).getOrThrow(), port -> {
             val response = open(port, "/conflict", BROWSER);
             assertEquals(409, response.getResponseCode());
             assertEquals("conflito em /conflict", body(response.getErrorStream()));
@@ -76,7 +76,7 @@ class WebServerErrorPagesTest {
 
     @Test
     void pageKeepsTheOriginalHeaders() throws IOException {
-        withServer(server -> server.errorPage(HTTPStatus.METHOD_NOT_ALLOWED, (request, status) -> "405").getOrThrow(), port -> {
+        withServer(server -> server.errorPage(HTTPStatus.METHOD_NOT_ALLOWED, (_, _) -> "405").getOrThrow(), port -> {
             val response = open(port, "/only-post", BROWSER);
             assertEquals(405, response.getResponseCode());
             assertTrue(response.getHeaderField("Allow").contains("POST"));
@@ -103,7 +103,7 @@ class WebServerErrorPagesTest {
     }
 
     @Test
-    void registrationAfterStartFails() throws IOException {
+    void registrationAfterStartFails() {
         val server = new WebServer(Ports.free(), router(), List.of());
         server.start().getOrThrow();
         try {

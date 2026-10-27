@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * The JSON API of the week screen; the browser renders it all, so the answers carry ready-to-show text (hours,
@@ -90,7 +91,7 @@ public final class WeekApi implements WebResource {
     private HTTPResponse create(WebRequest request) {
         return Json.withValues(request, values -> switch (EntryFields.read(values, state, null)) {
             case Result.Success<EntryInput, List<Violation>>(var input) ->
-                    WebResponse.created(view(state.entries().add(input)));
+                    WebResponse.created(view(state.entries().add(Objects.requireNonNull(input))));
             case Result.Failure<EntryInput, List<Violation>>(var errors) -> Json.rejected(errors, EntryFields::message);
         });
     }
@@ -101,7 +102,7 @@ public final class WeekApi implements WebResource {
         val entry = current.get();
         return Json.withValues(request, values -> switch (EntryFields.read(values, state, entry)) {
             case Result.Success<EntryInput, List<Violation>>(var input) ->
-                    WebResponse.ok(view(state.entries().update(entry.id(), input).orElse(entry)));
+                    WebResponse.ok(view(state.entries().update(entry.id(), Objects.requireNonNull(input)).orElse(entry)));
             case Result.Failure<EntryInput, List<Violation>>(var errors) -> Json.rejected(errors, EntryFields::message);
         });
     }

@@ -74,7 +74,7 @@ public final class WebServer implements Lifecycle {
         chain.add(pages);
         chain.add(new PreflightFilter(router));
         chain.addAll(filters);
-        server = new HTTPServer(port, chain, dispatcher::handle, failure -> WebResponse.internalServerError(), maxBodySize, multipartLimits);
+        server = new HTTPServer(port, chain, dispatcher::handle, _ -> WebResponse.internalServerError(), maxBodySize, multipartLimits);
     }
 
     /**

@@ -27,17 +27,17 @@ class WebServerOptionsTest {
 
     private Router router() {
         val router = new Router();
-        router.register(Route.get("/api/items/{id}", MediaType.APPLICATION_JSON, Void.class, true, request -> {
+        router.register(Route.get("/api/items/{id}", MediaType.APPLICATION_JSON, Void.class, true, _ -> {
             handlerCalls.incrementAndGet();
             return WebResponse.noContent();
-        }));
-        router.register(Route.patch("/api/items/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Void.class, Void.class, true, request -> WebResponse.noContent()));
+        })).getOrThrow();
+        router.register(Route.patch("/api/items/{id}", MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON, Void.class, Void.class, true, _ -> WebResponse.noContent())).getOrThrow();
         return router;
     }
 
     @Test
     void optionsAnswersAllowBeforeFiltersThatWouldReject() throws Exception {
-        HTTPFilter rejectsEverything = (request, next) -> HTTPServerResponse.status(HTTPStatus.UNAUTHORIZED);
+        HTTPFilter rejectsEverything = (_, _) -> HTTPServerResponse.status(HTTPStatus.UNAUTHORIZED);
         withServer(List.of(rejectsEverything), port -> {
             val known = open(port, "OPTIONS", "/api/items/42");
             assertEquals(204, known.getResponseCode());
@@ -62,7 +62,7 @@ class WebServerOptionsTest {
 
     @Test
     void failureOutsideTheRouteAnswersProblemDetail() throws Exception {
-        HTTPFilter explodes = (request, next) -> { throw new IllegalStateException("boom"); };
+        HTTPFilter explodes = (_, _) -> { throw new IllegalStateException("boom"); };
         withServer(List.of(explodes), port -> {
             val response = open(port, "GET", "/api/items/42");
             assertEquals(500, response.getResponseCode());

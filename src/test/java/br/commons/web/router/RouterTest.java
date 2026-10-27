@@ -9,12 +9,13 @@ import lombok.val;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class RouterTest {
 
-    private static final RouteHandler OK = request -> WebResponse.noContent();
+    private static final RouteHandler OK = _ -> WebResponse.noContent();
 
     private static Result<Route, String> get(String template) {
         return Route.get(template, MediaType.APPLICATION_JSON, Void.class, true, OK);
@@ -29,7 +30,7 @@ class RouterTest {
 
     @Test
     void clientRuleFailsTheRegistration() {
-        val router = new Router((method, template) -> method == HTTPMethod.DELETE ? Result.failure("sem DELETE") : Result.success());
+        val router = new Router((method, _) -> method == HTTPMethod.DELETE ? Result.failure("sem DELETE") : Result.success());
         val registered = router.register(Route.delete("/api/x/{id}", MediaType.APPLICATION_JSON, Void.class, true, OK));
         assertEquals(new Result.Failure<Route, String>("sem DELETE"), registered);
         assertNull(router.allowHeader("/api/x/1"));
@@ -104,8 +105,8 @@ class RouterTest {
         router.register(get("/one/{id}")).getOrThrow();
 
         assertEquals(Map.of("first", "1", "second", "2", "third", "3"),
-                router.match(HTTPMethod.GET, "/a/1/b/2/c/3").pathParams());
-        assertEquals(Map.of("id", "7"), router.match(HTTPMethod.GET, "/one/7").pathParams());
+                matched(router, HTTPMethod.GET, "/a/1/b/2/c/3").pathParams());
+        assertEquals(Map.of("id", "7"), matched(router, HTTPMethod.GET, "/one/7").pathParams());
         assertNull(router.match(HTTPMethod.GET, "/one/7/8"));
         assertNull(router.match(HTTPMethod.GET, "/one/"));
     }
@@ -115,13 +116,13 @@ class RouterTest {
         val router = new Router();
         router.register(get("/x/{id}")).getOrThrow();
         router.register(get("/x/new")).getOrThrow();
-        assertEquals("/x/{id}", router.match(HTTPMethod.GET, "/x/new").route().template());
+        assertEquals("/x/{id}", matched(router, HTTPMethod.GET, "/x/new").route().template());
 
         val inOrder = new Router();
         inOrder.register(get("/x/new")).getOrThrow();
         inOrder.register(get("/x/{id}")).getOrThrow();
-        assertEquals("/x/new", inOrder.match(HTTPMethod.GET, "/x/new").route().template());
-        assertEquals("/x/{id}", inOrder.match(HTTPMethod.GET, "/x/7").route().template());
+        assertEquals("/x/new", matched(inOrder, HTTPMethod.GET, "/x/new").route().template());
+        assertEquals("/x/{id}", matched(inOrder, HTTPMethod.GET, "/x/7").route().template());
     }
 
     @Test
@@ -129,7 +130,11 @@ class RouterTest {
         val router = new Router();
         router.register(Route.post("/login", MediaType.URL_ENCODED, MediaType.APPLICATION_JSON, Void.class, Void.class, false, OK)).getOrThrow();
         router.register(get("/me")).getOrThrow();
-        assertFalse(router.match(HTTPMethod.POST, "/login").route().authenticated());
-        assertTrue(router.match(HTTPMethod.GET, "/me").route().authenticated());
+        assertFalse(matched(router, HTTPMethod.POST, "/login").route().authenticated());
+        assertTrue(matched(router, HTTPMethod.GET, "/me").route().authenticated());
+    }
+
+    private static Match matched(Router router, HTTPMethod method, String path) {
+        return Objects.requireNonNull(router.match(method, path));
     }
 }

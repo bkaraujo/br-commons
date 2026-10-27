@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class WebServerRegisterTest {
 
     private static final WebResource PING = () ->
-            List.of(Route.get("/ping", MediaType.TEXT_PLAIN, String.class, true, request -> WebResponse.ok("pong")));
+            List.of(Route.get("/ping", MediaType.TEXT_PLAIN, String.class, true, _ -> WebResponse.ok("pong")));
 
     @Test
     void registeredResourceAnswersOverRealHttp() throws IOException {
@@ -29,7 +29,7 @@ class WebServerRegisterTest {
         server.register(PING);
         server.start().getOrThrow();
         try {
-            val response = open(port, "GET", "/ping");
+            val response = open(port, "/ping");
             assertEquals(200, response.getResponseCode());
         } finally {
             server.stop();
@@ -40,20 +40,25 @@ class WebServerRegisterTest {
     @Test
     void failingRoutesDoNotStopTheServerNorTheOtherRoutes() throws IOException {
         val port = Ports.free();
-        val server = new WebServer(port, new Router((method, template) ->
-                template.equals("/refused") ? Result.failure("refused") : Result.success()), List.of());
-        server.register(() -> List.of(
-                Route.get("/bad/{order-id}", MediaType.TEXT_PLAIN, String.class, true, request -> WebResponse.ok("bad")),
-                Route.get("/refused", MediaType.TEXT_PLAIN, String.class, true, request -> WebResponse.ok("refused")),
-                Route.get("/ping", MediaType.TEXT_PLAIN, String.class, true, request -> WebResponse.ok("pong"))));
+        val server = serverWithFailingRoutes(port);
         server.start().getOrThrow();
         try {
-            assertEquals(200, open(port, "GET", "/ping").getResponseCode());
-            assertEquals(404, open(port, "GET", "/bad/1").getResponseCode());
-            assertEquals(404, open(port, "GET", "/refused").getResponseCode());
+            assertEquals(200, open(port, "/ping").getResponseCode());
+            assertEquals(404, open(port, "/bad/1").getResponseCode());
+            assertEquals(404, open(port, "/refused").getResponseCode());
         } finally {
             server.stop();
         }
+    }
+
+    private static WebServer serverWithFailingRoutes(int port) {
+        val server = new WebServer(port, new Router((_, template) ->
+                template.equals("/refused") ? Result.failure("refused") : Result.success()), List.of());
+        server.register(() -> List.of(
+                Route.get("/bad/{order-id}", MediaType.TEXT_PLAIN, String.class, true, _ -> WebResponse.ok("bad")),
+                Route.get("/refused", MediaType.TEXT_PLAIN, String.class, true, _ -> WebResponse.ok("refused")),
+                Route.get("/ping", MediaType.TEXT_PLAIN, String.class, true, _ -> WebResponse.ok("pong"))));
+        return server;
     }
 
     /** A resource is registered after the start too, but the router is frozen: nothing enters, nothing is thrown. */
@@ -64,15 +69,15 @@ class WebServerRegisterTest {
         server.start().getOrThrow();
         try {
             server.register(PING);
-            assertEquals(404, open(port, "GET", "/ping").getResponseCode());
+            assertEquals(404, open(port, "/ping").getResponseCode());
         } finally {
             server.stop();
         }
     }
 
-    private static HttpURLConnection open(int port, String method, String path) throws IOException {
+    private static HttpURLConnection open(int port, String path) throws IOException {
         val connection = (HttpURLConnection) URI.create("http://localhost:" + port + path).toURL().openConnection();
-        connection.setRequestMethod(method);
+        connection.setRequestMethod("GET");
         return connection;
     }
 }

@@ -20,7 +20,7 @@ class WebRequestTest {
 
     private static Route post(MediaType consumes, Class<?> requestType) {
         return Route.post("/api/x/{id}", consumes, MediaType.APPLICATION_JSON, requestType, Void.class,
-                true, r -> WebResponse.noContent()).getOrThrow();
+                true, _ -> WebResponse.noContent()).getOrThrow();
     }
 
     private static WebRequest request(Route route, String body, Map<String, String> headers) {
@@ -54,7 +54,7 @@ class WebRequestTest {
 
     @Test
     void routeWithoutBodyFails() {
-        val get = Route.get("/api/x/{id}", MediaType.APPLICATION_JSON, Payload.class, true, r -> WebResponse.noContent()).getOrThrow();
+        val get = Route.get("/api/x/{id}", MediaType.APPLICATION_JSON, Payload.class, true, _ -> WebResponse.noContent()).getOrThrow();
 
         assertNull(get.consumes());
         assertTrue(request(get, "{\"name\":\"ana\"}", Map.of()).body(Payload.class).isFailure());

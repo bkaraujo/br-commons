@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RouteTest {
 
-    private static final RouteHandler OK = request -> WebResponse.noContent();
+    private static final RouteHandler OK = _ -> WebResponse.noContent();
 
     private static Route get(String template) {
         return Route.get(template, MediaType.APPLICATION_JSON, Void.class, true, OK).getOrThrow();
