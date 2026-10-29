@@ -13,12 +13,13 @@ public abstract class Application {
 
     private final Module module = new Module();
 
-    public void attach(Lifecycle module) { this.module.attach(Module.of(module)); }
-    public void attach(Module module) { this.module.attach(module); }
-    public void detach(Module module) { this.module.detach(module); }
+    protected final void attach(Lifecycle module) { this.module.attach(Module.of(module)); }
+    protected final  void attach(Module module) { this.module.attach(module); }
+    protected final  void detach(Module module) { this.module.detach(module); }
 
-    public void run() {
+    public final void run() {
         val start = Time.millis();
+        Logger.debug("Initializing application...");
         module
                 .initialize()
                 .ifFailure(BusinessError::toConsole);
@@ -28,6 +29,7 @@ public abstract class Application {
     }
 
     private void terminate() {
+        Logger.debug("Terminating application...");
         module
                 .terminate()
                 .ifFailure(BusinessError::toConsole);
