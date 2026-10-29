@@ -1,0 +1,84 @@
+/* Palette, type and surfaces (UI-30, UI-31, UI-32). */
+:root {
+    color-scheme: light dark;
+    /* Neo-Wealth: Deep Ink #0D1B2A, Electric Mint #10B981, Slate Blue #3B82F6, Soft Coral #EF4444,
+       Cloud Gray #F8FAFC, Obsidian #1E293B; darker tones in light mode keep text at WCAG AA. */
+    --bg: light-dark(#f8fafc, #0d1b2a);
+    --card: light-dark(#ffffff, #1e293b);
+    --text: light-dark(#0d1b2a, #f8fafc);
+    --muted: light-dark(#475569, #94a3b8);
+    --line: light-dark(#e2e8f0, #334155);
+    --line-strong: light-dark(#64748b, #7c8ba1);
+    --brand: light-dark(#0d1b2a, #10b981);
+    --brand-text: light-dark(#f8fafc, #0d1b2a);
+    --accent: light-dark(#047857, #10b981);
+    --accent-hover: light-dark(#065f46, #34d399);
+    --accent-text: light-dark(#ffffff, #0d1b2a);
+    --secondary: light-dark(#2563eb, #3b82f6);
+    --soft: light-dark(#ecfdf5, #1a3a3a);
+    --pos: light-dark(#047857, #34d399);
+    --neg: light-dark(#dc2626, #f87171);
+    --shadow-color: light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 40%));
+    --shadow: 0 1px 2px var(--shadow-color);
+    --radius: 12px;
+    --top-height: 4rem;
+    --footer-height: 2rem;
+    scrollbar-gutter: stable;
+    scroll-padding-top: calc(var(--top-height) + 1rem);
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0 auto;
+    max-width: 120rem;
+    padding: 1.25rem 1rem calc(var(--footer-height) + 1.25rem);
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+h2 { font-size: 1.2rem; }
+
+h3 {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted);
+}
+
+a { color: var(--secondary); }
+
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.caption { font-size: .8rem; color: var(--muted); }
+
+.card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.25rem;
+}
+
+.empty { margin: 0; padding: 2rem; text-align: center; color: var(--muted); }
+
+main { margin-top: 1rem; }
+
+footer {
+    position: fixed;
+    inset: auto 0 0;
+    height: var(--footer-height);
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+}
+
+svg { width: 1em; height: 1em; vertical-align: -.125em; fill: currentColor; }
+
+.htmx-request { opacity: .6; transition: opacity .2s; }

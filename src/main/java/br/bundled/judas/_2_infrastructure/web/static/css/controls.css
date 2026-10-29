@@ -1,0 +1,28 @@
+/* Buttons (UI-41); the theme buttons are toggles: hover only lights the icon (UI-80). */
+button {
+    font: inherit;
+    cursor: pointer;
+    border: 0;
+    border-radius: 8px;
+    padding: .6rem 1.2rem;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+button:hover { background: var(--accent-hover); }
+
+.theme button {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+}
+
+.theme button:hover { background: transparent; color: var(--text); }
+
+.theme button[aria-pressed="true"] { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }

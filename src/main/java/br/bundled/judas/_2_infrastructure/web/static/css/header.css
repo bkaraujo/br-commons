@@ -1,0 +1,66 @@
+/* The sticky header: brand, menu, contextual controls and the theme switch at the right end (UI-10, UI-12). */
+header.top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: .6rem 1rem;
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.brand { display: flex; align-items: center; gap: .5rem; color: var(--text); text-decoration: none; }
+
+.logo {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 8px;
+    background: var(--brand);
+    color: var(--brand-text);
+    font-weight: 700;
+}
+
+.menu { flex: 1; }
+
+.menu ul { display: flex; gap: .25rem; margin: 0; padding: 0; list-style: none; }
+
+.menu a {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .35rem .8rem;
+    border-radius: 999px;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.menu a:hover { background: var(--soft); }
+
+.menu a[aria-current="page"] { background: var(--soft); color: var(--accent); font-weight: 700; }
+
+/* Each label holds the width of its bold version, so marking a screen does not move the bar. */
+.menu .label { display: inline-grid; }
+
+.menu .label::after {
+    content: attr(data-label);
+    font-weight: 700;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+}
+
+.theme {
+    display: flex;
+    gap: .15rem;
+    padding: .15rem;
+    border-radius: 999px;
+    background: var(--soft);
+}
+
+/* Holds its place until theme.js reveals it (UI-13). */
+.theme[hidden] { display: flex; visibility: hidden; }
